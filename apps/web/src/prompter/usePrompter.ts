@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { appendToDraft, draftText, editDraft, isDirty, keepsPlace, type Draft } from './draft'
-import { commandForKey, type Command } from './keymap'
+import { commandForKey, type Command, type UiCommand } from './keymap'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
 import { appendScript, makeScript, tokenize, type Script, type TokenizedScript } from './script'
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from './settings'
@@ -33,7 +33,13 @@ export interface NudgeReadout {
   text: string
 }
 
-export function usePrompter() {
+interface UiBridge {
+  /** While true, only the help toggle acts; Esc is the dialog's own. */
+  helpOpen: boolean
+  onUiCommand: (command: UiCommand) => void
+}
+
+export function usePrompter(ui: UiBridge) {
   const [script, setScript] = useState<Script | null>(loadScript)
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings)
   const [draft, setDraft] = useState<Draft>(loadDraft)
@@ -51,6 +57,8 @@ export function usePrompter() {
   const [readout, setReadout] = useState<NudgeReadout | null>(null)
   const settingsRef = useRef(settings)
   settingsRef.current = settings
+  const uiRef = useRef(ui)
+  uiRef.current = ui
 
   useEffect(() => saveSettings(settings), [settings])
   useEffect(() => saveDraft(draft), [draft])
@@ -121,6 +129,10 @@ export function usePrompter() {
         return dispatch({ type: 'STEP_LINE', delta: command.delta })
       case 'stepParagraph':
         return dispatch({ type: 'STEP_PARAGRAPH', delta: command.delta })
+      case 'openSettings':
+      case 'openPaste':
+      case 'toggleHelp':
+        return uiRef.current.onUiCommand(command)
       case 'follow':
         return
     }
@@ -132,6 +144,7 @@ export function usePrompter() {
       if (event.key.startsWith('Arrow') && consumesArrows(event.target)) return
       const command = commandForKey(event)
       if (!command) return
+      if (uiRef.current.helpOpen && command.type !== 'toggleHelp') return
       event.preventDefault()
       // Capture phase, so keep a focused slider from also acting on Home.
       event.stopPropagation()

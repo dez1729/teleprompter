@@ -5,6 +5,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '
 import { ControlBar } from './ControlBar'
 import { NudgeHud } from './NudgeHud'
 import { cursorToY, EMPTY_LAYOUT, measureLayout, yToCursor, type Layout } from './layout'
+import { HelpOverlay } from './HelpOverlay'
 import { PasteDialog } from './PasteDialog'
 import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
@@ -16,10 +17,19 @@ const DRAG_THRESHOLD_PX = 3
 const WHEEL_LINE_PX = 16
 
 export function Prompter() {
-  const { script, tokens, settings, playback, readout, dispatch, updateSetting, draft, draftDirty, editDraft, applyDraft, discardDraft, append, run } = usePrompter()
-  const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const { script, tokens, settings, playback, readout, dispatch, updateSetting, draft, draftDirty, editDraft, applyDraft, discardDraft, append, run } = usePrompter({
+    helpOpen,
+    onUiCommand: (command) => {
+      if (command.type === 'toggleHelp') return setHelpOpen((open) => !open)
+      if (settingsOpen || pasteOpen) return
+      if (command.type === 'openSettings') setSettingsOpen(true)
+      else setPasteOpen(true)
+    },
+  })
+  const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT)
   const [recentMouse, setRecentMouse] = useState(true)
 
   const stageRef = useRef<HTMLDivElement>(null)
@@ -187,13 +197,12 @@ export function Prompter() {
             fontSize={settings.fontSize}
             hasScript={script !== null}
             onCommand={run}
-            onOpenSettings={() => setSettingsOpen(true)}
             draftDirty={draftDirty}
-            onOpenPaste={() => setPasteOpen(true)}
           />
         </div>
       </div>
       <NudgeHud readout={readout} />
+      <HelpOverlay open={helpOpen} onOpenChange={setHelpOpen} />
       <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} settings={settings} onChange={updateSetting} />
       <PasteDialog
         open={pasteOpen}
