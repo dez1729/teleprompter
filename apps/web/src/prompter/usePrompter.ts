@@ -9,9 +9,21 @@ const MAX_FRAME_MS = 100
 
 const EMPTY_TOKENS: TokenizedScript = { words: [], paragraphStarts: [] }
 
+const NON_TEXT_INPUT_TYPES = new Set(['button', 'checkbox', 'color', 'file', 'image', 'radio', 'range', 'reset', 'submit'])
+
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
-  return target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [role="slider"]') !== null
+  if (target instanceof HTMLTextAreaElement) return true
+  if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(target.type)
+  return target.closest('[contenteditable]:not([contenteditable="false"])') !== null
+}
+
+/** Widgets that use the arrow keys themselves; they keep the arrows, the Prompter gets the other keys. */
+function consumesArrows(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    target.closest('input[type="range"], [role="slider"], [data-slot="toggle-group"]') !== null
+  )
 }
 
 export type PushMode = 'replace' | 'append'
@@ -91,9 +103,12 @@ export function usePrompter() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return
+      if (event.key.startsWith('Arrow') && consumesArrows(event.target)) return
       const command = commandForKey(event)
       if (!command) return
       event.preventDefault()
+      // Capture phase, so keep a focused slider from also acting on Home.
+      event.stopPropagation()
       if (event.repeat && (command.type === 'toggle' || command.type === 'restart')) return
       run(command)
     }
@@ -101,10 +116,10 @@ export function usePrompter() {
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.key === ' ' && !isTypingTarget(event.target)) event.preventDefault()
     }
-    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('keyup', onKeyUp)
     return () => {
-      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('keyup', onKeyUp)
     }
   }, [run])
