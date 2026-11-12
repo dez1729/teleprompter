@@ -29,7 +29,7 @@ export function PasteDialog({ open, onOpenChange, hasScript, onPush }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="flex h-[85vh] w-[90vw] max-w-[1100px] flex-col sm:max-w-[1100px]">
         <DialogHeader>
           <DialogTitle>Paste a Script</DialogTitle>
           <DialogDescription>
@@ -41,7 +41,7 @@ export function PasteDialog({ open, onOpenChange, hasScript, onPush }: Props) {
           value={text}
           onChange={(event) => setText(event.target.value)}
           placeholder="Paste your Script here"
-          className="h-64 resize-none"
+          className="min-h-0 flex-1 resize-none font-mono text-base leading-relaxed md:text-base"
         />
         <DialogFooter>
           {hasScript && (
