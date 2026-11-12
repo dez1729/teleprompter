@@ -77,6 +77,10 @@ _Avoid_: STT, recognizer, voice engine
 **Lookahead window**:
 The span of upcoming words after the Current line that Follow searches for a match.
 
+**Read words**:
+The words before the reader's position, optionally shown in a distinct color (karaoke style). In Follow they are the words actually spoken; in Auto, the words the pace has passed.
+_Avoid_: Spoken highlight, progress fill
+
 **Speed**:
 The Auto pace, in words per minute. Independent of text size.
 _Avoid_: Scroll rate, px/s
