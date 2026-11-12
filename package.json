@@ -7,7 +7,7 @@
     "dev": "pnpm --parallel --filter web --filter @teleprompter/server dev",
     "start": "node packages/cli/bin/tp.js serve",
     "build": "pnpm --filter web build",
-    "link:tp": "pnpm --filter @teleprompter/cli link --global",
+    "link:tp": "pnpm add --global link:./packages/cli",
     "test:e2e": "pnpm build && pnpm --filter @teleprompter/e2e test:e2e"
   },
   "engines": {

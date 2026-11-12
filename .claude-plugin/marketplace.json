@@ -1,0 +1,13 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "teleprompter",
+  "description": "Plugins for the local Teleprompter.",
+  "owner": { "name": "Teleprompter contributors" },
+  "plugins": [
+    {
+      "name": "teleprompter",
+      "source": "./plugins/teleprompter",
+      "description": "Send text from Claude Code to the local Teleprompter with /teleprompter."
+    }
+  ]
+}

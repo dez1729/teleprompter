@@ -1,0 +1,7 @@
+{
+  "name": "teleprompter",
+  "version": "0.1.0",
+  "description": "Send text from Claude Code to the local Teleprompter. Needs the tp command and a running server.",
+  "author": { "name": "Teleprompter contributors" },
+  "license": "MIT"
+}
