@@ -1,0 +1,19 @@
+{
+  "name": "@teleprompter/server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "dev": "node --watch src/main.ts",
+    "start": "node src/main.ts",
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.0",
+    "@teleprompter/protocol": "workspace:*",
+    "hono": "^4.9.0"
+  },
+  "devDependencies": { "@types/node": "^26.6.6", "typescript": "^7.0.2", "vitest": "^5.1.0" }
+}
