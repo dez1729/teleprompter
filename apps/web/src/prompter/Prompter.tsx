@@ -20,7 +20,7 @@ export function Prompter() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const { script, tokens, settings, playback, readout, dispatch, updateSetting, draft, draftDirty, editDraft, applyDraft, discardDraft, append, run } = usePrompter({
+  const { script, connected, tokens, settings, playback, readout, dispatch, updateSetting, draft, draftDirty, editDraft, applyDraft, discardDraft, append, run } = usePrompter({
     helpOpen,
     onUiCommand: (command) => {
       if (command.type === 'toggleHelp') return setHelpOpen((open) => !open)
@@ -177,7 +177,7 @@ export function Prompter() {
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>No Script yet</EmptyTitle>
-                <EmptyDescription>Paste your Script to start prompting.</EmptyDescription>
+                <EmptyDescription>Paste your Script to start prompting, or send one with tp send.</EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
                 <Button onClick={() => setPasteOpen(true)}>
@@ -187,6 +187,12 @@ export function Prompter() {
               </EmptyContent>
             </Empty>
           </div>
+        )}
+
+        {connected === false && (
+          <p role="status" className="pointer-events-none absolute left-3 top-3 text-xs opacity-60">
+            Not connected to server
+          </p>
         )}
 
         <div onPointerDown={(e) => e.stopPropagation()}>

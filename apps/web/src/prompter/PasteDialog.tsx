@@ -10,15 +10,17 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 
+const SERVER_ERROR = 'Could not reach the server. Check that `tp serve` is running.'
+
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   draft: string
   dirty: boolean
   onEdit: (text: string) => void
-  onApply: () => void
+  onApply: () => Promise<void>
   onDiscard: () => void
-  onAppend: (text: string) => void
+  onAppend: (text: string) => Promise<void>
 }
 
 export function PasteDialog({ open, onOpenChange, draft, dirty, onEdit, onApply, onDiscard, onAppend }: Props) {
@@ -26,20 +28,30 @@ export function PasteDialog({ open, onOpenChange, draft, dirty, onEdit, onApply,
   const [message, setMessage] = useState<string | null>(null)
   const canApply = dirty && draft.trim() !== ''
 
-  const apply = () => {
+  const apply = async () => {
     if (!canApply) return
-    onApply()
-    onOpenChange(false)
+    setMessage(null)
+    try {
+      await onApply()
+      onOpenChange(false)
+    } catch {
+      setMessage(SERVER_ERROR)
+    }
   }
 
   const appendClipboard = async () => {
     setMessage(null)
+    let text: string
     try {
-      const text = await navigator.clipboard.readText()
-      if (text.trim() === '') return setMessage('The clipboard is empty.')
-      onAppend(text)
+      text = await navigator.clipboard.readText()
     } catch {
-      setMessage('Could not read the clipboard. Allow clipboard access and try again.')
+      return setMessage('Could not read the clipboard. Allow clipboard access and try again.')
+    }
+    if (text.trim() === '') return setMessage('The clipboard is empty.')
+    try {
+      await onAppend(text)
+    } catch {
+      setMessage(SERVER_ERROR)
     }
   }
 

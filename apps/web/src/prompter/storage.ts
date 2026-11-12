@@ -1,8 +1,7 @@
-import { makeScript, type Script } from './script'
 import type { Draft } from './draft'
 import { DEFAULT_SETTINGS, parseSettings, type DisplaySettings } from './settings'
 
-const SCRIPT_KEY = 'teleprompter.script'
+const LEGACY_SCRIPT_KEY = 'teleprompter.script'
 const DRAFT_KEY = 'teleprompter.draft'
 const SETTINGS_KEY = 'teleprompter.settings'
 
@@ -23,16 +22,22 @@ function write(key: string, value: unknown): void {
   }
 }
 
-export function loadScript(): Script | null {
-  const raw = read(SCRIPT_KEY)
+/** The Script this browser stored before the server owned it, for the one-time move to the server. */
+export function loadLegacyScript(): { text: string; format?: 'markdown' | 'text' } | null {
+  const raw = read(LEGACY_SCRIPT_KEY)
   if (typeof raw !== 'object' || raw === null) return null
   const { source, format } = raw as Record<string, unknown>
   if (typeof source !== 'string' || source.trim() === '') return null
-  const guessed = makeScript(source)
-  return { source, format: format === 'markdown' || format === 'text' ? format : guessed.format }
+  return { text: source, format: format === 'markdown' || format === 'text' ? format : undefined }
 }
 
-export const saveScript = (script: Script) => write(SCRIPT_KEY, script)
+export function clearLegacyScript(): void {
+  try {
+    localStorage.removeItem(LEGACY_SCRIPT_KEY)
+  } catch {
+    // Nothing to remove if storage is unavailable.
+  }
+}
 
 export function loadSettings(): DisplaySettings {
   const raw = read(SETTINGS_KEY)

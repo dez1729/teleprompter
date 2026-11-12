@@ -4,7 +4,13 @@
   "license": "MIT",
   "packageManager": "pnpm@11.18.0",
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter web build"
+    "dev": "pnpm --parallel --filter web --filter @teleprompter/server dev",
+    "start": "node packages/cli/bin/tp.js serve",
+    "build": "pnpm --filter web build",
+    "link:tp": "pnpm --filter @teleprompter/cli link --global",
+    "test:e2e": "pnpm build && pnpm --filter @teleprompter/e2e test:e2e"
+  },
+  "engines": {
+    "node": ">=22.18"
   }
 }

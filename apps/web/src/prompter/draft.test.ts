@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { appendToDraft, draftText, editDraft, isDirty, keepsPlace } from './draft'
-import { makeScript, tokenize } from './script'
+import { appendedTail, appendToDraft, draftText, editDraft, isDirty, keepsPlace } from './draft'
+import { tokenize } from './script'
 
-const tok = (source: string) => tokenize(makeScript(source))
+const tok = (text: string) => tokenize({ text })
+const makeScript = (text: string) => ({ text })
 
 describe('keepsPlace', () => {
   const before = tok('one two three four five')
@@ -74,5 +75,20 @@ describe('draft', () => {
   it('an empty Script counts as clean with an empty draft', () => {
     expect(isDirty(null, null)).toBe(false)
     expect(isDirty(editDraft('text', null), null)).toBe(true)
+  })
+})
+
+describe('appendedTail', () => {
+  it('returns what Append added after the blank-line join', () => {
+    expect(appendedTail('Hello world', 'Hello world\n\nMore')).toBe('More')
+    expect(appendedTail('Hello world\n\n', 'Hello world\n\nMore')).toBe('More')
+  })
+
+  it('returns the whole text when the Script was empty', () => {
+    expect(appendedTail('', 'More')).toBe('More')
+  })
+
+  it('returns null when the new text does not extend the old', () => {
+    expect(appendedTail('Hello', 'Goodbye')).toBeNull()
   })
 })

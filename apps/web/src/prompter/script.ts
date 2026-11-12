@@ -1,9 +1,4 @@
-export type ScriptFormat = 'markdown' | 'text'
-
-export interface Script {
-  source: string
-  format: ScriptFormat
-}
+import type { Script } from '@teleprompter/protocol'
 
 export interface Word {
   text: string
@@ -17,25 +12,10 @@ export interface TokenizedScript {
 }
 
 const PARAGRAPH_SEPARATOR = /\n[ \t]*\n\s*/
-const MARKDOWN_HINT = /^(#{1,6}\s|\s*[-*+]\s|>\s|```|---\s*$)|\*\*|\[[^\]]+\]\([^)]+\)/m
-
-export function guessFormat(source: string): ScriptFormat {
-  return MARKDOWN_HINT.test(source) ? 'markdown' : 'text'
-}
-
-export function makeScript(source: string): Script {
-  return { source, format: guessFormat(source) }
-}
-
-export function appendScript(script: Script, addition: string): Script {
-  const source = script.source.trim() === '' ? addition : `${script.source.replace(/\s+$/, '')}\n\n${addition}`
-  return { source, format: guessFormat(source) }
-}
-
-export function tokenize(script: Script): TokenizedScript {
+export function tokenize(script: Pick<Script, 'text'>): TokenizedScript {
   const words: Word[] = []
   const paragraphStarts: number[] = []
-  const paragraphs = script.source
+  const paragraphs = script.text
     .replace(/\r\n?/g, '\n')
     .split(PARAGRAPH_SEPARATOR)
     .filter((p) => p.trim() !== '')

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from './settings'
 import { commandForKey } from './keymap'
-import { appendScript, guessFormat, tokenize } from './script'
+import { tokenize } from './script'
 
 describe('settings', () => {
   it('uses defaults for missing or malformed input', () => {
@@ -53,20 +53,10 @@ describe('keymap', () => {
 
 describe('script', () => {
   it('splits paragraphs on blank lines and keeps single newlines as breaks', () => {
-    const { words, paragraphStarts } = tokenize({ source: 'one two\nthree\n\n\nfour', format: 'text' })
+    const { words, paragraphStarts } = tokenize({ text: 'one two\nthree\n\n\nfour' })
     expect(words.map((w) => w.text)).toEqual(['one', 'two', 'three', 'four'])
     expect(words.map((w) => w.lineBreakBefore)).toEqual([false, false, true, false])
     expect(paragraphStarts).toEqual([0, 3])
     expect(words[3]!.paragraphIndex).toBe(1)
-  })
-
-  it('appends after a blank line', () => {
-    expect(appendScript({ source: 'a b', format: 'text' }, 'c').source).toBe('a b\n\nc')
-    expect(appendScript({ source: '', format: 'text' }, 'c').source).toBe('c')
-  })
-
-  it('guesses markdown', () => {
-    expect(guessFormat('# Title\n\nbody')).toBe('markdown')
-    expect(guessFormat('just some plain words.')).toBe('text')
   })
 })

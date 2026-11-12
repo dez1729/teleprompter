@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { appendToDraft, draftText, editDraft, isDirty, keepsPlace, type Draft } from './draft'
+import { EMPTY_SCRIPT, type Script } from '@teleprompter/protocol'
+import { appendedTail, appendToDraft, draftText, editDraft, isDirty, keepsPlace, type Draft } from './draft'
 import { commandForKey, type Command, type UiCommand } from './keymap'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
-import { appendScript, makeScript, tokenize, type Script, type TokenizedScript } from './script'
+import { pushScript, openScriptStream, type ScriptMessage } from './scriptApi'
+import { tokenize, type TokenizedScript } from './script'
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from './settings'
-import { loadDraft, loadScript, loadSettings, saveDraft, saveScript, saveSettings } from './storage'
+import { clearLegacyScript, loadDraft, loadLegacyScript, loadSettings, saveDraft, saveSettings } from './storage'
 
 const MAX_FRAME_MS = 100
 
@@ -39,11 +41,21 @@ interface UiBridge {
   onUiCommand: (command: UiCommand) => void
 }
 
+/** The Script used to live in this browser. If the server has none yet, it gets this one, once. */
+function moveLegacyScript() {
+  const legacy = loadLegacyScript()
+  if (!legacy) return
+  pushScript({ kind: 'replace', ...legacy }).then(clearLegacyScript, () => {})
+}
+
 export function usePrompter(ui: UiBridge) {
-  const [script, setScript] = useState<Script | null>(loadScript)
+  const [current, setCurrent] = useState<Script>(EMPTY_SCRIPT)
+  const [connected, setConnected] = useState<boolean | null>(null)
+  const script = current.text.trim() === '' ? null : current
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings)
   const [draft, setDraft] = useState<Draft>(loadDraft)
   const tokens = useMemo(() => (script ? tokenize(script) : EMPTY_TOKENS), [script])
+
 
   const [playback, dispatch] = useReducer(playbackReducer, tokens, (initial) =>
     playbackReducer(initialPlayback, {
@@ -57,6 +69,8 @@ export function usePrompter(ui: UiBridge) {
   const [readout, setReadout] = useState<NudgeReadout | null>(null)
   const settingsRef = useRef(settings)
   settingsRef.current = settings
+  const live = useRef({ current, tokens, cursor: playback.cursor })
+  live.current = { current, tokens, cursor: playback.cursor }
   const uiRef = useRef(ui)
   uiRef.current = ui
 
@@ -81,35 +95,47 @@ export function usePrompter(ui: UiBridge) {
     setSettings((current) => ({ ...current, [key]: value }))
   }, [])
 
-  const install = useCallback((next: Script, reset: boolean) => {
-    const nextTokens = tokenize(next)
-    setScript(next)
-    saveScript(next)
+  /**
+   * The only way a Script reaches playback. Pushes, this window's Apply and other
+   * windows all arrive here as a change from the server.
+   */
+  const receive = useCallback((message: ScriptMessage) => {
+    const { current: before, tokens: beforeTokens, cursor } = live.current
+    const incoming = message.script
+    if (message.type === 'snapshot' && incoming.revision === 0) moveLegacyScript()
+    if (message.type === 'snapshot' ? incoming.revision === before.revision : incoming.revision <= before.revision) return
+
+    const hadScript = before.text.trim() !== ''
+    const nextTokens = tokenize(incoming)
+    const kind = message.type === 'change' ? message.kind : 'apply'
+    const reset = kind === 'replace' || !hadScript || (kind === 'apply' && !keepsPlace(beforeTokens, nextTokens, cursor))
+
+    live.current = { current: incoming, tokens: nextTokens, cursor: reset ? 0 : cursor }
+    setCurrent(incoming)
     dispatch({ type: 'SET_SCRIPT', wordCount: nextTokens.words.length, paragraphStarts: nextTokens.paragraphStarts, reset })
+    if (kind === 'append') {
+      const tail = appendedTail(before.text, incoming.text)
+      if (tail !== null) setDraft((draft) => appendToDraft(draft, tail))
+    }
   }, [])
 
-  /** Replaces the Script with the draft. Keeps the reader's place if the words already read are unchanged. */
-  const applyDraft = useCallback(() => {
+  useEffect(() => openScriptStream({ onMessage: receive, onConnection: setConnected }), [receive])
+
+  /** Sends the draft to the server. The Script changes when the server's change comes back. */
+  const applyDraft = useCallback(async () => {
     const text = draftText(draft, script)
     if (text.trim() === '') return
-    const next = makeScript(text)
-    install(next, !script || !keepsPlace(tokens, tokenize(next), playback.cursor))
-    setDraft(null)
-  }, [draft, script, tokens, playback.cursor, install])
+    await pushScript({ kind: 'apply', text })
+    setDraft((now) => (now === text ? null : now))
+  }, [draft, script])
 
   const discardDraft = useCallback(() => setDraft(null), [])
 
   const editDraftText = useCallback((text: string) => setDraft(editDraft(text, script)), [script])
 
-  /** Append is the domain operation behind every Push that adds to the end: the place is kept and no countdown is armed. */
-  const append = useCallback(
-    (text: string) => {
-      if (text.trim() === '') return
-      install(script ? appendScript(script, text) : makeScript(text), !script)
-      setDraft((current) => appendToDraft(current, text))
-    },
-    [script, install],
-  )
+  const append = useCallback(async (text: string) => {
+    if (text.trim() !== '') await pushScript({ kind: 'append', text })
+  }, [])
 
   const run = useCallback((command: Command) => {
     const { countdownSec, countdownAtStartOnly } = settingsRef.current
@@ -165,6 +191,7 @@ export function usePrompter(ui: UiBridge) {
 
   return {
     script,
+    connected,
     tokens,
     settings,
     playback,

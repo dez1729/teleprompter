@@ -1,4 +1,7 @@
-import { appendScript, makeScript, type Script, type TokenizedScript } from './script'
+import { appendText, type Script } from '@teleprompter/protocol'
+import type { TokenizedScript } from './script'
+
+type ScriptText = Pick<Script, 'text'> | null
 
 /**
  * The paste dialog's text. `null` means clean: the draft is the Script itself,
@@ -6,16 +9,22 @@ import { appendScript, makeScript, type Script, type TokenizedScript } from './s
  */
 export type Draft = string | null
 
-export const draftText = (draft: Draft, script: Script | null): string => draft ?? script?.source ?? ''
+export const draftText = (draft: Draft, script: ScriptText): string => draft ?? script?.text ?? ''
 
-export const isDirty = (draft: Draft, script: Script | null): boolean => draft !== null && draft !== (script?.source ?? '')
+export const isDirty = (draft: Draft, script: ScriptText): boolean => draft !== null && draft !== (script?.text ?? '')
 
 /** Typing the Script back in exactly makes the draft clean again. */
-export const editDraft = (text: string, script: Script | null): Draft => (text === (script?.source ?? '') ? null : text)
+export const editDraft = (text: string, script: ScriptText): Draft => (text === (script?.text ?? '') ? null : text)
 
 /** A clean draft follows the Script on its own; a dirty one gets the same addition. */
 export const appendToDraft = (draft: Draft, addition: string): Draft =>
-  draft === null ? null : appendScript(makeScript(draft), addition).source
+  draft === null ? null : appendText(draft, addition)
+
+/** What a Push Append added, read off the new text. Null when the new text does not extend the old one. */
+export function appendedTail(before: string, after: string): string | null {
+  const prefix = before.trim() === '' ? '' : `${before.replace(/\s+$/, '')}\n\n`
+  return after.startsWith(prefix) ? after.slice(prefix.length) : null
+}
 
 /** True when the words before the reader's position are the same in both versions. */
 export function keepsPlace(before: TokenizedScript, after: TokenizedScript, cursor: number): boolean {
