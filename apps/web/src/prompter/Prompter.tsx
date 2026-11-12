@@ -29,8 +29,10 @@ export function Prompter() {
   const textStyle = {
     position: 'relative',
     margin: '0 auto',
-    width: settings.columnMode === 'column' ? `${settings.columnWidthCh}ch` : 'calc(100% - 4rem)',
-    maxWidth: '100%',
+    width:
+      settings.columnMode === 'column'
+        ? `min(${settings.columnWidthCh}ch, calc(100% - ${2 * settings.marginX}px))`
+        : `calc(100% - ${2 * settings.marginX}px)`,
     fontFamily: FONT_STACKS[settings.fontFamily],
     fontSize: settings.fontSize,
     lineHeight: settings.lineHeight,
@@ -53,6 +55,7 @@ export function Prompter() {
     settings.fontFamily,
     settings.columnMode,
     settings.columnWidthCh,
+    settings.marginX,
   ])
 
   useEffect(() => {
@@ -106,9 +109,10 @@ export function Prompter() {
   }
 
   const windowTop = `${settings.windowPositionPct}%`
-  const windowHeight = settings.windowHeightLines * lineHeightPx
+  const windowBottom = `calc(${windowTop} + ${settings.windowHeightLines * lineHeightPx}px)`
   const y = cursorToY(layout, playback.cursor)
   const overlayStyle = { backgroundColor: settings.bgColor, opacity: settings.overlayOpacity }
+  const edgeStyle = { backgroundColor: `color-mix(in srgb, ${settings.textColor} 15%, transparent)` }
   const countdown = playback.mode.kind === 'countdown' ? Math.ceil(playback.mode.remainingMs / 1000) : null
 
   return (
@@ -125,26 +129,31 @@ export function Prompter() {
       >
         {script && (
           <div
-            className="absolute inset-x-0"
-            style={{ top: windowTop, transform: settings.mirror ? 'scaleX(-1)' : undefined }}
+            className="absolute inset-x-0 overflow-hidden"
+            style={{ top: settings.marginTop, bottom: settings.marginBottom }}
           >
-            <div style={{ transform: `translateY(${-y}px)`, willChange: 'transform' }}>
-              <ScriptText ref={textRef} tokens={tokens} style={textStyle} />
+            <div
+              className="absolute inset-x-0"
+              style={{ top: windowTop, transform: settings.mirror ? 'scaleX(-1)' : undefined }}
+            >
+              <div style={{ transform: `translateY(${-y}px)`, willChange: 'transform' }}>
+                <ScriptText ref={textRef} tokens={tokens} style={textStyle} />
+              </div>
             </div>
-          </div>
-        )}
-
-        {script && (
-          <>
             <div
               className="pointer-events-none absolute inset-x-0 top-0"
               style={{ ...overlayStyle, height: windowTop }}
             />
             <div
               className="pointer-events-none absolute inset-x-0 bottom-0"
-              style={{ ...overlayStyle, top: `calc(${windowTop} + ${windowHeight}px)` }}
+              style={{ ...overlayStyle, top: windowBottom }}
             />
-          </>
+            <div className="pointer-events-none absolute inset-x-0 h-px" style={{ top: windowTop, ...edgeStyle }} />
+            <div
+              className="pointer-events-none absolute inset-x-0 h-px"
+              style={{ top: `calc(${windowBottom} - 1px)`, ...edgeStyle }}
+            />
+          </div>
         )}
 
         {countdown !== null && (
