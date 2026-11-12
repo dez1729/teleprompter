@@ -57,11 +57,11 @@ export const SETTING_DEFS = {
     { value: 'system', label: 'System' },
   ]),
   fontSize: num('Text size', 56, 16, 160, 2, 'px'),
-  lineHeight: num('Line height', 1.4, 1, 2.2, 0.05),
+  lineHeight: num('Line spacing', 1.4, 1, 2.2, 0.05),
   textColor: color('Text color', '#ffffff'),
   bgColor: color('Background', '#000000'),
   overlayOpacity: num('Dimming', 0.85, 0, 1, 0.05),
-  windowHeightLines: num('Reading window height', 3, 1, 10, 1, 'lines'),
+  windowHeightLines: num('Highlighted lines', 3, 1, 10, 1, 'lines'),
   windowPositionPct: num('Reading window position', 40, 0, 90, 1, '%'),
   columnMode: choice('Width', 'column', [
     { value: 'column', label: 'Column' },
