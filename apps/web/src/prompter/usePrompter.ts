@@ -71,10 +71,10 @@ export function usePrompter() {
   )
 
   const run = useCallback((command: Command) => {
-    const countdownSec = settingsRef.current.countdownSec
+    const { countdownSec, countdownAtStartOnly } = settingsRef.current
     switch (command.type) {
       case 'toggle':
-        return dispatch({ type: 'TOGGLE', countdownSec })
+        return dispatch({ type: 'TOGGLE', countdownSec, countdownAtStartOnly })
       case 'restart':
         return dispatch({ type: 'RESTART' })
       case 'nudge':

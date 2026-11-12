@@ -17,7 +17,7 @@ describe('playback', () => {
   })
 
   it('counts down before playing, then advances by wpm', () => {
-    let state = run(loaded, { type: 'PLAY', countdownSec: 3 })
+    let state = run(loaded, { type: 'PLAY', countdownSec: 3, countdownAtStartOnly: false })
     expect(state.mode).toEqual({ kind: 'countdown', remainingMs: 3000 })
     state = run(state, { type: 'TICK', dtMs: 2000, wpm: 120 })
     expect(state.mode).toEqual({ kind: 'countdown', remainingMs: 1000 })
@@ -29,31 +29,31 @@ describe('playback', () => {
   })
 
   it('plays immediately when the countdown is 0', () => {
-    expect(run(loaded, { type: 'PLAY', countdownSec: 0 }).mode.kind).toBe('playing')
+    expect(run(loaded, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false }).mode.kind).toBe('playing')
   })
 
   it('toggles between playing and paused, keeping the cursor', () => {
-    let state = run(loaded, { type: 'TOGGLE', countdownSec: 0 }, { type: 'TICK', dtMs: 6000, wpm: 100 })
+    let state = run(loaded, { type: 'TOGGLE', countdownSec: 0, countdownAtStartOnly: false }, { type: 'TICK', dtMs: 6000, wpm: 100 })
     expect(state.cursor).toBeCloseTo(10)
-    state = run(state, { type: 'TOGGLE', countdownSec: 0 })
+    state = run(state, { type: 'TOGGLE', countdownSec: 0, countdownAtStartOnly: false })
     expect(state.mode.kind).toBe('paused')
     expect(state.cursor).toBeCloseTo(10)
   })
 
   it('pausing during the countdown cancels it', () => {
-    const state = run(loaded, { type: 'PLAY', countdownSec: 3 }, { type: 'PAUSE' })
+    const state = run(loaded, { type: 'PLAY', countdownSec: 3, countdownAtStartOnly: false }, { type: 'PAUSE' })
     expect(state.mode.kind).toBe('paused')
   })
 
   it('does nothing without a script', () => {
-    expect(run(initialPlayback, { type: 'PLAY', countdownSec: 0 }).mode.kind).toBe('paused')
+    expect(run(initialPlayback, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false }).mode.kind).toBe('paused')
   })
 
   it('stops at the end and rewinds on the next play', () => {
-    let state = run(loaded, { type: 'PLAY', countdownSec: 0 }, { type: 'TICK', dtMs: 10 * 60000, wpm: 100 })
+    let state = run(loaded, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false }, { type: 'TICK', dtMs: 10 * 60000, wpm: 100 })
     expect(state.mode.kind).toBe('paused')
     expect(state.cursor).toBe(100)
-    state = run(state, { type: 'PLAY', countdownSec: 0 })
+    state = run(state, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false })
     expect(state.cursor).toBe(0)
     expect(state.mode.kind).toBe('playing')
   })
@@ -94,14 +94,14 @@ describe('playback', () => {
   })
 
   it('stepping while playing continues playing afterwards', () => {
-    let state = run(loaded, { type: 'PLAY', countdownSec: 0 }, { type: 'STEP_LINE', delta: 1 })
+    let state = run(loaded, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false }, { type: 'STEP_LINE', delta: 1 })
     for (let i = 0; i < 40; i++) state = run(state, { type: 'TICK', dtMs: 16, wpm: 140 })
     expect(state.mode.kind).toBe('playing')
     expect(state.cursor).toBeGreaterThan(10)
   })
 
   it('scrubbing moves the cursor and pauses', () => {
-    const state = run(loaded, { type: 'PLAY', countdownSec: 0 }, { type: 'SCRUB', cursor: 33.5 })
+    const state = run(loaded, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false }, { type: 'SCRUB', cursor: 33.5 })
     expect(state.cursor).toBe(33.5)
     expect(state.mode.kind).toBe('paused')
     expect(run(state, { type: 'SCRUB', cursor: -5 }).cursor).toBe(0)
@@ -111,7 +111,7 @@ describe('playback', () => {
   it('restart returns to the top, paused', () => {
     const state = run(
       loaded,
-      { type: 'PLAY', countdownSec: 0 },
+      { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false },
       { type: 'TICK', dtMs: 5000, wpm: 100 },
       { type: 'RESTART' },
     )
@@ -127,5 +127,54 @@ describe('playback', () => {
     const replaced = run(mid, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], reset: true })
     expect(replaced.cursor).toBe(0)
     expect(replaced.mode.kind).toBe('paused')
+  })
+
+  describe('countdown only at start', () => {
+    const play = (state: PlaybackState) => run(state, { type: 'PLAY', countdownSec: 3, countdownAtStartOnly: true })
+    const countdownThenPlay = (state: PlaybackState) =>
+      run(play(state), { type: 'TICK', dtMs: 3000, wpm: 100 })
+
+    it('counts down on the first play', () => {
+      expect(play(loaded).mode.kind).toBe('countdown')
+    })
+
+    it('resumes immediately after a pause', () => {
+      const paused = run(countdownThenPlay(loaded), { type: 'PAUSE' })
+      expect(play(paused).mode.kind).toBe('playing')
+    })
+
+    it('resumes immediately after a step or scrub', () => {
+      const started = run(countdownThenPlay(loaded), { type: 'PAUSE' })
+      expect(play(run(started, { type: 'STEP_LINE', delta: 1 })).mode.kind).toBe('playing')
+      expect(play(run(started, { type: 'SCRUB', cursor: 30 })).mode.kind).toBe('playing')
+    })
+
+    it('counts down again after restart', () => {
+      const started = run(countdownThenPlay(loaded), { type: 'PAUSE' }, { type: 'RESTART' })
+      expect(play(started).mode.kind).toBe('countdown')
+    })
+
+    it('counts down again after a replace but not an append', () => {
+      const started = run(countdownThenPlay(loaded), { type: 'PAUSE' })
+      const appended = run(started, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0], reset: false })
+      expect(play(appended).mode.kind).toBe('playing')
+      const replaced = run(started, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], reset: true })
+      expect(play(replaced).mode.kind).toBe('countdown')
+    })
+
+    it('counts down when replaying from the end', () => {
+      const finished = run(countdownThenPlay(loaded), { type: 'TICK', dtMs: 10 * 60000, wpm: 100 })
+      expect(play(finished).mode.kind).toBe('countdown')
+    })
+
+    it('resumes immediately after cancelling the countdown', () => {
+      const cancelled = run(play(loaded), { type: 'PAUSE' })
+      expect(play(cancelled).mode.kind).toBe('playing')
+    })
+
+    it('counts down on every play from paused when the setting is off', () => {
+      const paused = run(countdownThenPlay(loaded), { type: 'PAUSE' })
+      expect(run(paused, { type: 'PLAY', countdownSec: 3, countdownAtStartOnly: false }).mode.kind).toBe('countdown')
+    })
   })
 })

@@ -71,6 +71,7 @@ export const SETTING_DEFS = {
   mirror: bool('Mirror', false),
   speedWpm: num('Speed', 140, 40, 400, 5, 'wpm'),
   countdownSec: num('Countdown', 3, 0, 10, 1, 's'),
+  countdownAtStartOnly: bool('Countdown only at start', true),
 } as const satisfies Record<string, Field>
 
 export type SettingKey = keyof typeof SETTING_DEFS

@@ -2,6 +2,8 @@ export type PlaybackMode = { kind: 'paused' } | { kind: 'countdown'; remainingMs
 
 export interface PlaybackState {
   mode: PlaybackMode
+  /** True until a play from the start has run; the next countdown-at-start-only play counts down. */
+  countdownArmed: boolean
   /** Fractional word index of the Current line's position. */
   cursor: number
   /** Where a step animation is easing the cursor to. */
@@ -12,8 +14,8 @@ export interface PlaybackState {
 }
 
 export type PlaybackEvent =
-  | { type: 'TOGGLE'; countdownSec: number }
-  | { type: 'PLAY'; countdownSec: number }
+  | { type: 'TOGGLE'; countdownSec: number; countdownAtStartOnly: boolean }
+  | { type: 'PLAY'; countdownSec: number; countdownAtStartOnly: boolean }
   | { type: 'PAUSE' }
   | { type: 'TICK'; dtMs: number; wpm: number }
   | { type: 'STEP_LINE'; delta: 1 | -1 }
@@ -30,6 +32,7 @@ const START_EPSILON = 0.001
 
 export const initialPlayback: PlaybackState = {
   mode: { kind: 'paused' },
+  countdownArmed: true,
   cursor: 0,
   animTarget: null,
   wordCount: 0,
@@ -43,12 +46,14 @@ export function needsTick(state: PlaybackState): boolean {
 
 const clampCursor = (state: PlaybackState, cursor: number) => Math.min(state.wordCount, Math.max(0, cursor))
 
-function play(state: PlaybackState, countdownSec: number): PlaybackState {
+function play(state: PlaybackState, countdownSec: number, atStartOnly: boolean): PlaybackState {
   if (state.wordCount === 0 || state.mode.kind !== 'paused') return state
-  const cursor = state.cursor >= state.wordCount ? 0 : state.cursor
-  const mode: PlaybackMode =
-    countdownSec > 0 ? { kind: 'countdown', remainingMs: countdownSec * 1000 } : { kind: 'playing' }
-  return { ...state, cursor, mode }
+  const rewound = state.cursor >= state.wordCount
+  const cursor = rewound ? 0 : state.cursor
+  const armed = state.countdownArmed || rewound
+  const counts = countdownSec > 0 && (armed || !atStartOnly)
+  const mode: PlaybackMode = counts ? { kind: 'countdown', remainingMs: countdownSec * 1000 } : { kind: 'playing' }
+  return { ...state, cursor, mode, countdownArmed: false }
 }
 
 function pause(state: PlaybackState): PlaybackState {
@@ -96,11 +101,11 @@ function tick(state: PlaybackState, dtMs: number, wpm: number): PlaybackState {
 export function playbackReducer(state: PlaybackState, event: PlaybackEvent): PlaybackState {
   switch (event.type) {
     case 'PLAY':
-      return play(state, event.countdownSec)
+      return play(state, event.countdownSec, event.countdownAtStartOnly)
     case 'PAUSE':
       return pause(state)
     case 'TOGGLE':
-      return state.mode.kind === 'paused' ? play(state, event.countdownSec) : pause(state)
+      return state.mode.kind === 'paused' ? play(state, event.countdownSec, event.countdownAtStartOnly) : pause(state)
     case 'TICK':
       return tick(state, event.dtMs, event.wpm)
     case 'STEP_LINE':
@@ -108,13 +113,13 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
     case 'STEP_PARAGRAPH':
       return step(state, state.paragraphStarts, event.delta)
     case 'RESTART':
-      return { ...state, cursor: 0, animTarget: null, mode: { kind: 'paused' } }
+      return { ...state, cursor: 0, animTarget: null, mode: { kind: 'paused' }, countdownArmed: true }
     case 'SCRUB':
       return { ...state, cursor: clampCursor(state, event.cursor), animTarget: null, mode: { kind: 'paused' } }
     case 'SET_SCRIPT': {
       const next = { ...state, wordCount: event.wordCount, paragraphStarts: event.paragraphStarts }
       return event.reset
-        ? { ...next, cursor: 0, animTarget: null, mode: { kind: 'paused' }, lineStarts: [] }
+        ? { ...next, cursor: 0, animTarget: null, mode: { kind: 'paused' }, lineStarts: [], countdownArmed: true }
         : { ...next, cursor: clampCursor(next, state.cursor), animTarget: null }
     }
     case 'SET_LAYOUT':
