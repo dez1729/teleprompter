@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { appendToDraft, draftText, editDraft, isDirty, keepsPlace, type Draft } from './draft'
 import { commandForKey, type Command } from './keymap'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
 import { appendScript, makeScript, tokenize, type Script, type TokenizedScript } from './script'
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from './settings'
-import { loadScript, loadSettings, saveScript, saveSettings } from './storage'
+import { loadDraft, loadScript, loadSettings, saveDraft, saveScript, saveSettings } from './storage'
 
 const MAX_FRAME_MS = 100
 
@@ -26,8 +27,6 @@ function consumesArrows(target: EventTarget | null): boolean {
   )
 }
 
-export type PushMode = 'replace' | 'append'
-
 export interface NudgeReadout {
   /** Changes on every nudge, so repeated nudges restart the fade. */
   seq: number
@@ -37,6 +36,7 @@ export interface NudgeReadout {
 export function usePrompter() {
   const [script, setScript] = useState<Script | null>(loadScript)
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings)
+  const [draft, setDraft] = useState<Draft>(loadDraft)
   const tokens = useMemo(() => (script ? tokenize(script) : EMPTY_TOKENS), [script])
 
   const [playback, dispatch] = useReducer(playbackReducer, tokens, (initial) =>
@@ -53,6 +53,7 @@ export function usePrompter() {
   settingsRef.current = settings
 
   useEffect(() => saveSettings(settings), [settings])
+  useEffect(() => saveDraft(draft), [draft])
 
   const active = needsTick(playback)
   useEffect(() => {
@@ -72,21 +73,34 @@ export function usePrompter() {
     setSettings((current) => ({ ...current, [key]: value }))
   }, [])
 
-  const push = useCallback(
-    (text: string, mode: PushMode) => {
+  const install = useCallback((next: Script, reset: boolean) => {
+    const nextTokens = tokenize(next)
+    setScript(next)
+    saveScript(next)
+    dispatch({ type: 'SET_SCRIPT', wordCount: nextTokens.words.length, paragraphStarts: nextTokens.paragraphStarts, reset })
+  }, [])
+
+  /** Replaces the Script with the draft. Keeps the reader's place if the words already read are unchanged. */
+  const applyDraft = useCallback(() => {
+    const text = draftText(draft, script)
+    if (text.trim() === '') return
+    const next = makeScript(text)
+    install(next, !script || !keepsPlace(tokens, tokenize(next), playback.cursor))
+    setDraft(null)
+  }, [draft, script, tokens, playback.cursor, install])
+
+  const discardDraft = useCallback(() => setDraft(null), [])
+
+  const editDraftText = useCallback((text: string) => setDraft(editDraft(text, script)), [script])
+
+  /** Append is the domain operation behind every Push that adds to the end: the place is kept and no countdown is armed. */
+  const append = useCallback(
+    (text: string) => {
       if (text.trim() === '') return
-      const next = mode === 'replace' || !script ? makeScript(text) : appendScript(script, text)
-      const nextTokens = tokenize(next)
-      setScript(next)
-      saveScript(next)
-      dispatch({
-        type: 'SET_SCRIPT',
-        wordCount: nextTokens.words.length,
-        paragraphStarts: nextTokens.paragraphStarts,
-        reset: mode === 'replace' || !script,
-      })
+      install(script ? appendScript(script, text) : makeScript(text), !script)
+      setDraft((current) => appendToDraft(current, text))
     },
-    [script],
+    [script, install],
   )
 
   const run = useCallback((command: Command) => {
@@ -136,5 +150,20 @@ export function usePrompter() {
     }
   }, [run])
 
-  return { script, tokens, settings, playback, readout, dispatch, updateSetting, push, run }
+  return {
+    script,
+    tokens,
+    settings,
+    playback,
+    readout,
+    draft: draftText(draft, script),
+    draftDirty: isDirty(draft, script),
+    dispatch,
+    updateSetting,
+    editDraft: editDraftText,
+    applyDraft,
+    discardDraft,
+    append,
+    run,
+  }
 }

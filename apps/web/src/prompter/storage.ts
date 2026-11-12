@@ -1,7 +1,9 @@
 import { makeScript, type Script } from './script'
+import type { Draft } from './draft'
 import { DEFAULT_SETTINGS, parseSettings, type DisplaySettings } from './settings'
 
 const SCRIPT_KEY = 'teleprompter.script'
+const DRAFT_KEY = 'teleprompter.draft'
 const SETTINGS_KEY = 'teleprompter.settings'
 
 function read(key: string): unknown {
@@ -38,3 +40,10 @@ export function loadSettings(): DisplaySettings {
 }
 
 export const saveSettings = (settings: DisplaySettings) => write(SETTINGS_KEY, settings)
+
+export function loadDraft(): Draft {
+  const raw = read(DRAFT_KEY)
+  return typeof raw === 'string' ? raw : null
+}
+
+export const saveDraft = (draft: Draft) => write(DRAFT_KEY, draft)

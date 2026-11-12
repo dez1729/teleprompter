@@ -16,7 +16,7 @@ const DRAG_THRESHOLD_PX = 3
 const WHEEL_LINE_PX = 16
 
 export function Prompter() {
-  const { script, tokens, settings, playback, readout, dispatch, updateSetting, push, run } = usePrompter()
+  const { script, tokens, settings, playback, readout, dispatch, updateSetting, draft, draftDirty, editDraft, applyDraft, discardDraft, append, run } = usePrompter()
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
@@ -188,13 +188,23 @@ export function Prompter() {
             hasScript={script !== null}
             onCommand={run}
             onOpenSettings={() => setSettingsOpen(true)}
+            draftDirty={draftDirty}
             onOpenPaste={() => setPasteOpen(true)}
           />
         </div>
       </div>
       <NudgeHud readout={readout} />
       <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} settings={settings} onChange={updateSetting} />
-      <PasteDialog open={pasteOpen} onOpenChange={setPasteOpen} hasScript={script !== null} onPush={push} />
+      <PasteDialog
+        open={pasteOpen}
+        onOpenChange={setPasteOpen}
+        draft={draft}
+        dirty={draftDirty}
+        onEdit={editDraft}
+        onApply={applyDraft}
+        onDiscard={discardDraft}
+        onAppend={append}
+      />
     </>
   )
 }

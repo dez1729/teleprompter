@@ -11,6 +11,7 @@ interface Props {
   hasScript: boolean
   onCommand: (command: Command) => void
   onOpenSettings: () => void
+  draftDirty: boolean
   onOpenPaste: () => void
 }
 
@@ -22,6 +23,7 @@ export function ControlBar({
   hasScript,
   onCommand,
   onOpenSettings,
+  draftDirty,
   onOpenPaste,
 }: Props) {
   return (
@@ -55,8 +57,15 @@ export function ControlBar({
           onDown={() => onCommand({ type: 'nudge', setting: 'fontSize', direction: -1 })}
           onUp={() => onCommand({ type: 'nudge', setting: 'fontSize', direction: 1 })}
         />
-        <Button size="icon" variant="ghost" aria-label="Paste a Script" onClick={onOpenPaste}>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={draftDirty ? 'Paste a Script (unapplied changes)' : 'Paste a Script'}
+          className="relative"
+          onClick={onOpenPaste}
+        >
           <ClipboardPaste />
+          {draftDirty && <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500" />}
         </Button>
         <Button size="icon" variant="ghost" aria-label="Display settings" onClick={onOpenSettings}>
           <Settings />
