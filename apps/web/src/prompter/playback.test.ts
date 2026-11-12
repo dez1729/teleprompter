@@ -109,7 +109,12 @@ describe('playback', () => {
   })
 
   it('restart returns to the top, paused', () => {
-    const state = run(loaded, { type: 'PLAY', countdownSec: 0 }, { type: 'TICK', dtMs: 5000, wpm: 100 }, { type: 'RESTART' })
+    const state = run(
+      loaded,
+      { type: 'PLAY', countdownSec: 0 },
+      { type: 'TICK', dtMs: 5000, wpm: 100 },
+      { type: 'RESTART' },
+    )
     expect(state.cursor).toBe(0)
     expect(state.mode.kind).toBe('paused')
   })

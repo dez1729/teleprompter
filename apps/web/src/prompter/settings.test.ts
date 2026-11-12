@@ -6,11 +6,19 @@ import { appendScript, guessFormat, tokenize } from './script'
 describe('settings', () => {
   it('uses defaults for missing or malformed input', () => {
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS)
-    expect(parseSettings({ fontSize: 'big', textColor: 'red', mirror: 1, fontFamily: 'comic' })).toEqual(DEFAULT_SETTINGS)
+    expect(parseSettings({ fontSize: 'big', textColor: 'red', mirror: 1, fontFamily: 'comic' })).toEqual(
+      DEFAULT_SETTINGS,
+    )
   })
 
   it('clamps numbers into range and keeps valid values', () => {
-    const parsed = parseSettings({ speedWpm: 9999, fontSize: -4, mirror: true, textColor: '#abcdef', windowHeightLines: 5 })
+    const parsed = parseSettings({
+      speedWpm: 9999,
+      fontSize: -4,
+      mirror: true,
+      textColor: '#abcdef',
+      windowHeightLines: 5,
+    })
     expect(parsed.speedWpm).toBe(SETTING_DEFS.speedWpm.max)
     expect(parsed.fontSize).toBe(SETTING_DEFS.fontSize.min)
     expect(parsed.mirror).toBe(true)

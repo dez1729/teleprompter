@@ -1,7 +1,4 @@
-export type PlaybackMode =
-  | { kind: 'paused' }
-  | { kind: 'countdown'; remainingMs: number }
-  | { kind: 'playing' }
+export type PlaybackMode = { kind: 'paused' } | { kind: 'countdown'; remainingMs: number } | { kind: 'playing' }
 
 export interface PlaybackState {
   mode: PlaybackMode
