@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Pointer
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { ControlBar } from './ControlBar'
+import { NudgeHud } from './NudgeHud'
 import { cursorToY, EMPTY_LAYOUT, measureLayout, yToCursor, type Layout } from './layout'
 import { PasteDialog } from './PasteDialog'
 import { ScriptText } from './ScriptText'
@@ -15,7 +16,7 @@ const DRAG_THRESHOLD_PX = 3
 const WHEEL_LINE_PX = 16
 
 export function Prompter() {
-  const { script, tokens, settings, playback, dispatch, updateSetting, push, run } = usePrompter()
+  const { script, tokens, settings, playback, readout, dispatch, updateSetting, push, run } = usePrompter()
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
@@ -182,6 +183,7 @@ export function Prompter() {
           />
         </div>
       </div>
+      <NudgeHud readout={readout} />
       <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} settings={settings} onChange={updateSetting} />
       <PasteDialog open={pasteOpen} onOpenChange={setPasteOpen} hasScript={script !== null} onPush={push} />
     </>

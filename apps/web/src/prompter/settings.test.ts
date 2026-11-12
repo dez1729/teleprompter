@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, SETTING_DEFS, nudgeSetting, parseSettings } from './settings'
+import { DEFAULT_SETTINGS, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from './settings'
 import { commandForKey } from './keymap'
 import { appendScript, guessFormat, tokenize } from './script'
 
@@ -30,6 +30,13 @@ describe('settings', () => {
     expect(nudgeSetting(DEFAULT_SETTINGS, 'speedWpm', 1).speedWpm).toBe(145)
     const max = { ...DEFAULT_SETTINGS, speedWpm: SETTING_DEFS.speedWpm.max }
     expect(nudgeSetting(max, 'speedWpm', 1).speedWpm).toBe(SETTING_DEFS.speedWpm.max)
+  })
+})
+
+describe('formatSettingValue', () => {
+  it('appends the registry unit when there is one', () => {
+    expect(formatSettingValue('fontSize', 58)).toBe('58 px')
+    expect(formatSettingValue('windowHeightLines', 4)).toBe('4')
   })
 })
 

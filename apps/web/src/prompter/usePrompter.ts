@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { commandForKey, type Command } from './keymap'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
 import { appendScript, makeScript, tokenize, type Script, type TokenizedScript } from './script'
-import { nudgeSetting, type DisplaySettings, type SettingKey } from './settings'
+import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from './settings'
 import { loadScript, loadSettings, saveScript, saveSettings } from './storage'
 
 const MAX_FRAME_MS = 100
@@ -28,6 +28,12 @@ function consumesArrows(target: EventTarget | null): boolean {
 
 export type PushMode = 'replace' | 'append'
 
+export interface NudgeReadout {
+  /** Changes on every nudge, so repeated nudges restart the fade. */
+  seq: number
+  text: string
+}
+
 export function usePrompter() {
   const [script, setScript] = useState<Script | null>(loadScript)
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings)
@@ -42,6 +48,7 @@ export function usePrompter() {
     }),
   )
 
+  const [readout, setReadout] = useState<NudgeReadout | null>(null)
   const settingsRef = useRef(settings)
   settingsRef.current = settings
 
@@ -89,8 +96,13 @@ export function usePrompter() {
         return dispatch({ type: 'TOGGLE', countdownSec, countdownAtStartOnly })
       case 'restart':
         return dispatch({ type: 'RESTART' })
-      case 'nudge':
-        return setSettings((current) => nudgeSetting(current, command.setting, command.direction))
+      case 'nudge': {
+        const next = nudgeSetting(settingsRef.current, command.setting, command.direction)
+        settingsRef.current = next
+        setSettings(next)
+        const text = `${SETTING_DEFS[command.setting].label}: ${formatSettingValue(command.setting, next[command.setting])}`
+        return setReadout((current) => ({ seq: (current?.seq ?? 0) + 1, text }))
+      }
       case 'stepLine':
         return dispatch({ type: 'STEP_LINE', delta: command.delta })
       case 'stepParagraph':
@@ -124,5 +136,5 @@ export function usePrompter() {
     }
   }, [run])
 
-  return { script, tokens, settings, playback, dispatch, updateSetting, push, run }
+  return { script, tokens, settings, playback, readout, dispatch, updateSetting, push, run }
 }

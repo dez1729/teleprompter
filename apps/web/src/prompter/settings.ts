@@ -61,7 +61,7 @@ export const SETTING_DEFS = {
   textColor: color('Text color', '#ffffff'),
   bgColor: color('Background', '#000000'),
   overlayOpacity: num('Dimming', 0.85, 0, 1, 0.05),
-  windowHeightLines: num('Highlighted lines', 3, 1, 10, 1, 'lines'),
+  windowHeightLines: num('Highlighted lines', 3, 1, 10, 1),
   windowPositionPct: num('Reading window position', 40, 0, 90, 1, '%'),
   columnMode: choice('Width', 'column', [
     { value: 'column', label: 'Column' },
@@ -115,4 +115,9 @@ export function parseSettings(raw: unknown): DisplaySettings {
 export function nudgeSetting(settings: DisplaySettings, key: NumberSettingKey, direction: 1 | -1): DisplaySettings {
   const def: NumberField = SETTING_DEFS[key]
   return { ...settings, [key]: snap(settings[key] + direction * def.step, def) }
+}
+
+export function formatSettingValue(key: NumberSettingKey, value: number): string {
+  const def: NumberField = SETTING_DEFS[key]
+  return def.unit ? `${value} ${def.unit}` : `${value}`
 }
