@@ -1,0 +1,126 @@
+import { describe, expect, it } from 'vitest'
+import { initialPlayback, needsTick, playbackReducer, type PlaybackEvent, type PlaybackState } from './playback'
+
+const run = (state: PlaybackState, ...events: PlaybackEvent[]) => events.reduce(playbackReducer, state)
+
+const loaded = run(
+  initialPlayback,
+  { type: 'SET_SCRIPT', wordCount: 100, paragraphStarts: [0, 40, 70], reset: true },
+  { type: 'SET_LAYOUT', lineStarts: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+)
+
+describe('playback', () => {
+  it('starts paused at the top', () => {
+    expect(loaded.mode.kind).toBe('paused')
+    expect(loaded.cursor).toBe(0)
+    expect(needsTick(loaded)).toBe(false)
+  })
+
+  it('counts down before playing, then advances by wpm', () => {
+    let state = run(loaded, { type: 'PLAY', countdownSec: 3 })
+    expect(state.mode).toEqual({ kind: 'countdown', remainingMs: 3000 })
+    state = run(state, { type: 'TICK', dtMs: 2000, wpm: 120 })
+    expect(state.mode).toEqual({ kind: 'countdown', remainingMs: 1000 })
+    expect(state.cursor).toBe(0)
+    state = run(state, { type: 'TICK', dtMs: 1000, wpm: 120 })
+    expect(state.mode.kind).toBe('playing')
+    state = run(state, { type: 'TICK', dtMs: 30000, wpm: 120 })
+    expect(state.cursor).toBeCloseTo(60)
+  })
+
+  it('plays immediately when the countdown is 0', () => {
+    expect(run(loaded, { type: 'PLAY', countdownSec: 0 }).mode.kind).toBe('playing')
+  })
+
+  it('toggles between playing and paused, keeping the cursor', () => {
+    let state = run(loaded, { type: 'TOGGLE', countdownSec: 0 }, { type: 'TICK', dtMs: 6000, wpm: 100 })
+    expect(state.cursor).toBeCloseTo(10)
+    state = run(state, { type: 'TOGGLE', countdownSec: 0 })
+    expect(state.mode.kind).toBe('paused')
+    expect(state.cursor).toBeCloseTo(10)
+  })
+
+  it('pausing during the countdown cancels it', () => {
+    const state = run(loaded, { type: 'PLAY', countdownSec: 3 }, { type: 'PAUSE' })
+    expect(state.mode.kind).toBe('paused')
+  })
+
+  it('does nothing without a script', () => {
+    expect(run(initialPlayback, { type: 'PLAY', countdownSec: 0 }).mode.kind).toBe('paused')
+  })
+
+  it('stops at the end and rewinds on the next play', () => {
+    let state = run(loaded, { type: 'PLAY', countdownSec: 0 }, { type: 'TICK', dtMs: 10 * 60000, wpm: 100 })
+    expect(state.mode.kind).toBe('paused')
+    expect(state.cursor).toBe(100)
+    state = run(state, { type: 'PLAY', countdownSec: 0 })
+    expect(state.cursor).toBe(0)
+    expect(state.mode.kind).toBe('playing')
+  })
+
+  it('eases toward a stepped line instead of jumping', () => {
+    let state = run(loaded, { type: 'STEP_LINE', delta: 1 })
+    expect(state.animTarget).toBe(10)
+    expect(state.cursor).toBe(0)
+    expect(needsTick(state)).toBe(true)
+    state = run(state, { type: 'TICK', dtMs: 16, wpm: 140 })
+    expect(state.cursor).toBeGreaterThan(0)
+    expect(state.cursor).toBeLessThan(10)
+    for (let i = 0; i < 30; i++) state = run(state, { type: 'TICK', dtMs: 16, wpm: 140 })
+    expect(state.cursor).toBe(10)
+    expect(state.animTarget).toBeNull()
+    expect(state.mode.kind).toBe('paused')
+  })
+
+  it('chains steps from the pending target', () => {
+    const state = run(loaded, { type: 'STEP_LINE', delta: 1 }, { type: 'STEP_LINE', delta: 1 })
+    expect(state.animTarget).toBe(20)
+  })
+
+  it('steps back to the start of the current line first, then the previous', () => {
+    let state = run(loaded, { type: 'SCRUB', cursor: 25 }, { type: 'STEP_LINE', delta: -1 })
+    expect(state.animTarget).toBe(20)
+    state = run(state, { type: 'STEP_LINE', delta: -1 })
+    expect(state.animTarget).toBe(10)
+  })
+
+  it('steps by paragraph', () => {
+    let state = run(loaded, { type: 'STEP_PARAGRAPH', delta: 1 })
+    expect(state.animTarget).toBe(40)
+    state = run(state, { type: 'STEP_PARAGRAPH', delta: 1 })
+    expect(state.animTarget).toBe(70)
+    state = run(state, { type: 'STEP_PARAGRAPH', delta: 1 })
+    expect(state.animTarget).toBe(70)
+  })
+
+  it('stepping while playing continues playing afterwards', () => {
+    let state = run(loaded, { type: 'PLAY', countdownSec: 0 }, { type: 'STEP_LINE', delta: 1 })
+    for (let i = 0; i < 40; i++) state = run(state, { type: 'TICK', dtMs: 16, wpm: 140 })
+    expect(state.mode.kind).toBe('playing')
+    expect(state.cursor).toBeGreaterThan(10)
+  })
+
+  it('scrubbing moves the cursor and pauses', () => {
+    const state = run(loaded, { type: 'PLAY', countdownSec: 0 }, { type: 'SCRUB', cursor: 33.5 })
+    expect(state.cursor).toBe(33.5)
+    expect(state.mode.kind).toBe('paused')
+    expect(run(state, { type: 'SCRUB', cursor: -5 }).cursor).toBe(0)
+    expect(run(state, { type: 'SCRUB', cursor: 999 }).cursor).toBe(100)
+  })
+
+  it('restart returns to the top, paused', () => {
+    const state = run(loaded, { type: 'PLAY', countdownSec: 0 }, { type: 'TICK', dtMs: 5000, wpm: 100 }, { type: 'RESTART' })
+    expect(state.cursor).toBe(0)
+    expect(state.mode.kind).toBe('paused')
+  })
+
+  it('replace resets position, append keeps it', () => {
+    const mid = run(loaded, { type: 'SCRUB', cursor: 50 })
+    const appended = run(mid, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0, 40, 70, 100], reset: false })
+    expect(appended.cursor).toBe(50)
+    expect(appended.wordCount).toBe(150)
+    const replaced = run(mid, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], reset: true })
+    expect(replaced.cursor).toBe(0)
+    expect(replaced.mode.kind).toBe('paused')
+  })
+})
