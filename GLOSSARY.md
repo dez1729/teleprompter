@@ -25,6 +25,10 @@ A Push that swaps out the whole Script and returns to the top, paused.
 **Append**:
 A Push that adds text to the end of the Script without moving the Current line.
 
+**Apply**:
+Replacing the Script with text edited in the app. Unlike a Replace, it keeps the reader's place when the words before it are unchanged.
+_Avoid_: Save, commit
+
 **Spoken-only**:
 A display filter for markdown Scripts that hides everything not meant to be read aloud (headings, italics, code, frontmatter, comments, callouts). The stored Script is unchanged.
 _Avoid_: Clean mode, strip markdown
