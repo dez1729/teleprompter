@@ -57,7 +57,7 @@ The horizontal band of the display where text is shown at full brightness; every
 _Avoid_: Focus area, highlight, viewport
 
 **Current line**:
-The line at the top edge of the Reading window: the reader's position in the Script.
+The line being read: the reader's position in the Script. It enters the Reading window below the top edge and rises to the top edge as it is read, so it is never dimmed.
 _Avoid_: Cursor, playhead
 
 **Dimming overlay**:

@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { cursorToY, lineIndexOf, yToCursor, type Layout } from './layout'
+import { cursorToY, lineIndexOf, readingOffset, yToCursor, type Layout } from './layout'
+
+describe('readingOffset', () => {
+  it('keeps the line being read inside the Reading window from start to finish', () => {
+    for (const lines of [1, 2, 3, 4, 5, 10]) {
+      const offset = readingOffset(lines, 50)
+      expect(offset).toBeGreaterThanOrEqual(0)
+      if (lines >= 2) expect(offset + 50).toBeLessThanOrEqual(lines * 50)
+    }
+  })
+
+  it('starts a 3-line window on the middle row', () => {
+    expect(readingOffset(3, 50)).toBe(50)
+  })
+})
 
 const layout: Layout = {
   lines: [

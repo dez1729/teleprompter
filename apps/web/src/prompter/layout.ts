@@ -39,6 +39,15 @@ export function cursorToY(layout: Layout, cursor: number): number {
   return line.top + fraction * lineSpan(layout, index)
 }
 
+/**
+ * How far below the Reading window's top edge the Current line starts. Smooth scrolling lifts the
+ * line by one row while it is read, so it starts a row (or more, for taller windows) down and
+ * finishes at the top edge, staying inside the window the whole time.
+ */
+export function readingOffset(windowHeightLines: number, lineHeightPx: number): number {
+  return Math.floor(windowHeightLines / 2) * lineHeightPx
+}
+
 export function yToCursor(layout: Layout, y: number): number {
   const { lines } = layout
   if (lines.length === 0) return 0

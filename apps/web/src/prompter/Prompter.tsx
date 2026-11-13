@@ -5,7 +5,7 @@ import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { ControlBar } from './ControlBar'
 import { NudgeHud } from './NudgeHud'
-import { cursorToY, EMPTY_LAYOUT, measureLayout, yToCursor, type Layout } from './layout'
+import { cursorToY, EMPTY_LAYOUT, measureLayout, readingOffset, yToCursor, type Layout } from './layout'
 import { HelpOverlay } from './HelpOverlay'
 import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
@@ -131,7 +131,7 @@ export function Prompter() {
 
   const windowTop = `${settings.windowPositionPct}%`
   const windowBottom = `calc(${windowTop} + ${settings.windowHeightLines * lineHeightPx}px)`
-  const y = cursorToY(layout, playback.cursor)
+  const y = cursorToY(layout, playback.cursor) - readingOffset(settings.windowHeightLines, lineHeightPx)
   const overlayStyle = { backgroundColor: settings.bgColor, opacity: settings.overlayOpacity }
   const edgeStyle = { backgroundColor: `color-mix(in srgb, ${settings.textColor} 15%, transparent)` }
   const countdown = playback.mode.kind === 'countdown' ? Math.ceil(playback.mode.remainingMs / 1000) : null
