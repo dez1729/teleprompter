@@ -4,7 +4,7 @@ import { placementFor } from './anchor'
 import { appendedTail, appendToDraft, draftText, editDraft, isDirty, type Draft } from './draft'
 import { commandForKey, type Command, type UiCommand } from './keymap'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
-import { pushScript, openScriptStream, type ScriptMessage } from './scriptApi'
+import { sendScript, openScriptStream, type ScriptMessage } from '@/lib/scriptApi'
 import { tokenize, type TokenizedScript } from './script'
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from './settings'
 import { clearLegacyScript, loadDraft, loadLegacyScript, loadSettings, saveDraft, saveSettings } from './storage'
@@ -46,7 +46,7 @@ interface UiBridge {
 function moveLegacyScript() {
   const legacy = loadLegacyScript()
   if (!legacy) return
-  pushScript({ kind: 'replace', ...legacy }).then(clearLegacyScript, () => {})
+  sendScript({ kind: 'replace', ...legacy }).then(clearLegacyScript, () => {})
 }
 
 export function usePrompter(ui: UiBridge) {
@@ -126,7 +126,7 @@ export function usePrompter(ui: UiBridge) {
   const applyDraft = useCallback(async () => {
     const text = draftText(draft, script)
     if (text.trim() === '') return
-    await pushScript({ kind: 'edit', text })
+    await sendScript({ kind: 'edit', text })
     setDraft((now) => (now === text ? null : now))
   }, [draft, script])
 
@@ -135,7 +135,7 @@ export function usePrompter(ui: UiBridge) {
   const editDraftText = useCallback((text: string) => setDraft(editDraft(text, script)), [script])
 
   const append = useCallback(async (text: string) => {
-    if (text.trim() !== '') await pushScript({ kind: 'append', text })
+    if (text.trim() !== '') await sendScript({ kind: 'append', text })
   }, [])
 
   const run = useCallback((command: Command) => {
