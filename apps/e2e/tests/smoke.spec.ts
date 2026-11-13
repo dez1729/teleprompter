@@ -102,6 +102,15 @@ test('the Editor edits the Script, takes a Push, and a Replace can be undone', a
   await expect(editor.getByRole('status')).toHaveText('Saved')
   expect(await serverScript()).toMatchObject({ text: 'alpha bravo charlie', revision: 1 })
 
+  // An Edit leaves a playing Prompter playing. Going back to the top would pause it.
+  await page.getByRole('button', { name: /^play/i }).click()
+  await editor.keyboard.type(' zulu')
+  await expect(page.getByText('zulu')).toBeVisible()
+  await expect(page.getByRole('button', { name: /^pause/i })).toBeVisible()
+  await page.getByRole('button', { name: /^pause/i }).click()
+  await editor.keyboard.press('Control+z')
+  await expect(page.getByText('zulu')).toHaveCount(0)
+
   // A Push lands in the Editor, and undoing it there takes it out of the Prompter too.
   tp(['send', '--append'], 'delta echo')
   await expect(document).toContainText('delta echo')
