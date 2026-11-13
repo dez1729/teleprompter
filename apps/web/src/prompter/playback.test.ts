@@ -9,6 +9,34 @@ const loaded = run(
   { type: 'SET_LAYOUT', lineStarts: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
 )
 
+describe('minimum time per line', () => {
+  const short = run(
+    initialPlayback,
+    { type: 'SET_SCRIPT', wordCount: 22, paragraphStarts: [0], place: 'reset' },
+    { type: 'SET_LAYOUT', lineStarts: [0, 10, 12] },
+    { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false },
+  )
+  const tickFor = (state: PlaybackState, ms: number) => {
+    for (let t = 0; t < ms; t += 10) state = run(state, { type: 'TICK', dtMs: 10, wpm: 300, minLineMs: 1500 })
+    return state
+  }
+
+  it('reads a full line at Speed', () => {
+    expect(tickFor(short, 2000).cursor).toBeCloseTo(10, 0)
+  })
+
+  it('holds a two-word line up for the minimum time', () => {
+    const atShort = tickFor(short, 2000)
+    expect(tickFor(atShort, 1400).cursor).toBeLessThan(12)
+    expect(tickFor(atShort, 1600).cursor).toBeGreaterThan(12)
+  })
+
+  it('reads at Speed when the minimum is 0', () => {
+    const state = run(short, { type: 'TICK', dtMs: 1000, wpm: 300, minLineMs: 0 })
+    expect(state.cursor).toBeCloseTo(5)
+  })
+})
+
 describe('playback', () => {
   it('starts paused at the top', () => {
     expect(loaded.mode.kind).toBe('paused')

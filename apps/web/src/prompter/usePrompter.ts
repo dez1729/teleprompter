@@ -99,7 +99,7 @@ export function usePrompter(ui: UiBridge) {
     let last = performance.now()
     let frame = 0
     const loop = (now: number) => {
-      dispatch({ type: 'TICK', dtMs: Math.min(now - last, MAX_FRAME_MS), wpm: settingsRef.current.speedWpm })
+      dispatch({ type: 'TICK', dtMs: Math.min(now - last, MAX_FRAME_MS), wpm: settingsRef.current.speedWpm, minLineMs: settingsRef.current.minLineSec * 1000 })
       last = now
       frame = requestAnimationFrame(loop)
     }

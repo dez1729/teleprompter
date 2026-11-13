@@ -22,7 +22,7 @@ export type PlaybackEvent =
   | { type: 'TOGGLE'; countdownSec: number; countdownAtStartOnly: boolean }
   | { type: 'PLAY'; countdownSec: number; countdownAtStartOnly: boolean }
   | { type: 'PAUSE' }
-  | { type: 'TICK'; dtMs: number; wpm: number }
+  | { type: 'TICK'; dtMs: number; wpm: number; minLineMs?: number }
   | { type: 'STEP_LINE'; delta: 1 | -1 }
   | { type: 'STEP_PARAGRAPH'; delta: 1 | -1 }
   | { type: 'RESTART' }
@@ -80,7 +80,18 @@ function step(state: PlaybackState, starts: readonly number[], delta: 1 | -1): P
   return target === null ? state : { ...state, animTarget: target }
 }
 
-function tick(state: PlaybackState, dtMs: number, wpm: number): PlaybackState {
+/** Reading pace on the Current line: Speed, slowed so a short line stays up at least `minLineMs`. */
+function wordsPerMs(state: PlaybackState, wpm: number, minLineMs: number): number {
+  const base = wpm / 60000
+  const { lineStarts, cursor } = state
+  let line = -1
+  for (let i = 0; i < lineStarts.length && lineStarts[i]! <= cursor; i++) line = i
+  if (line < 0) return base
+  const words = (lineStarts[line + 1] ?? state.wordCount) - lineStarts[line]!
+  return words > 0 ? Math.min(base, words / minLineMs) : base
+}
+
+function tick(state: PlaybackState, dtMs: number, wpm: number, minLineMs: number): PlaybackState {
   if (state.animTarget !== null) {
     const distance = state.animTarget - state.cursor
     if (Math.abs(distance) <= SNAP_DISTANCE) return { ...state, cursor: state.animTarget, animTarget: null }
@@ -95,7 +106,7 @@ function tick(state: PlaybackState, dtMs: number, wpm: number): PlaybackState {
       return { ...state, mode: remainingMs > 0 ? { kind: 'countdown', remainingMs } : { kind: 'playing' } }
     }
     case 'playing': {
-      const cursor = state.cursor + (wpm * dtMs) / 60000
+      const cursor = state.cursor + wordsPerMs(state, wpm, minLineMs) * dtMs
       return cursor >= state.wordCount
         ? { ...state, cursor: state.wordCount, mode: { kind: 'paused' } }
         : { ...state, cursor }
@@ -112,7 +123,7 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
     case 'TOGGLE':
       return state.mode.kind === 'paused' ? play(state, event.countdownSec, event.countdownAtStartOnly) : pause(state)
     case 'TICK':
-      return tick(state, event.dtMs, event.wpm)
+      return tick(state, event.dtMs, event.wpm, event.minLineMs ?? 0)
     case 'STEP_LINE':
       return step(state, state.lineStarts, event.delta)
     case 'STEP_PARAGRAPH':
