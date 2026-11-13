@@ -61,11 +61,26 @@ describe('Push', () => {
     expect(((await (await push({ kind: 'append', text: 'three' })).json()) as Script).text).toBe('three')
   })
 
-  it('Apply replaces the text and keeps the source', async () => {
+  it('Edit replaces the text and keeps the source', async () => {
     const { push } = setup()
     await push({ kind: 'replace', text: 'one', source: 'Note' })
-    const script = (await (await push({ kind: 'apply', text: 'one two' })).json()) as Script
+    const script = (await (await push({ kind: 'edit', text: 'one two' })).json()) as Script
     expect(script).toMatchObject({ text: 'one two', source: 'Note', revision: 2 })
+  })
+
+  it('Edit keeps the format unless it starts from an empty Script', async () => {
+    const { push } = setup()
+    expect(((await (await push({ kind: 'edit', text: '# Title' })).json()) as Script).format).toBe('markdown')
+    expect(((await (await push({ kind: 'edit', text: 'plain now' })).json()) as Script).format).toBe('markdown')
+    expect(((await (await push({ kind: 'edit', text: 'plain now', format: 'text' })).json()) as Script).format).toBe('text')
+  })
+
+  it('Edit may clear the Script', async () => {
+    const { push } = setup()
+    await push({ kind: 'replace', text: 'one' })
+    const res = await push({ kind: 'edit', text: '' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ text: '', revision: 2 })
   })
 
   it('an explicit format wins over detection', async () => {

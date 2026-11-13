@@ -107,8 +107,8 @@ export function usePrompter(ui: UiBridge) {
 
     const hadScript = before.text.trim() !== ''
     const nextTokens = tokenize(incoming)
-    const kind = message.type === 'change' ? message.kind : 'apply'
-    const reset = kind === 'replace' || !hadScript || (kind === 'apply' && !keepsPlace(beforeTokens, nextTokens, cursor))
+    const kind = message.type === 'change' ? message.kind : 'edit'
+    const reset = kind === 'replace' || !hadScript || (kind === 'edit' && !keepsPlace(beforeTokens, nextTokens, cursor))
 
     live.current = { current: incoming, tokens: nextTokens, cursor: reset ? 0 : cursor }
     setCurrent(incoming)
@@ -125,7 +125,7 @@ export function usePrompter(ui: UiBridge) {
   const applyDraft = useCallback(async () => {
     const text = draftText(draft, script)
     if (text.trim() === '') return
-    await pushScript({ kind: 'apply', text })
+    await pushScript({ kind: 'edit', text })
     setDraft((now) => (now === text ? null : now))
   }, [draft, script])
 

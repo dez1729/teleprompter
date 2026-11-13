@@ -1,4 +1,4 @@
-import { ScriptChangeSchema, ScriptSchema, type PushRequest, type Script } from '@teleprompter/protocol'
+import { ScriptChangeSchema, ScriptSchema, type ChangeKind, type PushRequest, type Script } from '@teleprompter/protocol'
 
 export async function pushScript(request: PushRequest): Promise<void> {
   const response = await fetch('/api/script', {
@@ -11,7 +11,7 @@ export async function pushScript(request: PushRequest): Promise<void> {
 
 export type ScriptMessage =
   | { type: 'snapshot'; script: Script }
-  | { type: 'change'; kind: 'replace' | 'append' | 'apply'; script: Script }
+  | { type: 'change'; kind: ChangeKind; script: Script }
 
 function parse<T>(schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false } }, data: string) {
   try {

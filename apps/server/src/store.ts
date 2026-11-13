@@ -17,8 +17,12 @@ export function nextScript(current: Script, request: PushRequest): Script {
     const format = request.format ?? (current.format === 'markdown' ? 'markdown' : guessFormat(text))
     return { text, format, source: request.source ?? current.source, revision }
   }
-  const source = request.source ?? (request.kind === 'apply' ? current.source : null)
-  return { text: request.text, format: request.format ?? guessFormat(request.text), source, revision }
+  if (request.kind === 'edit') {
+    // Typing must not flip the format, so an Edit only detects it when starting from nothing.
+    const format = request.format ?? (current.text.trim() === '' ? guessFormat(request.text) : current.format)
+    return { text: request.text, format, source: request.source ?? current.source, revision }
+  }
+  return { text: request.text, format: request.format ?? guessFormat(request.text), source: request.source ?? null, revision }
 }
 
 type Listener = (change: ScriptChange) => void

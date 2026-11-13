@@ -23,6 +23,10 @@ describe('PushRequestSchema', () => {
     expect(PushRequestSchema.safeParse({ kind: 'nope', text: 'a' }).success).toBe(false)
     expect(PushRequestSchema.safeParse({ kind: 'replace', text: 'a', extra: 1 }).success).toBe(false)
   })
+  it('accepts empty text only for an Edit', () => {
+    expect(PushRequestSchema.safeParse({ kind: 'edit', text: '' }).success).toBe(true)
+    expect(PushRequestSchema.safeParse({ kind: 'append', text: '' }).success).toBe(false)
+  })
   it('accepts a minimal request', () => {
     expect(PushRequestSchema.safeParse({ kind: 'append', text: 'a' }).success).toBe(true)
   })
