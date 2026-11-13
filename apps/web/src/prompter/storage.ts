@@ -1,8 +1,7 @@
-import type { Draft } from './draft'
 import { DEFAULT_SETTINGS, parseSettings, type DisplaySettings } from './settings'
 
 const LEGACY_SCRIPT_KEY = 'teleprompter.script'
-const DRAFT_KEY = 'teleprompter.draft'
+const LEGACY_DRAFT_KEY = 'teleprompter.draft'
 const SETTINGS_KEY = 'teleprompter.settings'
 
 function read(key: string): unknown {
@@ -31,13 +30,18 @@ export function loadLegacyScript(): { text: string; format?: 'markdown' | 'text'
   return { text: source, format: format === 'markdown' || format === 'text' ? format : undefined }
 }
 
-export function clearLegacyScript(): void {
+function remove(key: string): void {
   try {
-    localStorage.removeItem(LEGACY_SCRIPT_KEY)
+    localStorage.removeItem(key)
   } catch {
     // Nothing to remove if storage is unavailable.
   }
 }
+
+export const clearLegacyScript = () => remove(LEGACY_SCRIPT_KEY)
+
+/** The Script dialog kept unapplied edits here. The Editor replaced it and keeps nothing in the browser. */
+export const clearLegacyDraft = () => remove(LEGACY_DRAFT_KEY)
 
 export function loadSettings(): DisplaySettings {
   const raw = read(SETTINGS_KEY)
@@ -45,10 +49,3 @@ export function loadSettings(): DisplaySettings {
 }
 
 export const saveSettings = (settings: DisplaySettings) => write(SETTINGS_KEY, settings)
-
-export function loadDraft(): Draft {
-  const raw = read(DRAFT_KEY)
-  return typeof raw === 'string' ? raw : null
-}
-
-export const saveDraft = (draft: Draft) => write(DRAFT_KEY, draft)

@@ -1,10 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { helpRows, type HelpRow } from './keymap'
 
-const MOUSE_ROWS: HelpRow[] = [
-  { keys: 'Wheel / drag', description: 'Scrub the Script (pauses)' },
-  { keys: 'Ctrl / Cmd Enter', description: 'Apply, in the Script dialog' },
-]
+const MOUSE_ROWS: HelpRow[] = [{ keys: 'Wheel / drag', description: 'Scrub the Script (pauses)' }]
 
 interface Props {
   open: boolean

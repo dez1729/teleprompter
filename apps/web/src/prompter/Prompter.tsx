@@ -1,14 +1,15 @@
-import { ClipboardPaste } from 'lucide-react'
+import { SquarePen } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
 import { Button } from '@/components/ui/button'
+import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { ControlBar } from './ControlBar'
 import { NudgeHud } from './NudgeHud'
 import { cursorToY, EMPTY_LAYOUT, measureLayout, yToCursor, type Layout } from './layout'
 import { HelpOverlay } from './HelpOverlay'
-import { PasteDialog } from './PasteDialog'
 import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
+import { UndoToast } from './UndoToast'
 import { FONT_STACKS } from './settings'
 import { usePrompter } from './usePrompter'
 
@@ -16,21 +17,31 @@ const BAR_HIDE_DELAY_MS = 2000
 const DRAG_THRESHOLD_PX = 3
 const WHEEL_LINE_PX = 16
 
+const openEditor = () => openNamedWindow('/editor', EDITOR_WINDOW)
+
 export function Prompter() {
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [pasteOpen, setPasteOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const { script, connected, tokens, settings, playback, readout, dispatch, updateSetting, draft, draftDirty, editDraft, applyDraft, discardDraft, append, run } = usePrompter({
+  const { script, connected, tokens, settings, playback, readout, replaced, undoReplace, dispatch, updateSetting, run } = usePrompter({
     helpOpen,
     onUiCommand: (command) => {
-      if (command.type === 'toggleHelp') return setHelpOpen((open) => !open)
-      if (settingsOpen || pasteOpen) return
-      if (command.type === 'openSettings') setSettingsOpen(true)
-      else setPasteOpen(true)
+      switch (command.type) {
+        case 'toggleHelp':
+          return setHelpOpen((open) => !open)
+        case 'openSettings':
+          return setSettingsOpen(true)
+        case 'openEditor':
+          return openEditor()
+      }
     },
   })
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT)
   const [recentMouse, setRecentMouse] = useState(true)
+
+  useEffect(() => {
+    // Named so the Editor's "Open Prompter" comes back to this window instead of opening another.
+    window.name ||= PROMPTER_WINDOW
+  }, [])
 
   const stageRef = useRef<HTMLDivElement>(null)
   const textRef = useRef<HTMLDivElement>(null)
@@ -177,12 +188,12 @@ export function Prompter() {
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>No Script yet</EmptyTitle>
-                <EmptyDescription>Paste your Script to start prompting, or send one with tp send.</EmptyDescription>
+                <EmptyDescription>Write or paste your Script in the Editor, or send one with tp send.</EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
-                <Button onClick={() => setPasteOpen(true)}>
-                  <ClipboardPaste data-icon="inline-start" />
-                  Paste a Script
+                <Button onClick={openEditor}>
+                  <SquarePen data-icon="inline-start" />
+                  Open the Editor
                 </Button>
               </EmptyContent>
             </Empty>
@@ -203,23 +214,13 @@ export function Prompter() {
             fontSize={settings.fontSize}
             hasScript={script !== null}
             onCommand={run}
-            draftDirty={draftDirty}
           />
         </div>
       </div>
       <NudgeHud readout={readout} />
       <HelpOverlay open={helpOpen} onOpenChange={setHelpOpen} />
       <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} settings={settings} onChange={updateSetting} />
-      <PasteDialog
-        open={pasteOpen}
-        onOpenChange={setPasteOpen}
-        draft={draft}
-        dirty={draftDirty}
-        onEdit={editDraft}
-        onApply={applyDraft}
-        onDiscard={discardDraft}
-        onAppend={append}
-      />
+      <UndoToast notice={replaced} onUndo={undoReplace} />
     </>
   )
 }

@@ -43,8 +43,8 @@ describe('commandForKey', () => {
     expect(commandForKey({ key: '?', shiftKey: false })).toBeNull()
   })
 
-  it('opens settings and the paste dialog', () => {
+  it('opens settings and the Editor', () => {
     expect(commandForKey({ key: ',', shiftKey: false })).toEqual({ type: 'openSettings' })
-    expect(commandForKey({ key: 'P', shiftKey: true })).toEqual({ type: 'openPaste' })
+    expect(commandForKey({ key: 'P', shiftKey: true })).toEqual({ type: 'openEditor' })
   })
 })

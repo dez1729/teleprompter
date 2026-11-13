@@ -9,7 +9,7 @@ export type PlaybackCommand =
   | { type: 'follow' }
 
 /** Opens or closes UI. The Prompter owns that state, so these never reach the playback reducer. */
-export type UiCommand = { type: 'openSettings' } | { type: 'openPaste' } | { type: 'toggleHelp' }
+export type UiCommand = { type: 'openSettings' } | { type: 'openEditor' } | { type: 'toggleHelp' }
 
 export type Command = PlaybackCommand | UiCommand
 
@@ -45,7 +45,7 @@ export const KEYMAP: readonly Binding[] = [
   { key: '[', label: '[', command: { type: 'nudge', setting: 'windowHeightLines', direction: -1 }, description: 'Shorter Reading window', group: 'Display' },
   { key: 'f', label: 'F', command: { type: 'follow' }, description: 'Follow', group: 'Playback', hidden: true },
   { key: ',', label: ',', command: { type: 'openSettings' }, description: 'Display settings', group: 'Panels' },
-  { key: 'p', label: 'P', command: { type: 'openPaste' }, description: 'Paste a Script', group: 'Panels' },
+  { key: 'p', label: 'P', command: { type: 'openEditor' }, description: 'Open the Editor', group: 'Panels' },
   { key: '?', label: '?', shift: true, command: { type: 'toggleHelp' }, description: 'Keyboard shortcuts', group: 'Panels' },
 ]
 
