@@ -13,6 +13,11 @@ export interface PlaybackState {
   lineStarts: readonly number[]
 }
 
+/** Where the reader goes when the Script changes: back to the top, or wherever their old position now is. */
+export type Placement = 'reset' | ((cursor: number) => number)
+
+export const keepPlace: Placement = (cursor) => cursor
+
 export type PlaybackEvent =
   | { type: 'TOGGLE'; countdownSec: number; countdownAtStartOnly: boolean }
   | { type: 'PLAY'; countdownSec: number; countdownAtStartOnly: boolean }
@@ -22,7 +27,7 @@ export type PlaybackEvent =
   | { type: 'STEP_PARAGRAPH'; delta: 1 | -1 }
   | { type: 'RESTART' }
   | { type: 'SCRUB'; cursor: number }
-  | { type: 'SET_SCRIPT'; wordCount: number; paragraphStarts: readonly number[]; reset: boolean }
+  | { type: 'SET_SCRIPT'; wordCount: number; paragraphStarts: readonly number[]; place: Placement }
   | { type: 'SET_LAYOUT'; lineStarts: readonly number[] }
 
 /** Time constant of the step easing. About 95% of a step lands in 3 of these. */
@@ -118,9 +123,9 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
       return { ...state, cursor: clampCursor(state, event.cursor), animTarget: null, mode: { kind: 'paused' } }
     case 'SET_SCRIPT': {
       const next = { ...state, wordCount: event.wordCount, paragraphStarts: event.paragraphStarts }
-      return event.reset
+      return event.place === 'reset'
         ? { ...next, cursor: 0, animTarget: null, mode: { kind: 'paused' }, lineStarts: [], countdownArmed: true }
-        : { ...next, cursor: clampCursor(next, state.cursor), animTarget: null }
+        : { ...next, cursor: clampCursor(next, event.place(state.cursor)), animTarget: null }
     }
     case 'SET_LAYOUT':
       return { ...state, lineStarts: event.lineStarts }

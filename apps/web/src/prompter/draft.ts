@@ -1,5 +1,4 @@
 import { appendText, type Script } from '@teleprompter/protocol'
-import type { TokenizedScript } from './script'
 
 type ScriptText = Pick<Script, 'text'> | null
 
@@ -24,14 +23,4 @@ export const appendToDraft = (draft: Draft, addition: string): Draft =>
 export function appendedTail(before: string, after: string): string | null {
   const prefix = before.trim() === '' ? '' : `${before.replace(/\s+$/, '')}\n\n`
   return after.startsWith(prefix) ? after.slice(prefix.length) : null
-}
-
-/** True when the words before the reader's position are the same in both versions. */
-export function keepsPlace(before: TokenizedScript, after: TokenizedScript, cursor: number): boolean {
-  const passed = Math.floor(cursor)
-  if (after.words.length < passed) return false
-  for (let i = 0; i < passed; i++) {
-    if (before.words[i]?.text !== after.words[i]?.text) return false
-  }
-  return true
 }

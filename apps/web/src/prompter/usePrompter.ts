@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { EMPTY_SCRIPT, type Script } from '@teleprompter/protocol'
-import { appendedTail, appendToDraft, draftText, editDraft, isDirty, keepsPlace, type Draft } from './draft'
+import { placementFor } from './anchor'
+import { appendedTail, appendToDraft, draftText, editDraft, isDirty, type Draft } from './draft'
 import { commandForKey, type Command, type UiCommand } from './keymap'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
 import { pushScript, openScriptStream, type ScriptMessage } from './scriptApi'
@@ -62,15 +63,15 @@ export function usePrompter(ui: UiBridge) {
       type: 'SET_SCRIPT',
       wordCount: initial.words.length,
       paragraphStarts: initial.paragraphStarts,
-      reset: true,
+      place: 'reset',
     }),
   )
 
   const [readout, setReadout] = useState<NudgeReadout | null>(null)
   const settingsRef = useRef(settings)
   settingsRef.current = settings
-  const live = useRef({ current, tokens, cursor: playback.cursor })
-  live.current = { current, tokens, cursor: playback.cursor }
+  const live = useRef({ current, tokens })
+  live.current = { current, tokens }
   const uiRef = useRef(ui)
   uiRef.current = ui
 
@@ -100,19 +101,19 @@ export function usePrompter(ui: UiBridge) {
    * windows all arrive here as a change from the server.
    */
   const receive = useCallback((message: ScriptMessage) => {
-    const { current: before, tokens: beforeTokens, cursor } = live.current
+    const { current: before, tokens: beforeTokens } = live.current
     const incoming = message.script
     if (message.type === 'snapshot' && incoming.revision === 0) moveLegacyScript()
     if (message.type === 'snapshot' ? incoming.revision === before.revision : incoming.revision <= before.revision) return
 
-    const hadScript = before.text.trim() !== ''
     const nextTokens = tokenize(incoming)
+    // A snapshot that differs is whatever happened while disconnected, so it anchors like an Edit.
     const kind = message.type === 'change' ? message.kind : 'edit'
-    const reset = kind === 'replace' || !hadScript || (kind === 'edit' && !keepsPlace(beforeTokens, nextTokens, cursor))
+    const place = placementFor(kind, beforeTokens, nextTokens)
 
-    live.current = { current: incoming, tokens: nextTokens, cursor: reset ? 0 : cursor }
+    live.current = { current: incoming, tokens: nextTokens }
     setCurrent(incoming)
-    dispatch({ type: 'SET_SCRIPT', wordCount: nextTokens.words.length, paragraphStarts: nextTokens.paragraphStarts, reset })
+    dispatch({ type: 'SET_SCRIPT', wordCount: nextTokens.words.length, paragraphStarts: nextTokens.paragraphStarts, place })
     if (kind === 'append') {
       const tail = appendedTail(before.text, incoming.text)
       if (tail !== null) setDraft((draft) => appendToDraft(draft, tail))

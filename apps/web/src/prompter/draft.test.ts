@@ -1,42 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { appendedTail, appendToDraft, draftText, editDraft, isDirty, keepsPlace } from './draft'
-import { tokenize } from './script'
+import { appendedTail, appendToDraft, draftText, editDraft, isDirty } from './draft'
 
-const tok = (text: string) => tokenize({ text })
 const makeScript = (text: string) => ({ text })
-
-describe('keepsPlace', () => {
-  const before = tok('one two three four five')
-
-  it('keeps the place when only words after the position change', () => {
-    expect(keepsPlace(before, tok('one two three CHANGED more words'), 3)).toBe(true)
-  })
-
-  it('keeps the place when words are appended', () => {
-    expect(keepsPlace(before, tok('one two three four five six'), 5)).toBe(true)
-  })
-
-  it('resets when a word before the position changes', () => {
-    expect(keepsPlace(before, tok('one TWO three four five'), 3)).toBe(false)
-  })
-
-  it('resets when the new text is shorter than the position', () => {
-    expect(keepsPlace(before, tok('one two'), 3)).toBe(false)
-  })
-
-  it('compares only whole words before a fractional position', () => {
-    expect(keepsPlace(before, tok('one two X'), 2.9)).toBe(true)
-    expect(keepsPlace(before, tok('one X'), 2.9)).toBe(false)
-  })
-
-  it('ignores whitespace differences', () => {
-    expect(keepsPlace(before, tok('one  two\n\nthree four five'), 4)).toBe(true)
-  })
-
-  it('always keeps the place at the top', () => {
-    expect(keepsPlace(before, tok('completely different'), 0)).toBe(true)
-  })
-})
 
 describe('draft', () => {
   const script = makeScript('Hello world')
