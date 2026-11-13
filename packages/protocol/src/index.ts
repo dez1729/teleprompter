@@ -25,7 +25,12 @@ export const EMPTY_SCRIPT: Script = { text: '', format: 'text', source: null, re
 export const ChangeKindSchema = z.enum(['replace', 'append', 'edit'])
 export type ChangeKind = z.infer<typeof ChangeKindSchema>
 
-export const ScriptChangeSchema = z.object({ kind: ChangeKindSchema, script: ScriptSchema })
+export const ScriptChangeSchema = z.object({
+  kind: ChangeKindSchema,
+  script: ScriptSchema,
+  /** The Version saved just before this change, which restoring undoes it. Null when none was saved. */
+  previousVersionId: z.string().nullable(),
+})
 export type ScriptChange = z.infer<typeof ScriptChangeSchema>
 
 export const PushRequestSchema = z
@@ -42,6 +47,29 @@ export const PushRequestSchema = z
     message: 'text must not be empty',
   })
 export type PushRequest = z.infer<typeof PushRequestSchema>
+
+/** How many Versions Script history keeps. */
+export const HISTORY_LIMIT = 20
+
+/** One saved copy of the Script. `reason` is the kind of change it was saved ahead of. */
+export const VersionSchema = z.object({
+  id: z.string(),
+  revision: z.number().int().nonnegative(),
+  savedAt: z.iso.datetime(),
+  text: z.string(),
+  format: ScriptFormatSchema,
+  source: z.string().nullable(),
+  reason: ChangeKindSchema,
+})
+export type Version = z.infer<typeof VersionSchema>
+
+export const HistorySchema = z.array(VersionSchema)
+
+export const VersionSummarySchema = VersionSchema.omit({ text: true, format: true }).extend({
+  wordCount: z.number().int().nonnegative(),
+  preview: z.string(),
+})
+export type VersionSummary = z.infer<typeof VersionSummarySchema>
 
 const MARKDOWN_HINT = /^(#{1,6}\s|\s*[-*+]\s|>\s|```|---\s*$)|\*\*|\[[^\]]+\]\([^)]+\)/m
 

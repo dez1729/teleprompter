@@ -5,6 +5,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { relative } from 'node:path'
 import { PushRequestSchema, type ScriptChange } from '@teleprompter/protocol'
 import { DEV_PORT, hostGuard, originGuard } from './guards.ts'
+import { summarize } from './history.ts'
 import type { ScriptStore } from './store.ts'
 
 export const MAX_BODY_BYTES = 2 * 1024 * 1024
@@ -44,6 +45,18 @@ export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS }: A
       return c.json(store.change(parsed.data).script)
     },
   )
+
+  api.get('/history', (c) => c.json(store.versions().map(summarize)))
+
+  api.get('/history/:id', (c) => {
+    const version = store.version(c.req.param('id'))
+    return version ? c.json(version) : c.json({ error: 'No such Version' }, 404)
+  })
+
+  api.post('/history/:id/restore', (c) => {
+    const change = store.restore(c.req.param('id'))
+    return change ? c.json(change.script) : c.json({ error: 'No such Version' }, 404)
+  })
 
   api.get('/events', (c) =>
     streamSSE(c, async (stream) => {

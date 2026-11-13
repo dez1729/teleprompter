@@ -2,7 +2,16 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ScriptChangeSchema, ScriptSchema, type Script } from '@teleprompter/protocol'
+import {
+  HISTORY_LIMIT,
+  ScriptChangeSchema,
+  ScriptSchema,
+  VersionSchema,
+  VersionSummarySchema,
+  type Script,
+  type VersionSummary,
+} from '@teleprompter/protocol'
+import { EDIT_IDLE_MS } from './history.ts'
 import { createApp, MAX_BODY_BYTES } from './app.ts'
 import { ScriptStore } from './store.ts'
 
@@ -15,8 +24,13 @@ beforeEach(() => {
 })
 afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
+let nowMs: number
+beforeEach(() => {
+  nowMs = Date.parse('2026-01-01T00:00:00Z')
+})
+
 function setup(heartbeatMs?: number) {
-  const store = new ScriptStore(dir)
+  const store = new ScriptStore(dir, { now: () => nowMs })
   const app = createApp({ store, port: () => PORT, heartbeatMs })
   const request = (path: string, init: RequestInit & { headers?: Record<string, string> } = {}) =>
     app.request(path, { ...init, headers: { host: HOST, ...init.headers } })
@@ -181,6 +195,161 @@ describe('persistence', () => {
     writeFileSync(join(dir, 'script.json'), '{nope')
     expect(new ScriptStore(dir).get().revision).toBe(0)
     expect(readdirSync(dir).some((name) => name.startsWith('script.json.corrupt-'))).toBe(true)
+  })
+})
+
+describe('Script history', () => {
+  async function history(request: ReturnType<typeof setup>['request']) {
+    return VersionSummarySchema.array().parse(await (await request('/api/history')).json())
+  }
+  const restore = (request: ReturnType<typeof setup>['request'], id: string, headers: Record<string, string> = {}) =>
+    request(`/api/history/${id}/restore`, { method: 'POST', headers })
+
+  it('saves the Script as it was before every Push, newest first', async () => {
+    const { push, request } = setup()
+    await push({ kind: 'replace', text: 'one', source: 'Note' })
+    await push({ kind: 'append', text: 'two' })
+    await push({ kind: 'replace', text: '# three', source: 'Other' })
+
+    const versions = await history(request)
+    expect(versions.map(({ reason, source, preview, wordCount, revision }) => ({ reason, source, preview, wordCount, revision }))).toEqual([
+      { reason: 'replace', source: 'Note', preview: 'one two', wordCount: 2, revision: 2 },
+      { reason: 'append', source: 'Note', preview: 'one', wordCount: 1, revision: 1 },
+    ])
+    expect(versions[0]).not.toHaveProperty('text')
+    expect(versions[0]!.savedAt).toBe('2026-01-01T00:00:00.000Z')
+  })
+
+  it('does not save an empty Script', async () => {
+    const { push, request } = setup()
+    await push({ kind: 'replace', text: 'one' })
+    expect(await history(request)).toEqual([])
+    await push({ kind: 'edit', text: '' })
+    await push({ kind: 'replace', text: 'two' })
+    expect((await history(request)).map((v) => v.preview)).toEqual(['one'])
+  })
+
+  it('saves before an Edit only after 30 s with no Edit', async () => {
+    const { push, request } = setup()
+    await push({ kind: 'replace', text: 'a' })
+    await push({ kind: 'edit', text: 'ab' })
+    nowMs += EDIT_IDLE_MS - 1
+    await push({ kind: 'edit', text: 'abc' })
+    // The quiet is measured from the last Edit, not from the last saved Version.
+    nowMs += EDIT_IDLE_MS - 1
+    await push({ kind: 'edit', text: 'abcd' })
+    expect((await history(request)).map((v) => [v.reason, v.preview])).toEqual([['edit', 'a']])
+
+    nowMs += EDIT_IDLE_MS
+    await push({ kind: 'edit', text: 'abcde' })
+    expect((await history(request)).map((v) => [v.reason, v.preview])).toEqual([
+      ['edit', 'abcd'],
+      ['edit', 'a'],
+    ])
+  })
+
+  it('a Push between Edits does not reset the Edit quiet period', async () => {
+    const { push, request } = setup()
+    await push({ kind: 'replace', text: 'a' })
+    await push({ kind: 'edit', text: 'ab' })
+    await push({ kind: 'append', text: 'c' })
+    await push({ kind: 'edit', text: 'abcd' })
+    expect((await history(request)).map((v) => v.reason)).toEqual(['append', 'edit'])
+  })
+
+  it('keeps only the newest Versions', async () => {
+    const { push, request } = setup()
+    for (let i = 0; i <= HISTORY_LIMIT + 2; i++) await push({ kind: 'replace', text: `script ${i}` })
+    const versions = await history(request)
+    expect(versions).toHaveLength(HISTORY_LIMIT)
+    expect(versions[0]!.preview).toBe(`script ${HISTORY_LIMIT + 1}`)
+    expect(versions.at(-1)!.preview).toBe('script 2')
+  })
+
+  it('shortens the preview of a long Script and flattens its whitespace', async () => {
+    const { push, request } = setup()
+    await push({ kind: 'replace', text: `first\n\nsecond ${'word '.repeat(40)}` })
+    await push({ kind: 'replace', text: 'next' })
+    const [version] = await history(request)
+    expect(version!.preview.startsWith('first second word')).toBe(true)
+    expect(version!.preview.length).toBeLessThanOrEqual(81)
+    expect(version!.preview.endsWith('…')).toBe(true)
+    expect(version!.wordCount).toBe(42)
+  })
+
+  it('serves one full Version, and 404 for an unknown id', async () => {
+    const { push, request } = setup()
+    await push({ kind: 'replace', text: '# one', source: 'Note' })
+    await push({ kind: 'replace', text: 'two' })
+    const [summary] = await history(request)
+    const version = VersionSchema.parse(await (await request(`/api/history/${summary!.id}`)).json())
+    expect(version).toMatchObject({ text: '# one', format: 'markdown', source: 'Note', reason: 'replace', revision: 1 })
+    expect((await request('/api/history/nope')).status).toBe(404)
+  })
+
+  it('restore makes the Version the Script as a Replace and saves the Script it replaced', async () => {
+    const { push, request, store } = setup()
+    await push({ kind: 'replace', text: '# one', source: 'Note' })
+    await push({ kind: 'replace', text: 'two' })
+    const changes: unknown[] = []
+    store.subscribe((change) => changes.push(change))
+    const [first] = await history(request)
+
+    const res = await restore(request, first!.id)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ text: '# one', format: 'markdown', source: 'Note', revision: 3 })
+
+    const after = await history(request)
+    expect(after.map((v: VersionSummary) => [v.reason, v.preview])).toEqual([
+      ['replace', 'two'],
+      ['replace', '# one'],
+    ])
+    expect(changes).toEqual([{ kind: 'replace', script: store.get(), previousVersionId: after[0]!.id }])
+
+    // Restoring the Version the restore saved undoes the restore.
+    await restore(request, after[0]!.id)
+    expect(store.get().text).toBe('two')
+  })
+
+  it('restore answers 404 for an unknown id and changes nothing', async () => {
+    const { push, request, store } = setup()
+    await push({ kind: 'replace', text: 'one' })
+    expect((await restore(request, 'nope')).status).toBe(404)
+    expect(store.get().revision).toBe(1)
+  })
+
+  it('restore is guarded like any other write', async () => {
+    const { push, request, app, store } = setup()
+    await push({ kind: 'replace', text: 'one' })
+    await push({ kind: 'replace', text: 'two' })
+    const [version] = await history(request)
+    expect((await restore(request, version!.id, { origin: 'https://evil.example' })).status).toBe(403)
+    const res = await app.request(`/api/history/${version!.id}/restore`, { method: 'POST', headers: { host: 'evil.example' } })
+    expect(res.status).toBe(403)
+    expect(store.get().text).toBe('two')
+    expect((await restore(request, version!.id, { origin: 'http://localhost:4747' })).status).toBe(200)
+  })
+
+  it('a change says which Version was saved ahead of it', async () => {
+    const { store } = setup()
+    expect(store.change({ kind: 'replace', text: 'one' }).previousVersionId).toBeNull()
+    const change = store.change({ kind: 'replace', text: 'two' })
+    expect(change.previousVersionId).toBe(store.versions()[0]!.id)
+    expect(store.change({ kind: 'edit', text: 'two!' }).previousVersionId).toBe(store.versions()[0]!.id)
+    expect(store.change({ kind: 'edit', text: 'two!!' }).previousVersionId).toBeNull()
+  })
+
+  it('survives a restart, and moves an unreadable history file aside', async () => {
+    const first = setup()
+    await first.push({ kind: 'replace', text: 'one' })
+    await first.push({ kind: 'replace', text: 'two' })
+    expect(new ScriptStore(dir).versions().map((v) => v.text)).toEqual(['one'])
+
+    writeFileSync(join(dir, 'history.json'), '[{"nope":1}]')
+    const store = new ScriptStore(dir)
+    expect(store.versions()).toEqual([])
+    expect(store.get().text).toBe('two')
+    expect(readdirSync(dir).some((name) => name.startsWith('history.json.corrupt-'))).toBe(true)
   })
 })
 
