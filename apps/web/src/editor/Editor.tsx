@@ -1,5 +1,5 @@
 import { Eye, MonitorPlay } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { Script, ScriptFormat } from '@teleprompter/protocol'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
@@ -9,8 +9,10 @@ import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { normalizeLineBreaks } from './changes'
 import { createScriptEditor, type ScriptEditor } from './codemirror'
 import { HistoryMenu } from './HistoryMenu'
-import { Preview } from './Preview'
 import { ScriptSync, type SyncStatus } from './scriptSync'
+
+/** The markdown renderer is loaded when the preview is first opened. */
+const Preview = lazy(() => import('./Preview').then((module) => ({ default: module.Preview })))
 
 const STATUS_TEXT: Record<SyncStatus, string> = {
   saved: 'Saved',
@@ -124,7 +126,9 @@ export function Editor() {
         <div ref={parent} className="min-w-0 flex-1" />
         {previewing && script && (
           <div className="min-w-0 flex-1 border-l">
-            <Preview text={text} format={script.format} />
+            <Suspense>
+              <Preview text={text} format={script.format} />
+            </Suspense>
           </div>
         )}
       </div>
