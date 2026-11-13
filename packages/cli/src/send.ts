@@ -12,7 +12,7 @@ export interface SendOptions {
 export const defaultUrl = `http://127.0.0.1:${DEFAULT_PORT}`
 
 export function buildRequest({ kind, text, markdown, source }: SendOptions): PushRequest {
-  return { kind, text, format: markdown ? 'markdown' : 'text', ...(source ? { source } : {}) }
+  return { kind, text, ...(markdown ? { format: 'markdown' } : {}), ...(source ? { source } : {}) }
 }
 
 export async function send(

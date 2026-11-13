@@ -46,7 +46,7 @@ tp send --replace "Welcome to the show."  # replace the Script
 echo "More text." | tp send --append      # add to the end, from stdin
 ```
 
-`tp send` takes `--replace` or `--append`, and optionally `--markdown` for markdown text and `--source <label>` to say where the text came from, such as a note title. It reads stdin when you give no text. A Replace returns every open Prompter to the top, paused, and the Prompter offers to undo it. An Append keeps the reader's place.
+`tp send` takes `--replace` or `--append`, and optionally `--markdown` to mark the text as markdown and `--source <label>` to say where the text came from, such as a note title. Without `--markdown`, the server detects the format, and an Append never turns a markdown Script into text. It reads stdin when you give no text. A Replace returns every open Prompter to the top, paused, and the Prompter offers to undo it. An Append keeps the reader's place.
 
 If the server is not running, `tp send` exits with an error and tells you to run `tp serve`. Set `TELEPROMPTER_URL` to send to a server other than http://127.0.0.1:4747.
 
