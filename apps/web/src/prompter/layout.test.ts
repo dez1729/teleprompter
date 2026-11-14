@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cursorToY, GAP_PACE, lineIndexOf, pacedLines, readingOffset, yToCursor, type Layout } from './layout'
+import { cursorToY, lineIndexOf, pacedLines, readingOffset, yToCursor, type Layout } from './layout'
 
 describe('readingOffset', () => {
   it('keeps the line being read inside the Reading window from start to finish', () => {
@@ -21,6 +21,7 @@ const layout: Layout = {
     { top: 50, height: 50, firstWord: 4, endWord: 6 },
     { top: 130, height: 50, firstWord: 6, endWord: 10 },
   ],
+  gapPace: 3,
 }
 
 describe('layout', () => {
@@ -35,12 +36,12 @@ describe('layout', () => {
   })
 
   it('crosses the gap below a line faster than the line itself', () => {
-    // Line 1 is a 50 px row over a 30 px gap: the row takes 50 parts of its progress, the gap 30 / GAP_PACE.
-    const rowEnd = 4 + 2 * (50 / (50 + 30 / GAP_PACE))
+    // Line 1 is a 50 px row over a 30 px gap: the row takes 50 parts of its progress, the gap 30 / layout.gapPace.
+    const rowEnd = 4 + 2 * (50 / (50 + 30 / layout.gapPace))
     expect(cursorToY(layout, rowEnd)).toBeCloseTo(100)
     const rowPace = 50 / (rowEnd - 4)
     const gapPace = 30 / (6 - rowEnd)
-    expect(gapPace / rowPace).toBeCloseTo(GAP_PACE)
+    expect(gapPace / rowPace).toBeCloseTo(layout.gapPace)
   })
 
   it('round-trips between cursor and y', () => {
@@ -62,9 +63,9 @@ describe('layout', () => {
   })
 
   it('handles an empty layout', () => {
-    expect(lineIndexOf({ lines: [] }, 3)).toBe(-1)
-    expect(cursorToY({ lines: [] }, 3)).toBe(0)
-    expect(yToCursor({ lines: [] }, 30)).toBe(0)
+    expect(lineIndexOf({ lines: [], gapPace: 3 }, 3)).toBe(-1)
+    expect(cursorToY({ lines: [], gapPace: 3 }, 3)).toBe(0)
+    expect(yToCursor({ lines: [], gapPace: 3 }, 30)).toBe(0)
   })
 })
 
@@ -76,10 +77,11 @@ describe('pacedLines', () => {
         { top: 50, height: 50, firstWord: 4, endWord: 8 },
         { top: 125, height: 50, firstWord: 8, endWord: 10 },
       ],
+      gapPace: 3,
     }
     expect(pacedLines(paragraphs)).toEqual([
       { start: 0, stretch: 1 },
-      { start: 4, stretch: 1 + 0.5 / GAP_PACE },
+      { start: 4, stretch: 1 + 0.5 / 3 },
       { start: 8, stretch: 1 },
     ])
   })

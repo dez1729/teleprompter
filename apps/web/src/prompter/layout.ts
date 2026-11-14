@@ -9,9 +9,11 @@ export interface Line {
 
 export interface Layout {
   lines: readonly Line[]
+  /** How many times faster than its line the gap below it (paragraph spacing, a Section marker) scrolls by. */
+  gapPace: number
 }
 
-export const EMPTY_LAYOUT: Layout = { lines: [] }
+export const EMPTY_LAYOUT: Layout = { lines: [], gapPace: 1 }
 
 export function lineIndexOf(layout: Layout, cursor: number): number {
   const { lines } = layout
@@ -26,9 +28,6 @@ export function lineIndexOf(layout: Layout, cursor: number): number {
   return lo
 }
 
-/** How many times faster than its line the gap below it (paragraph spacing, a Section marker) scrolls by. */
-export const GAP_PACE = 3
-
 function lineSpan(layout: Layout, index: number): number {
   const line = layout.lines[index]!
   const next = layout.lines[index + 1]
@@ -36,13 +35,13 @@ function lineSpan(layout: Layout, index: number): number {
 }
 
 /**
- * A line scrolls its own row at reading pace, then the gap below it at GAP_PACE times that pace.
+ * A line scrolls its own row at reading pace, then the gap below it at `gapPace` times that pace.
  * `rowShare` is the part of the line's progress spent on the row.
  */
 function lineMotion(layout: Layout, index: number) {
   const line = layout.lines[index]!
   const gap = Math.max(0, lineSpan(layout, index) - line.height)
-  const stretch = 1 + gap / line.height / GAP_PACE
+  const stretch = 1 + gap / line.height / layout.gapPace
   return { line, gap, stretch, rowShare: 1 / stretch }
 }
 
@@ -92,7 +91,7 @@ export function yToCursor(layout: Layout, y: number): number {
 }
 
 /** Groups word spans (marked with data-word) by rendered row. Positions are relative to the container. */
-export function measureLayout(container: HTMLElement): Layout {
+export function measureLayout(container: HTMLElement, gapPace: number): Layout {
   const spans = container.querySelectorAll<HTMLElement>('[data-word]')
   const lines: Line[] = []
   spans.forEach((span, word) => {
@@ -110,5 +109,5 @@ export function measureLayout(container: HTMLElement): Layout {
       endWord: word + 1,
     })
   })
-  return { lines }
+  return { lines, gapPace }
 }

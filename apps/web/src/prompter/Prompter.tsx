@@ -10,7 +10,7 @@ import { HelpOverlay } from './HelpOverlay'
 import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
 import { UndoToast } from './UndoToast'
-import { FONT_STACKS } from './settings'
+import { FONT_STACKS, GAP_PACES } from './settings'
 import { usePrompter } from './usePrompter'
 
 const BAR_HIDE_DELAY_MS = 2000
@@ -63,10 +63,10 @@ export function Prompter() {
 
   const remeasure = useCallback(() => {
     if (!textRef.current) return
-    const next = measureLayout(textRef.current)
+    const next = measureLayout(textRef.current, GAP_PACES[settings.paragraphPause])
     setLayout(next)
     dispatch({ type: 'SET_LAYOUT', lines: pacedLines(next) })
-  }, [dispatch])
+  }, [dispatch, settings.paragraphPause])
 
   useLayoutEffect(remeasure, [
     remeasure,

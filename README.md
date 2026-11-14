@@ -101,7 +101,7 @@ Scroll the mouse wheel or drag the text to move through the Script by hand. Eith
 
 Speed is measured in words, not pixels. Changing the text size or line spacing changes how far the text moves, not how fast you read.
 
-Each line stays up for at least the minimum time per line. Then the space below it, between paragraphs or at a Section marker, scrolls by three times faster, so a new paragraph comes up quickly without rushing the line before it.
+Each line stays up for at least the minimum time per line. Then the space below it, between paragraphs or at a Section marker, scrolls by faster, so a new paragraph comes up quickly without rushing the line before it. The paragraph pause setting sets how much faster.
 
 ### Spoken-only
 
@@ -124,13 +124,19 @@ Open the settings panel (`,`) to change:
 
 - Spoken-only
 - the font, text size, line spacing, and colors
-- how dark the dimming is
 - the Reading window's size and position
-- column width, or full width with minimum side margins
+- column or full width
+- mirroring, for use behind beam-splitter glass
+- the speed and the countdown
+
+**Advanced settings**, at the bottom of the panel, opens the rest in its place. **Back** returns.
+
+- how dark the dimming is
+- column width and the side margins
 - the top and bottom margins, which stay blank
 - the minimum time each line stays up, so a line of one or two words does not pass before you can read it
-- mirroring, for use behind beam-splitter glass
-- the countdown, and whether it runs only at the start
+- the paragraph pause: how quickly the space between paragraphs scrolls by, Short, Normal, or Long
+- whether the countdown runs only at the start
 
 Settings are saved in your browser. The Script is saved by the server, so every open Prompter and Editor shows the same one.
 

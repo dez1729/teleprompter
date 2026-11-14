@@ -179,3 +179,28 @@ test('Spoken-only shows a markdown Script without what is not read aloud', async
   await page.keyboard.press('s')
   await expect(page.getByText('*(smile)*')).toHaveCount(0)
 })
+
+test('Advanced settings open in place of the display settings and Back returns', async ({ page }) => {
+  await page.goto(url)
+  await expect(page.getByText('No Script yet')).toBeVisible()
+  await page.keyboard.press(',')
+  const panel = page.getByRole('dialog')
+  await expect(panel.getByText('Display settings')).toBeVisible()
+  await expect(panel.getByText('Speed')).toBeVisible()
+  await expect(panel.getByText('Minimum time per line')).toHaveCount(0)
+
+  await panel.getByRole('button', { name: 'Advanced settings' }).click()
+  await expect(panel.getByText('Minimum time per line')).toBeVisible()
+  await expect(panel.getByText('Paragraph pause')).toBeVisible()
+  await expect(panel.getByText('Speed')).toHaveCount(0)
+
+  await panel.getByRole('button', { name: 'Back' }).click()
+  await expect(panel.getByText('Speed')).toBeVisible()
+
+  await page.keyboard.press('Escape')
+  await page.keyboard.press(',')
+  await panel.getByRole('button', { name: 'Advanced settings' }).click()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press(',')
+  await expect(page.getByRole('dialog').getByText('Display settings')).toBeVisible()
+})

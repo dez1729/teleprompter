@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from './settings'
+import { DEFAULT_SETTINGS, GAP_PACES, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from './settings'
 import { commandForKey } from './keymap'
 
 describe('settings', () => {
@@ -47,5 +47,18 @@ describe('keymap', () => {
 
   it('ignores unbound keys', () => {
     expect(commandForKey({ key: 'q', shiftKey: false })).toBeNull()
+  })
+})
+
+describe('Paragraph pause', () => {
+  it('defaults to Normal and falls back to it for an unknown value', () => {
+    expect(DEFAULT_SETTINGS.paragraphPause).toBe('normal')
+    expect(parseSettings({ paragraphPause: 'forever' }).paragraphPause).toBe('normal')
+    expect(parseSettings({ paragraphPause: 'long' }).paragraphPause).toBe('long')
+  })
+
+  it('crosses gaps more slowly for a longer pause', () => {
+    expect(GAP_PACES.short).toBeGreaterThan(GAP_PACES.normal)
+    expect(GAP_PACES.normal).toBeGreaterThan(GAP_PACES.long)
   })
 })
