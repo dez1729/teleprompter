@@ -1,9 +1,10 @@
-import type { NumberSettingKey } from './settings'
+import type { BoolSettingKey, NumberSettingKey } from './settings'
 
 export type PlaybackCommand =
   | { type: 'toggle' }
   | { type: 'restart' }
   | { type: 'nudge'; setting: NumberSettingKey; direction: 1 | -1 }
+  | { type: 'flip'; setting: BoolSettingKey }
   | { type: 'stepLine'; delta: 1 | -1 }
   | { type: 'stepParagraph'; delta: 1 | -1 }
   | { type: 'follow' }
@@ -43,6 +44,7 @@ export const KEYMAP: readonly Binding[] = [
   { key: '-', label: '-', command: { type: 'nudge', setting: 'fontSize', direction: -1 }, description: 'Smaller text', group: 'Display' },
   { key: ']', label: ']', command: { type: 'nudge', setting: 'windowHeightLines', direction: 1 }, description: 'Taller Reading window', group: 'Display' },
   { key: '[', label: '[', command: { type: 'nudge', setting: 'windowHeightLines', direction: -1 }, description: 'Shorter Reading window', group: 'Display' },
+  { key: 's', label: 'S', command: { type: 'flip', setting: 'spokenOnly' }, description: 'Spoken-only on / off', group: 'Display' },
   { key: 'f', label: 'F', command: { type: 'follow' }, description: 'Follow', group: 'Playback', hidden: true },
   { key: ',', label: ',', command: { type: 'openSettings' }, description: 'Display settings', group: 'Panels' },
   { key: 'p', label: 'P', command: { type: 'openEditor' }, description: 'Open the Editor', group: 'Panels' },

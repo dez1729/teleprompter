@@ -19,6 +19,7 @@
     "@codemirror/view": "^6.43.15",
     "@fontsource-variable/geist": "^5.3.0",
     "@lezer/highlight": "^1.2.5",
+    "@lezer/markdown": "^1.8.1",
     "@tanstack/react-router": "^1.170.46",
     "@teleprompter/protocol": "workspace:*",
     "class-variance-authority": "^0.7.1",

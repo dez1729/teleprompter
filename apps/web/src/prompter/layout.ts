@@ -1,3 +1,5 @@
+import type { PacedLine } from './playback'
+
 export interface Line {
   top: number
   height: number
@@ -7,9 +9,11 @@ export interface Line {
 
 export interface Layout {
   lines: readonly Line[]
+  /** How many times faster than its line the gap below it (paragraph spacing, a Section marker) scrolls by. */
+  gapPace: number
 }
 
-export const EMPTY_LAYOUT: Layout = { lines: [] }
+export const EMPTY_LAYOUT: Layout = { lines: [], gapPace: 1 }
 
 export function lineIndexOf(layout: Layout, cursor: number): number {
   const { lines } = layout
@@ -30,13 +34,30 @@ function lineSpan(layout: Layout, index: number): number {
   return next ? next.top - line.top : line.height
 }
 
+/**
+ * A line scrolls its own row at reading pace, then the gap below it at `gapPace` times that pace.
+ * `rowShare` is the part of the line's progress spent on the row.
+ */
+function lineMotion(layout: Layout, index: number) {
+  const line = layout.lines[index]!
+  const gap = Math.max(0, lineSpan(layout, index) - line.height)
+  const stretch = 1 + gap / line.height / layout.gapPace
+  return { line, gap, stretch, rowShare: 1 / stretch }
+}
+
+/** Each line's first word and how far it scrolls relative to its own row, for pacing. */
+export function pacedLines(layout: Layout): PacedLine[] {
+  return layout.lines.map((line, index) => ({ start: line.firstWord, stretch: lineMotion(layout, index).stretch }))
+}
+
 export function cursorToY(layout: Layout, cursor: number): number {
   const index = lineIndexOf(layout, cursor)
   if (index < 0) return 0
-  const line = layout.lines[index]!
-  const wordsInLine = line.endWord - line.firstWord
-  const fraction = Math.min(1, Math.max(0, (cursor - line.firstWord) / wordsInLine))
-  return line.top + fraction * lineSpan(layout, index)
+  const { line, gap, rowShare } = lineMotion(layout, index)
+  const fraction = Math.min(1, Math.max(0, (cursor - line.firstWord) / (line.endWord - line.firstWord)))
+  return fraction <= rowShare
+    ? line.top + (fraction / rowShare) * line.height
+    : line.top + line.height + ((fraction - rowShare) / (1 - rowShare)) * gap
 }
 
 /**
@@ -60,13 +81,17 @@ export function yToCursor(layout: Layout, y: number): number {
     if (lines[mid]!.top <= y) lo = mid
     else hi = mid - 1
   }
-  const line = lines[lo]!
-  const fraction = Math.min(1, (y - line.top) / lineSpan(layout, lo))
+  const { line, gap, rowShare } = lineMotion(layout, lo)
+  const offset = y - line.top
+  const fraction =
+    offset <= line.height || gap === 0
+      ? Math.min(1, offset / line.height) * rowShare
+      : rowShare + Math.min(1, (offset - line.height) / gap) * (1 - rowShare)
   return line.firstWord + fraction * (line.endWord - line.firstWord)
 }
 
 /** Groups word spans (marked with data-word) by rendered row. Positions are relative to the container. */
-export function measureLayout(container: HTMLElement): Layout {
+export function measureLayout(container: HTMLElement, gapPace: number): Layout {
   const spans = container.querySelectorAll<HTMLElement>('[data-word]')
   const lines: Line[] = []
   spans.forEach((span, word) => {
@@ -84,5 +109,5 @@ export function measureLayout(container: HTMLElement): Layout {
       endWord: word + 1,
     })
   })
-  return { lines }
+  return { lines, gapPace }
 }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from './settings'
+import { DEFAULT_SETTINGS, GAP_PACES, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from './settings'
 import { commandForKey } from './keymap'
-import { tokenize } from './script'
 
 describe('settings', () => {
   it('uses defaults for missing or malformed input', () => {
@@ -51,12 +50,15 @@ describe('keymap', () => {
   })
 })
 
-describe('script', () => {
-  it('splits paragraphs on blank lines and keeps single newlines as breaks', () => {
-    const { words, paragraphStarts } = tokenize({ text: 'one two\nthree\n\n\nfour' })
-    expect(words.map((w) => w.text)).toEqual(['one', 'two', 'three', 'four'])
-    expect(words.map((w) => w.lineBreakBefore)).toEqual([false, false, true, false])
-    expect(paragraphStarts).toEqual([0, 3])
-    expect(words[3]!.paragraphIndex).toBe(1)
+describe('Paragraph pause', () => {
+  it('defaults to Normal and falls back to it for an unknown value', () => {
+    expect(DEFAULT_SETTINGS.paragraphPause).toBe('normal')
+    expect(parseSettings({ paragraphPause: 'forever' }).paragraphPause).toBe('normal')
+    expect(parseSettings({ paragraphPause: 'long' }).paragraphPause).toBe('long')
+  })
+
+  it('crosses gaps more slowly for a longer pause', () => {
+    expect(GAP_PACES.short).toBeGreaterThan(GAP_PACES.normal)
+    expect(GAP_PACES.normal).toBeGreaterThan(GAP_PACES.long)
   })
 })

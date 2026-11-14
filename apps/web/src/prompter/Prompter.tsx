@@ -5,12 +5,12 @@ import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { ControlBar } from './ControlBar'
 import { NudgeHud } from './NudgeHud'
-import { cursorToY, EMPTY_LAYOUT, measureLayout, readingOffset, yToCursor, type Layout } from './layout'
+import { cursorToY, EMPTY_LAYOUT, measureLayout, pacedLines, readingOffset, yToCursor, type Layout } from './layout'
 import { HelpOverlay } from './HelpOverlay'
 import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
 import { UndoToast } from './UndoToast'
-import { FONT_STACKS } from './settings'
+import { FONT_STACKS, GAP_PACES } from './settings'
 import { usePrompter } from './usePrompter'
 
 const BAR_HIDE_DELAY_MS = 2000
@@ -63,10 +63,10 @@ export function Prompter() {
 
   const remeasure = useCallback(() => {
     if (!textRef.current) return
-    const next = measureLayout(textRef.current)
+    const next = measureLayout(textRef.current, GAP_PACES[settings.paragraphPause])
     setLayout(next)
-    dispatch({ type: 'SET_LAYOUT', lineStarts: next.lines.map((line) => line.firstWord) })
-  }, [dispatch])
+    dispatch({ type: 'SET_LAYOUT', lines: pacedLines(next) })
+  }, [dispatch, settings.paragraphPause])
 
   useLayoutEffect(remeasure, [
     remeasure,
@@ -180,6 +180,20 @@ export function Prompter() {
         {countdown !== null && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-9xl font-bold opacity-80">
             {countdown}
+          </div>
+        )}
+
+        {script && tokens.words.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()}>
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>Nothing to read aloud</EmptyTitle>
+                <EmptyDescription>Spoken-only hides every word of this Script.</EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button onClick={() => updateSetting('spokenOnly', false)}>Turn off Spoken-only</Button>
+              </EmptyContent>
+            </Empty>
           </div>
         )}
 

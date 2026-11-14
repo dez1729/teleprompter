@@ -23,7 +23,13 @@ export interface BoolField {
   label: string
   default: boolean
 }
-export type Field = NumberField | ChoiceField | ColorField | BoolField
+/** Shown on the Advanced settings page instead of the main one. */
+interface Placement {
+  advanced?: true
+}
+export type Field = (NumberField | ChoiceField | ColorField | BoolField) & Placement
+
+const advanced = <F extends Field>(field: F): F & { advanced: true } => ({ ...field, advanced: true })
 
 const num = (label: string, def: number, min: number, max: number, step: number, unit?: string): NumberField => ({
   kind: 'number',
@@ -50,6 +56,7 @@ export const FONT_STACKS = {
 } as const
 
 export const SETTING_DEFS = {
+  spokenOnly: bool('Spoken-only', true),
   fontFamily: choice('Font', 'sans', [
     { value: 'sans', label: 'Sans' },
     { value: 'serif', label: 'Serif' },
@@ -60,28 +67,42 @@ export const SETTING_DEFS = {
   lineHeight: num('Line spacing', 1.4, 1, 2.2, 0.05),
   textColor: color('Text color', '#ffffff'),
   bgColor: color('Background', '#000000'),
-  overlayOpacity: num('Dimming', 0.85, 0, 1, 0.05),
+  overlayOpacity: advanced(num('Dimming', 0.85, 0, 1, 0.05)),
   windowHeightLines: num('Highlighted lines', 3, 1, 10, 1),
   windowPositionPct: num('Reading window position', 40, 0, 90, 1, '%'),
   columnMode: choice('Width', 'column', [
     { value: 'column', label: 'Column' },
     { value: 'full', label: 'Full width' },
   ]),
-  columnWidthCh: num('Column width', 40, 15, 120, 1, 'ch'),
-  marginX: num('Side margins', 32, 0, 400, 8, 'px'),
-  marginTop: num('Top margin', 0, 0, 600, 8, 'px'),
-  marginBottom: num('Bottom margin', 0, 0, 600, 8, 'px'),
+  columnWidthCh: advanced(num('Column width', 40, 15, 120, 1, 'ch')),
+  marginX: advanced(num('Side margins', 32, 0, 400, 8, 'px')),
+  marginTop: advanced(num('Top margin', 0, 0, 600, 8, 'px')),
+  marginBottom: advanced(num('Bottom margin', 0, 0, 600, 8, 'px')),
   mirror: bool('Mirror', false),
   speedWpm: num('Speed', 140, 40, 400, 5, 'wpm'),
-  minLineSec: num('Minimum time per line', 1.5, 0, 5, 0.25, 's'),
+  minLineSec: advanced(num('Minimum time per line', 1.5, 0, 5, 0.25, 's')),
+  paragraphPause: advanced(
+    choice('Paragraph pause', 'normal', [
+      { value: 'short', label: 'Short' },
+      { value: 'normal', label: 'Normal' },
+      { value: 'long', label: 'Long' },
+    ]),
+  ),
   countdownSec: num('Countdown', 3, 0, 10, 1, 's'),
-  countdownAtStartOnly: bool('Countdown only at start', true),
+  countdownAtStartOnly: advanced(bool('Countdown only at start', true)),
 } as const satisfies Record<string, Field>
+
+/** How many times faster than a line the gap below it scrolls by, for each Paragraph pause. */
+export const GAP_PACES = { short: 5, normal: 3, long: 1.5 } as const satisfies Record<DisplaySettings['paragraphPause'], number>
 
 export type SettingKey = keyof typeof SETTING_DEFS
 export type DisplaySettings = { -readonly [K in SettingKey]: (typeof SETTING_DEFS)[K]['default'] }
 export type NumberSettingKey = {
   [K in SettingKey]: (typeof SETTING_DEFS)[K] extends NumberField ? K : never
+}[SettingKey]
+
+export type BoolSettingKey = {
+  [K in SettingKey]: (typeof SETTING_DEFS)[K] extends BoolField ? K : never
 }[SettingKey]
 
 export const DEFAULT_SETTINGS = Object.fromEntries(

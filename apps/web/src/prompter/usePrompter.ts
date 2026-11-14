@@ -4,13 +4,11 @@ import { placementFor } from './anchor'
 import { commandForKey, type Command, type UiCommand } from './keymap'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
 import { openScriptStream, restoreVersion, sendScript, type ScriptMessage } from '@/lib/scriptApi'
-import { tokenize, type TokenizedScript } from './script'
+import { EMPTY_TOKENS, tokenize } from './script'
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from './settings'
 import { clearLegacyDraft, clearLegacyScript, loadLegacyScript, loadSettings, saveSettings } from './storage'
 
 const MAX_FRAME_MS = 100
-
-const EMPTY_TOKENS: TokenizedScript = { words: [], paragraphStarts: [] }
 
 const NON_TEXT_INPUT_TYPES = new Set(['button', 'checkbox', 'color', 'file', 'image', 'radio', 'range', 'reset', 'submit'])
 
@@ -67,8 +65,7 @@ export function usePrompter(ui: UiBridge) {
   const [connected, setConnected] = useState<boolean | null>(null)
   const script = current.text.trim() === '' ? null : current
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings)
-  const tokens = useMemo(() => (script ? tokenize(script) : EMPTY_TOKENS), [script])
-
+  const tokens = useMemo(() => (script ? tokenize(script, settings.spokenOnly) : EMPTY_TOKENS), [script, settings.spokenOnly])
 
   const [playback, dispatch] = useReducer(playbackReducer, tokens, (initial) =>
     playbackReducer(initialPlayback, {
@@ -107,9 +104,22 @@ export function usePrompter(ui: UiBridge) {
     return () => cancelAnimationFrame(frame)
   }, [active])
 
-  const updateSetting = useCallback(<K extends SettingKey>(key: K, value: DisplaySettings[K]) => {
-    setSettings((current) => ({ ...current, [key]: value }))
+  /** Turning Spoken-only on or off changes which words exist, so the reader stays on the same words as through an Edit. */
+  const changeSettings = useCallback((next: DisplaySettings) => {
+    const previous = settingsRef.current
+    settingsRef.current = next
+    setSettings(next)
+    if (next.spokenOnly === previous.spokenOnly) return
+    const { current, tokens: before } = live.current
+    const after = tokenize(current, next.spokenOnly)
+    live.current = { current, tokens: after }
+    dispatch({ type: 'SET_SCRIPT', wordCount: after.words.length, paragraphStarts: after.paragraphStarts, place: placementFor('edit', before, after) })
   }, [])
+
+  const updateSetting = useCallback(
+    <K extends SettingKey>(key: K, value: DisplaySettings[K]) => changeSettings({ ...settingsRef.current, [key]: value }),
+    [changeSettings],
+  )
 
   /**
    * The only way a Script reaches playback. Pushes, Edits and restored Versions
@@ -121,7 +131,7 @@ export function usePrompter(ui: UiBridge) {
     if (message.type === 'snapshot' && incoming.revision === 0) moveLegacyScript()
     if (message.type === 'snapshot' ? incoming.revision === before.revision : incoming.revision <= before.revision) return
 
-    const nextTokens = tokenize(incoming)
+    const nextTokens = tokenize(incoming, settingsRef.current.spokenOnly)
     // A snapshot that differs is whatever happened while disconnected, so it anchors like an Edit.
     const kind = message.type === 'change' ? message.kind : 'edit'
     const place = placementFor(kind, beforeTokens, nextTokens)
@@ -145,6 +155,8 @@ export function usePrompter(ui: UiBridge) {
     })
   }, [])
 
+  const showReadout = useCallback((text: string) => setReadout((current) => ({ seq: (current?.seq ?? 0) + 1, text })), [])
+
   const run = useCallback((command: Command) => {
     const { countdownSec, countdownAtStartOnly } = settingsRef.current
     switch (command.type) {
@@ -154,10 +166,13 @@ export function usePrompter(ui: UiBridge) {
         return dispatch({ type: 'RESTART' })
       case 'nudge': {
         const next = nudgeSetting(settingsRef.current, command.setting, command.direction)
-        settingsRef.current = next
-        setSettings(next)
-        const text = `${SETTING_DEFS[command.setting].label}: ${formatSettingValue(command.setting, next[command.setting])}`
-        return setReadout((current) => ({ seq: (current?.seq ?? 0) + 1, text }))
+        changeSettings(next)
+        return showReadout(`${SETTING_DEFS[command.setting].label}: ${formatSettingValue(command.setting, next[command.setting])}`)
+      }
+      case 'flip': {
+        const on = !settingsRef.current[command.setting]
+        changeSettings({ ...settingsRef.current, [command.setting]: on })
+        return showReadout(`${SETTING_DEFS[command.setting].label}: ${on ? 'on' : 'off'}`)
       }
       case 'stepLine':
         return dispatch({ type: 'STEP_LINE', delta: command.delta })
@@ -170,7 +185,7 @@ export function usePrompter(ui: UiBridge) {
       case 'follow':
         return
     }
-  }, [])
+  }, [changeSettings, showReadout])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

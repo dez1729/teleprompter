@@ -71,12 +71,11 @@ test('a Pushed Script appears, plays and pauses', async ({ page }) => {
 })
 
 test('the old browser-stored Script moves to the server once', async ({ page }) => {
-  await page.goto(url)
-  await expect(page.getByText('No Script yet')).toBeVisible()
-  await page.evaluate(() =>
+  // Stored before the app's first load, as an earlier version left it.
+  await page.addInitScript(() =>
     localStorage.setItem('teleprompter.script', JSON.stringify({ source: 'kept from before', format: 'text' })),
   )
-  await page.reload()
+  await page.goto(url)
 
   await expect(page.getByText('kept from before')).toBeVisible()
   await expect.poll(() => page.evaluate(() => localStorage.getItem('teleprompter.script'))).toBeNull()
@@ -162,4 +161,46 @@ test('edits left over from the old Script dialog are removed', async ({ page }) 
   await page.reload()
   await expect(page.getByText('No Script yet')).toBeVisible()
   await expect.poll(() => page.evaluate(() => localStorage.getItem('teleprompter.draft'))).toBeNull()
+})
+
+test('Spoken-only shows a markdown Script without what is not read aloud', async ({ page }) => {
+  await page.goto(url)
+  tp(['send', '--replace', '--markdown'], '# Opening\n\nWelcome *(smile)* everyone.\n\n## Part two\n\nThanks for coming.')
+  await expect(page.getByText('everyone.')).toBeVisible()
+  await expect(page.getByText('Opening')).toHaveCount(0)
+  await expect(page.getByText('(smile)')).toHaveCount(0)
+  await expect(page.locator('[data-section-marker]')).toHaveCount(1)
+
+  await page.keyboard.press('s')
+  await expect(page.getByText('Spoken-only: off')).toBeVisible()
+  await expect(page.getByText('*(smile)*')).toBeVisible()
+  await expect(page.locator('[data-section-marker]')).toHaveCount(0)
+
+  await page.keyboard.press('s')
+  await expect(page.getByText('*(smile)*')).toHaveCount(0)
+})
+
+test('Advanced settings open in place of the display settings and Back returns', async ({ page }) => {
+  await page.goto(url)
+  await expect(page.getByText('No Script yet')).toBeVisible()
+  await page.keyboard.press(',')
+  const panel = page.getByRole('dialog')
+  await expect(panel.getByText('Display settings')).toBeVisible()
+  await expect(panel.getByText('Speed')).toBeVisible()
+  await expect(panel.getByText('Minimum time per line')).toHaveCount(0)
+
+  await panel.getByRole('button', { name: 'Advanced settings' }).click()
+  await expect(panel.getByText('Minimum time per line')).toBeVisible()
+  await expect(panel.getByText('Paragraph pause')).toBeVisible()
+  await expect(panel.getByText('Speed')).toHaveCount(0)
+
+  await panel.getByRole('button', { name: 'Back' }).click()
+  await expect(panel.getByText('Speed')).toBeVisible()
+
+  await page.keyboard.press('Escape')
+  await page.keyboard.press(',')
+  await panel.getByRole('button', { name: 'Advanced settings' }).click()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press(',')
+  await expect(page.getByRole('dialog').getByText('Display settings')).toBeVisible()
 })
