@@ -186,16 +186,16 @@ test('Advanced settings open in place of the display settings and Back returns',
   await page.keyboard.press(',')
   const panel = page.getByRole('dialog')
   await expect(panel.getByText('Display settings')).toBeVisible()
-  await expect(panel.getByText('Speed')).toBeVisible()
+  await expect(panel.getByText('Speed', { exact: true })).toBeVisible()
   await expect(panel.getByText('Minimum time per line')).toHaveCount(0)
 
   await panel.getByRole('button', { name: 'Advanced settings' }).click()
   await expect(panel.getByText('Minimum time per line')).toBeVisible()
   await expect(panel.getByText('Paragraph pause')).toBeVisible()
-  await expect(panel.getByText('Speed')).toHaveCount(0)
+  await expect(panel.getByText('Speed', { exact: true })).toHaveCount(0)
 
   await panel.getByRole('button', { name: 'Back' }).click()
-  await expect(panel.getByText('Speed')).toBeVisible()
+  await expect(panel.getByText('Speed', { exact: true })).toBeVisible()
 
   await page.keyboard.press('Escape')
   await page.keyboard.press(',')
