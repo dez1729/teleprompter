@@ -62,3 +62,19 @@ describe('Paragraph pause', () => {
     expect(GAP_PACES.normal).toBeGreaterThan(GAP_PACES.long)
   })
 })
+
+describe('Countdown', () => {
+  it('defaults to At start', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ countdown: 'start', countdownSec: 3 })
+  })
+
+  it('carries over settings saved before the Countdown choice', () => {
+    expect(parseSettings({ countdownSec: 0, countdownAtStartOnly: true })).toMatchObject({ countdown: 'off', countdownSec: 3 })
+    expect(parseSettings({ countdownSec: 5, countdownAtStartOnly: false })).toMatchObject({ countdown: 'every', countdownSec: 5 })
+    expect(parseSettings({ countdownSec: 5, countdownAtStartOnly: true })).toMatchObject({ countdown: 'start', countdownSec: 5 })
+  })
+
+  it('keeps a saved Countdown choice', () => {
+    expect(parseSettings({ countdown: 'off', countdownSec: 4 })).toMatchObject({ countdown: 'off', countdownSec: 4 })
+  })
+})

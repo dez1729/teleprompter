@@ -88,8 +88,12 @@ export const SETTING_DEFS = {
       { value: 'long', label: 'Long' },
     ]),
   ),
-  countdownSec: num('Countdown', 3, 0, 10, 1, 's'),
-  countdownAtStartOnly: advanced(bool('Countdown only at start', true)),
+  countdown: choice('Countdown', 'start', [
+    { value: 'start', label: 'At start' },
+    { value: 'every', label: 'Every play' },
+    { value: 'off', label: 'Off' },
+  ]),
+  countdownSec: advanced(num('Countdown length', 3, 1, 10, 1, 's')),
 } as const satisfies Record<string, Field>
 
 /** How many times faster than a line the gap below it scrolls by, for each Paragraph pause. */
@@ -129,9 +133,17 @@ function parseField(def: Field, raw: unknown): unknown {
   }
 }
 
+/** Settings saved before the Countdown choice turned it off with a 0 s countdown and chose Every play with a switch. */
+function migrateCountdown(record: Record<string, unknown>): Record<string, unknown> {
+  if ('countdown' in record) return record
+  const { countdownSec, countdownAtStartOnly, ...rest } = record
+  if (countdownSec === 0) return { ...rest, countdown: 'off' }
+  return { ...rest, countdownSec, countdown: countdownAtStartOnly === false ? 'every' : 'start' }
+}
+
 /** Validates untrusted persisted values: bad fields fall back to defaults, numbers are clamped. */
 export function parseSettings(raw: unknown): DisplaySettings {
-  const record = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
+  const record = migrateCountdown(typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {})
   return Object.fromEntries(
     Object.entries(SETTING_DEFS).map(([key, def]) => [key, parseField(def, record[key])]),
   ) as DisplaySettings

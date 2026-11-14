@@ -104,7 +104,7 @@ Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it 
 
 | Key | Action |
 |---|---|
-| `Space` | Play or pause. The first play counts down from 3. |
+| `Space` | Play or pause. The first play counts down from 3, unless the Countdown setting says otherwise. |
 | `↑` `↓` | Change the speed, in words per minute. |
 | `+` `-` | Change the text size. |
 | `←` `→` | Move back or forward one line. Hold `Shift` to move one paragraph. |
@@ -144,7 +144,8 @@ Open the settings panel (`,`) to change:
 - the Reading window's size and position
 - column or full width
 - mirroring, for use behind beam-splitter glass
-- the speed and the countdown
+- the speed
+- the countdown: At start, before the first play and after you go back to the top; Every play; or Off
 
 **Advanced settings**, at the bottom of the panel, opens the rest in its place. **Back** returns.
 
@@ -153,7 +154,7 @@ Open the settings panel (`,`) to change:
 - the top and bottom margins, which stay blank
 - the minimum time each line stays up, so a line of one or two words does not pass before you can read it
 - the paragraph pause: how quickly the space between paragraphs scrolls by, Short, Normal, or Long
-- whether the countdown runs only at the start
+- how long the countdown is
 
 Settings are saved in your browser. The Script is saved by the server, so every open Prompter and Editor shows the same one.
 
