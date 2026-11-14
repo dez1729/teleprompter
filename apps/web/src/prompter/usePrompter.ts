@@ -158,7 +158,9 @@ export function usePrompter(ui: UiBridge) {
   const showReadout = useCallback((text: string) => setReadout((current) => ({ seq: (current?.seq ?? 0) + 1, text })), [])
 
   const run = useCallback((command: Command) => {
-    const { countdownSec, countdownAtStartOnly } = settingsRef.current
+    const { countdown } = settingsRef.current
+    const countdownSec = countdown === 'off' ? 0 : settingsRef.current.countdownSec
+    const countdownAtStartOnly = countdown === 'start'
     switch (command.type) {
       case 'toggle':
         return dispatch({ type: 'TOGGLE', countdownSec, countdownAtStartOnly })
