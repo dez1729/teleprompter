@@ -107,13 +107,13 @@ Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it 
 
 | Key | Action |
 |---|---|
-| `Space` | Play or pause. The first play counts down from 3, unless the Countdown setting says otherwise. |
+| `Space` | Play or pause, in Auto or Follow. In Auto, the first play counts down from 3, unless the Countdown setting says otherwise. |
 | `↑` `↓` | Change the speed, in words per minute. |
 | `+` `-` | Change the text size. |
 | `←` `→` | Move back or forward one line. Hold `Shift` to move one paragraph. |
 | `[` `]` | Change how many lines the Reading window highlights. |
 | `Home` | Go back to the top. |
-| `f` | Turn Follow on or off. |
+| `f` | Switch between Auto and Follow. |
 | `p` | Open the Editor. |
 | `s` | Turn Spoken-only on or off. |
 | `,` | Open the display settings. |
@@ -126,7 +126,9 @@ Each line stays up for at least the minimum time per line. Then the space below 
 
 ### Follow your voice
 
-Press `f`, or the microphone button, and read aloud. The Prompter listens and keeps the words you are saying on the Current line. It moves at your pace, waits when you stop, and catches up when you skip a few words or go back to reread a line. Press `f` again, or `Space`, to stop. Speed does not apply while Follow is on.
+The Prompter has two Scroll modes, chosen with **Auto | Follow** next to the play button, or with `f`. Auto scrolls at the set Speed. Follow listens to you read aloud and keeps the words you are saying on the Current line. It moves at your pace, slows to a stop when you pause, and catches up when you skip a few words or go back to reread a line.
+
+Choose Follow, then press `Space` or the play button and start reading. Press `Space` again to stop. Speed does not apply in Follow, so it is greyed out. Pressing `f` while scrolling switches to the other mode from the same place.
 
 Follow sends what the microphone hears to a Whisper server on your computer, through the Teleprompter server. Nothing leaves your machine. The browser asks for the microphone the first time.
 
@@ -137,7 +139,7 @@ Any Whisper server with the OpenAI transcription API works. [Speaches](https://s
 
 If the Whisper server cannot be reached, Follow stops and the top right corner says why.
 
-In testing with a recorded voice, Follow was about half a second behind it during steady reading. When you start again after a pause, it takes about two seconds to pick you up. Follow listens for words within about 60 words ahead of where you are. If you jump further, move there with the arrow keys or by dragging, and Follow carries on from there.
+In testing with a recorded voice, Follow stayed within about a word of it during steady reading, and stopped about three words past it at a pause. When you start again after a pause, it takes about two seconds to pick you up. Follow listens for words within about 60 words ahead of where you are. If you jump further, move there with the arrow keys and Follow carries on from there. Dragging or scrolling the text stops Follow.
 
 ### Spoken-only
 

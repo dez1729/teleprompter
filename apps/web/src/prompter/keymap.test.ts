@@ -33,7 +33,7 @@ describe('helpRows', () => {
 
   it('lists every group, Follow included', () => {
     expect(helpRows().map((g) => g.group)).toEqual(['Playback', 'Navigation', 'Display', 'Panels'])
-    expect(rows).toContainEqual({ keys: 'F', description: 'Follow your voice on / off' })
+    expect(rows).toContainEqual({ keys: 'F', description: 'Switch between Auto and Follow' })
   })
 })
 

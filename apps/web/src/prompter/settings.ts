@@ -56,6 +56,10 @@ export const FONT_STACKS = {
 } as const
 
 export const SETTING_DEFS = {
+  scrollMode: choice('Scroll mode', 'auto', [
+    { value: 'auto', label: 'Auto' },
+    { value: 'follow', label: 'Follow' },
+  ]),
   spokenOnly: bool('Spoken-only', true),
   fontFamily: choice('Font', 'sans', [
     { value: 'sans', label: 'Sans' },

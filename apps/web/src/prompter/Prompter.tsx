@@ -91,8 +91,7 @@ export function Prompter() {
     void document.fonts?.ready.then(remeasure)
   }, [remeasure, settings.fontFamily])
 
-  const following = playback.mode.kind === 'following'
-  const playing = playback.mode.kind === 'playing' || following
+  const playing = playback.mode.kind === 'playing' || playback.mode.kind === 'following'
   useEffect(() => setRecentMouse(true), [playing])
 
   const showBar = () => setRecentMouse(true)
@@ -227,8 +226,8 @@ export function Prompter() {
         <div onPointerDown={(e) => e.stopPropagation()}>
           <ControlBar
             visible={!playing || recentMouse}
-            playing={playback.mode.kind === 'playing' || playback.mode.kind === 'countdown'}
-            following={following}
+            playing={playing || playback.mode.kind === 'countdown'}
+            scrollMode={settings.scrollMode}
             speedWpm={settings.speedWpm}
             fontSize={settings.fontSize}
             hasScript={script !== null}

@@ -168,6 +168,7 @@ export function usePrompter(ui: UiBridge) {
     const countdownAtStartOnly = countdown === 'start'
     switch (command.type) {
       case 'toggle':
+        if (playbackRef.current.mode.kind === 'paused' && settingsRef.current.scrollMode === 'follow') return dispatch({ type: 'FOLLOW' })
         return dispatch({ type: 'TOGGLE', countdownSec, countdownAtStartOnly })
       case 'restart':
         return dispatch({ type: 'RESTART' })
@@ -189,8 +190,17 @@ export function usePrompter(ui: UiBridge) {
       case 'openEditor':
       case 'toggleHelp':
         return uiRef.current.onUiCommand(command)
-      case 'follow':
-        return dispatch({ type: playbackRef.current.mode.kind === 'following' ? 'PAUSE' : 'FOLLOW' })
+      case 'switchScrollMode': {
+        const scrollMode = settingsRef.current.scrollMode === 'auto' ? 'follow' : 'auto'
+        changeSettings({ ...settingsRef.current, scrollMode })
+        // Switching while scrolling carries on in the other mode, from the same place.
+        const { mode } = playbackRef.current
+        if (mode.kind !== 'paused') {
+          dispatch({ type: 'PAUSE' })
+          dispatch(scrollMode === 'follow' ? { type: 'FOLLOW' } : { type: 'PLAY', countdownSec: 0, countdownAtStartOnly })
+        }
+        return showReadout(`Scroll mode: ${scrollMode === 'follow' ? 'Follow' : 'Auto'}`)
+      }
     }
   }, [changeSettings, showReadout])
 
