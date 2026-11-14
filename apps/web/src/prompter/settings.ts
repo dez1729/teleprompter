@@ -50,6 +50,7 @@ export const FONT_STACKS = {
 } as const
 
 export const SETTING_DEFS = {
+  spokenOnly: bool('Spoken-only', true),
   fontFamily: choice('Font', 'sans', [
     { value: 'sans', label: 'Sans' },
     { value: 'serif', label: 'Serif' },
@@ -82,6 +83,10 @@ export type SettingKey = keyof typeof SETTING_DEFS
 export type DisplaySettings = { -readonly [K in SettingKey]: (typeof SETTING_DEFS)[K]['default'] }
 export type NumberSettingKey = {
   [K in SettingKey]: (typeof SETTING_DEFS)[K] extends NumberField ? K : never
+}[SettingKey]
+
+export type BoolSettingKey = {
+  [K in SettingKey]: (typeof SETTING_DEFS)[K] extends BoolField ? K : never
 }[SettingKey]
 
 export const DEFAULT_SETTINGS = Object.fromEntries(

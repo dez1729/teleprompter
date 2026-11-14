@@ -183,6 +183,20 @@ export function Prompter() {
           </div>
         )}
 
+        {script && tokens.words.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()}>
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>Nothing to read aloud</EmptyTitle>
+                <EmptyDescription>Spoken-only hides every word of this Script.</EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button onClick={() => updateSetting('spokenOnly', false)}>Turn off Spoken-only</Button>
+              </EmptyContent>
+            </Empty>
+          </div>
+        )}
+
         {!script && (
           <div className="absolute inset-0 flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()}>
             <Empty>

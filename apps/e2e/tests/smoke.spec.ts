@@ -163,3 +163,20 @@ test('edits left over from the old Script dialog are removed', async ({ page }) 
   await expect(page.getByText('No Script yet')).toBeVisible()
   await expect.poll(() => page.evaluate(() => localStorage.getItem('teleprompter.draft'))).toBeNull()
 })
+
+test('Spoken-only shows a markdown Script without what is not read aloud', async ({ page }) => {
+  await page.goto(url)
+  tp(['send', '--replace', '--markdown'], '# Opening\n\nWelcome *(smile)* everyone.\n\n## Part two\n\nThanks for coming.')
+  await expect(page.getByText('everyone.')).toBeVisible()
+  await expect(page.getByText('Opening')).toHaveCount(0)
+  await expect(page.getByText('(smile)')).toHaveCount(0)
+  await expect(page.locator('[data-section-marker]')).toHaveCount(1)
+
+  await page.keyboard.press('s')
+  await expect(page.getByText('Spoken-only: off')).toBeVisible()
+  await expect(page.getByText('*(smile)*')).toBeVisible()
+  await expect(page.locator('[data-section-marker]')).toHaveCount(0)
+
+  await page.keyboard.press('s')
+  await expect(page.getByText('*(smile)*')).toHaveCount(0)
+})

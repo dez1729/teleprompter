@@ -6,7 +6,7 @@ const words = (text: string) => text.split(/\s+/).filter(Boolean)
 const map = (before: string, after: string, cursor: number) => mapCursor(words(before), words(after), cursor)
 
 describe('placementFor', () => {
-  const tok = (text: string) => tokenize({ text })
+  const tok = (text: string) => tokenize({ text, format: 'text' }, false)
   const before = tok('one two three four')
 
   it('resets on a Replace and on a first Script', () => {
