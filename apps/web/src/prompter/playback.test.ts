@@ -250,7 +250,7 @@ describe('playback', () => {
 
 describe('Follow', () => {
   const following = run(loaded, { type: 'SCRUB', cursor: 10 }, { type: 'FOLLOW' })
-  const settle = (state: PlaybackState) => run(state, ...Array.from({ length: 20 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
+  const settle = (state: PlaybackState) => run(state, ...Array.from({ length: 60 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
 
   it('starts from where the reader is and waits for their voice', () => {
     expect(following.mode).toMatchObject({ kind: 'following', target: 10 })
@@ -272,8 +272,10 @@ describe('Follow', () => {
   })
 
   it('stops coasting when the reader goes quiet', () => {
-    const quiet = run(following, { type: 'HEARD', position: 14, pace: 3 / 1000 }, { type: 'QUIET' })
-    expect(settle(quiet).cursor).toBe(14)
+    const coasted = run(following, { type: 'HEARD', position: 14, pace: 3 / 1000 }, ...Array.from({ length: 10 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
+    const quiet = settle(run(coasted, { type: 'QUIET', forMs: 700 }))
+    expect(quiet.cursor).toBeCloseTo(Math.max(coasted.cursor, 17 - 3 * 0.7))
+    expect(settle(run(quiet, { type: 'QUIET', forMs: 700 })).cursor).toBe(quiet.cursor)
   })
 
   it('ignores a late match a little behind, but goes back with a reader who rereads', () => {

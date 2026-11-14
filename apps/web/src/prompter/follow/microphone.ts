@@ -6,8 +6,8 @@ const WAV_RATE = 16000
 const SPEECH_RMS = 0.01
 /** A clip is worth transcribing while there was speech this recently. */
 const RECENT_MS = 1500
-/** The reader has stopped once this long has been silent. Short enough to stop the cursor before it runs ahead. */
-const QUIET_MS = 400
+/** The reader has stopped once this long has been silent: longer than a breath between phrases. */
+export const QUIET_MS = 700
 
 const CAPTURE_WORKLET = `
 registerProcessor('tp-capture', class extends AudioWorkletProcessor {
