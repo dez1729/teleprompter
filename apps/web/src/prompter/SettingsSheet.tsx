@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
@@ -28,6 +28,8 @@ interface FieldProps {
 
 function SettingField({ setting, def, value, set }: FieldProps) {
   const id = `setting-${setting}`
+  const description = <FieldDescription id={`${id}-description`}>{def.description}</FieldDescription>
+  const describedBy = `${id}-description`
   switch (def.kind) {
     case 'number':
       return (
@@ -39,8 +41,10 @@ function SettingField({ setting, def, value, set }: FieldProps) {
               {def.unit ? ` ${def.unit}` : ''}
             </span>
           </div>
+          {description}
           <Slider
             id={id}
+            aria-describedby={describedBy}
             min={def.min}
             max={def.max}
             step={def.step}
@@ -53,7 +57,10 @@ function SettingField({ setting, def, value, set }: FieldProps) {
       return (
         <Field>
           <FieldLabel>{def.label}</FieldLabel>
+          {description}
           <ToggleGroup
+            aria-label={def.label}
+            aria-describedby={describedBy}
             variant="outline"
             spacing={0}
             value={[value as string]}
@@ -70,9 +77,13 @@ function SettingField({ setting, def, value, set }: FieldProps) {
     case 'color':
       return (
         <Field orientation="horizontal">
-          <FieldLabel htmlFor={id}>{def.label}</FieldLabel>
+          <FieldContent>
+            <FieldLabel htmlFor={id}>{def.label}</FieldLabel>
+            {description}
+          </FieldContent>
           <input
             id={id}
+            aria-describedby={describedBy}
             type="color"
             value={value as string}
             onChange={(event) => set(setting, event.target.value)}
@@ -83,8 +94,11 @@ function SettingField({ setting, def, value, set }: FieldProps) {
     case 'bool':
       return (
         <Field orientation="horizontal">
-          <FieldLabel htmlFor={id}>{def.label}</FieldLabel>
-          <Switch id={id} checked={value as boolean} onCheckedChange={(next) => set(setting, next)} />
+          <FieldContent>
+            <FieldLabel htmlFor={id}>{def.label}</FieldLabel>
+            {description}
+          </FieldContent>
+          <Switch id={id} aria-describedby={describedBy} checked={value as boolean} onCheckedChange={(next) => set(setting, next)} />
         </Field>
       )
   }
