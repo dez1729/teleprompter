@@ -33,11 +33,11 @@ A change to the Script made by hand in the Editor. Every Prompter keeps its Curr
 _Avoid_: Apply, save, commit
 
 **Spoken-only**:
-A display filter for markdown Scripts that hides everything not meant to be read aloud (headings, italics, code, frontmatter, comments, callouts). The stored Script is unchanged.
+A display filter for markdown Scripts that hides everything not meant to be read aloud (headings, italics, strikethrough, code, tables, HTML, frontmatter, comments, footnotes, callouts). Bold and link text stay. The stored Script is unchanged.
 _Avoid_: Clean mode, strip markdown
 
 **Section marker**:
-A thin dimmed divider shown in place of a heading while Spoken-only is on.
+A short dimmed divider shown in place of a heading or horizontal rule while Spoken-only is on.
 _Avoid_: Header line
 
 ## Surfaces

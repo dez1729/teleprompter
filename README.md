@@ -94,11 +94,23 @@ Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it 
 | `[` `]` | Change how many lines the Reading window highlights. |
 | `Home` | Go back to the top. |
 | `p` | Open the Editor. |
+| `s` | Turn Spoken-only on or off. |
 | `,` | Open the display settings. |
 
 Scroll the mouse wheel or drag the text to move through the Script by hand. Either one pauses playback.
 
 Speed is measured in words, not pixels. Changing the text size or line spacing changes how far the text moves, not how fast you read.
+
+### Spoken-only
+
+A markdown Script often holds text you do not read aloud. Spoken-only, which is on by default, hides it:
+
+- Headings and horizontal rules become a short dimmed line, the Section marker.
+- Italics, strikethrough, inline code, code blocks, tables, images, and HTML are hidden. Use italics for stage directions.
+- Obsidian frontmatter, `%%` comments, footnotes, embeds, and callouts are hidden. A wikilink shows its alias, or the note name.
+- Bold text and link text stay. List markers and `>` quote marks are hidden, and a list reads as one paragraph with a line per item.
+
+Press `s` to see the whole Script. The Prompter stays on the word you were reading. Spoken-only changes only what the Prompter shows: the Editor and the stored Script keep every character. A text Script is never filtered.
 
 ### Undo a Replace
 
@@ -108,6 +120,7 @@ When a Replace arrives, the Prompter shows **Undo** at the top of the window for
 
 Open the settings panel (`,`) to change:
 
+- Spoken-only
 - the font, text size, line spacing, and colors
 - how dark the dimming is
 - the Reading window's size and position
@@ -159,7 +172,7 @@ pnpm test:e2e
 1. Prompter: done.
 2. Local server, Push API, the `tp` command, and a Claude Code plugin: done.
 3. Editor window with undo, Script history, and live sync to the Prompter: done.
-4. Spoken-only mode for markdown, which hides headings, italics, and code.
+4. Spoken-only mode for markdown: done.
 5. Obsidian plugin to send selected text to the Prompter.
 6. Follow mode: scrolls as you speak, using a local Whisper server.
 7. Azure Speech as an optional speech-to-text service.
