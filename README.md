@@ -2,7 +2,7 @@
 
 A local teleprompter that runs in your browser. Write or paste a Script in the Editor and the Prompter scrolls it at a steady pace. The lines you are reading stay bright inside the Reading window, and the text above and below it is dimmed.
 
-A local server holds the Script and its recent history, so other tools can send text to the Prompter. The `tp` command and a Claude Code plugin do that today. Voice-driven scrolling is next (see [Roadmap](#roadmap)).
+A local server holds the Script and its recent history, so other tools can send text to the Prompter. The `tp` command, a Claude Code plugin, and an Obsidian plugin do that today. Voice-driven scrolling is next (see [Roadmap](#roadmap)).
 
 ## Run it
 
@@ -64,9 +64,26 @@ For a published copy, use `/plugin marketplace add <owner>/<repo>` instead. The 
 - `/teleprompter replace [text]` and `/teleprompter append [text]` send the text. With no text, Claude sends its previous reply.
 - Ask Claude to "put that in the prompter" and it sends the script it just wrote.
 
+### Use it from Obsidian
+
+The Obsidian plugin sends the selection, or the whole note when nothing is selected, to the Prompter. It works in Obsidian on the desktop, on the same computer as the server.
+
+```bash
+pnpm install:obsidian /path/to/your/vault
+```
+
+This builds the plugin and copies it into the vault's `.obsidian/plugins/teleprompter` folder. Run it again after you update this checkout. Then, in Obsidian, open **Settings → Community plugins** and turn on **Teleprompter**.
+
+- **Teleprompter: Replace the Script with the selection or note** and **Teleprompter: Add the selection or note to the Script** are in the command palette. Assign them hotkeys under **Settings → Hotkeys**.
+- The same two actions are in the editor's right-click menu.
+- The note's title becomes the Script's source, and the text is sent as markdown, so Spoken-only hides frontmatter, comments, and callouts.
+- If the server is not running, a notice tells you to run `tp serve`. To use another address, change **Server address** in the plugin's settings.
+
+If your vault is on Windows and the server runs in WSL, give the Windows path in WSL form, such as `/mnt/c/Users/you/Notes`. WSL forwards http://127.0.0.1:4747 to the server by default. If Obsidian cannot reach it, check that `localhostForwarding` is not turned off in `.wslconfig`.
+
 ### API
 
-The server has no login. It rejects requests whose `Host` is not `localhost` or `127.0.0.1`, and writes from a browser page on another origin. Requests with no `Origin` header, such as from `tp` or Obsidian, are allowed. Bodies over 2 MB are refused.
+The server has no login. It rejects requests whose `Host` is not `localhost` or `127.0.0.1`, and writes from a browser page on another origin. Requests with no `Origin` header, such as from `tp`, are allowed, and so are requests from Obsidian (`app://obsidian.md`). Bodies over 2 MB are refused.
 
 | Request | Result |
 |---|---|
@@ -161,6 +178,7 @@ If two Editor windows are typing at the same moment, the last one to send wins. 
 - `packages/protocol` holds the types and request schema shared by the web app, server, and CLI.
 - `packages/cli` is the `tp` command.
 - `plugins/teleprompter` is the Claude Code plugin.
+- `apps/obsidian` is the Obsidian plugin.
 - `apps/e2e` holds the Playwright smoke test.
 - [GLOSSARY.md](./GLOSSARY.md) defines the project's terms, such as Script, Reading window, and Push.
 - [docs/adr](./docs/adr) records design decisions.
@@ -181,7 +199,7 @@ pnpm test:e2e
 2. Local server, Push API, the `tp` command, and a Claude Code plugin: done.
 3. Editor window with undo, Script history, and live sync to the Prompter: done.
 4. Spoken-only mode for markdown: done.
-5. Obsidian plugin to send selected text to the Prompter.
+5. Obsidian plugin to send selected text to the Prompter: done.
 6. Follow mode: scrolls as you speak, using a local Whisper server.
 7. Azure Speech as an optional speech-to-text service.
 8. Docker image.
