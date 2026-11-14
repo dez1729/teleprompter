@@ -1,3 +1,11 @@
+/** A rendered line as pacing sees it. */
+export interface PacedLine {
+  /** Index of the line's first word. */
+  start: number
+  /** The distance the line scrolls (its row plus any gap below it) over the row alone. At least 1. */
+  stretch: number
+}
+
 export type PlaybackMode = { kind: 'paused' } | { kind: 'countdown'; remainingMs: number } | { kind: 'playing' }
 
 export interface PlaybackState {
@@ -10,7 +18,7 @@ export interface PlaybackState {
   animTarget: number | null
   wordCount: number
   paragraphStarts: readonly number[]
-  lineStarts: readonly number[]
+  lines: readonly PacedLine[]
 }
 
 /** Where the reader goes when the Script changes: back to the top, or wherever their old position now is. */
@@ -28,7 +36,7 @@ export type PlaybackEvent =
   | { type: 'RESTART' }
   | { type: 'SCRUB'; cursor: number }
   | { type: 'SET_SCRIPT'; wordCount: number; paragraphStarts: readonly number[]; place: Placement }
-  | { type: 'SET_LAYOUT'; lineStarts: readonly number[] }
+  | { type: 'SET_LAYOUT'; lines: readonly PacedLine[] }
 
 /** Time constant of the step easing. About 95% of a step lands in 3 of these. */
 export const STEP_EASE_TAU_MS = 65
@@ -42,7 +50,7 @@ export const initialPlayback: PlaybackState = {
   animTarget: null,
   wordCount: 0,
   paragraphStarts: [],
-  lineStarts: [],
+  lines: [],
 }
 
 export function needsTick(state: PlaybackState): boolean {
@@ -80,15 +88,20 @@ function step(state: PlaybackState, starts: readonly number[], delta: 1 | -1): P
   return target === null ? state : { ...state, animTarget: target }
 }
 
-/** Reading pace on the Current line: Speed, slowed so a short line stays up at least `minLineMs`. */
+/**
+ * Reading pace on the Current line: Speed, slowed so a short line stays up at least `minLineMs`,
+ * then slowed by the line's stretch so the gap below it scrolls by as steadily as the line itself.
+ */
 function wordsPerMs(state: PlaybackState, wpm: number, minLineMs: number): number {
   const base = wpm / 60000
-  const { lineStarts, cursor } = state
-  let line = -1
-  for (let i = 0; i < lineStarts.length && lineStarts[i]! <= cursor; i++) line = i
-  if (line < 0) return base
-  const words = (lineStarts[line + 1] ?? state.wordCount) - lineStarts[line]!
-  return words > 0 ? Math.min(base, words / minLineMs) : base
+  const { lines, cursor } = state
+  let index = -1
+  for (let i = 0; i < lines.length && lines[i]!.start <= cursor; i++) index = i
+  if (index < 0) return base
+  const line = lines[index]!
+  const words = (lines[index + 1]?.start ?? state.wordCount) - line.start
+  const reading = words > 0 ? Math.min(base, words / minLineMs) : base
+  return reading / line.stretch
 }
 
 function tick(state: PlaybackState, dtMs: number, wpm: number, minLineMs: number): PlaybackState {
@@ -125,7 +138,7 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
     case 'TICK':
       return tick(state, event.dtMs, event.wpm, event.minLineMs ?? 0)
     case 'STEP_LINE':
-      return step(state, state.lineStarts, event.delta)
+      return step(state, state.lines.map((line) => line.start), event.delta)
     case 'STEP_PARAGRAPH':
       return step(state, state.paragraphStarts, event.delta)
     case 'RESTART':
@@ -135,10 +148,10 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
     case 'SET_SCRIPT': {
       const next = { ...state, wordCount: event.wordCount, paragraphStarts: event.paragraphStarts }
       return event.place === 'reset'
-        ? { ...next, cursor: 0, animTarget: null, mode: { kind: 'paused' }, lineStarts: [], countdownArmed: true }
+        ? { ...next, cursor: 0, animTarget: null, mode: { kind: 'paused' }, lines: [], countdownArmed: true }
         : { ...next, cursor: clampCursor(next, event.place(state.cursor)), animTarget: null }
     }
     case 'SET_LAYOUT':
-      return { ...state, lineStarts: event.lineStarts }
+      return { ...state, lines: event.lines }
   }
 }

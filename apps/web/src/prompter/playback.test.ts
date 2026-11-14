@@ -2,18 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { initialPlayback, keepPlace, needsTick, playbackReducer, type PlaybackEvent, type PlaybackState } from './playback'
 
 const run = (state: PlaybackState, ...events: PlaybackEvent[]) => events.reduce(playbackReducer, state)
+const rows = (...starts: number[]) => starts.map((start) => ({ start, stretch: 1 }))
 
 const loaded = run(
   initialPlayback,
   { type: 'SET_SCRIPT', wordCount: 100, paragraphStarts: [0, 40, 70], place: 'reset' },
-  { type: 'SET_LAYOUT', lineStarts: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+  { type: 'SET_LAYOUT', lines: rows(0, 10, 20, 30, 40, 50, 60, 70, 80, 90) },
 )
 
 describe('minimum time per line', () => {
   const short = run(
     initialPlayback,
     { type: 'SET_SCRIPT', wordCount: 22, paragraphStarts: [0], place: 'reset' },
-    { type: 'SET_LAYOUT', lineStarts: [0, 10, 12] },
+    { type: 'SET_LAYOUT', lines: rows(0, 10, 12) },
     { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false },
   )
   const tickFor = (state: PlaybackState, ms: number) => {
@@ -34,6 +35,33 @@ describe('minimum time per line', () => {
   it('reads at Speed when the minimum is 0', () => {
     const state = run(short, { type: 'TICK', dtMs: 1000, wpm: 300, minLineMs: 0 })
     expect(state.cursor).toBeCloseTo(5)
+  })
+})
+
+describe('the gap below a line', () => {
+  const timeOnFirstLine = (stretch: number, words: number) => {
+    let state = run(
+      initialPlayback,
+      { type: 'SET_SCRIPT', wordCount: words + 10, paragraphStarts: [0, words], place: 'reset' },
+      { type: 'SET_LAYOUT', lines: [{ start: 0, stretch }, { start: words, stretch: 1 }] },
+      { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false },
+    )
+    let ms = 0
+    while (state.cursor < words) {
+      state = run(state, { type: 'TICK', dtMs: 10, wpm: 300, minLineMs: 1500 })
+      ms += 10
+    }
+    return ms
+  }
+
+  it('takes time in proportion to its height, so the line scrolls at an even pace', () => {
+    expect(timeOnFirstLine(1, 10)).toBeCloseTo(2000, -2)
+    expect(timeOnFirstLine(1.5, 10)).toBeCloseTo(3000, -2)
+  })
+
+  it('adds to the minimum time of a short line', () => {
+    expect(timeOnFirstLine(1, 2)).toBeCloseTo(1500, -2)
+    expect(timeOnFirstLine(2, 2)).toBeCloseTo(3000, -2)
   })
 })
 

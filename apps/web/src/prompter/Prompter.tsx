@@ -5,7 +5,7 @@ import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { ControlBar } from './ControlBar'
 import { NudgeHud } from './NudgeHud'
-import { cursorToY, EMPTY_LAYOUT, measureLayout, readingOffset, yToCursor, type Layout } from './layout'
+import { cursorToY, EMPTY_LAYOUT, measureLayout, pacedLines, readingOffset, yToCursor, type Layout } from './layout'
 import { HelpOverlay } from './HelpOverlay'
 import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
@@ -65,7 +65,7 @@ export function Prompter() {
     if (!textRef.current) return
     const next = measureLayout(textRef.current)
     setLayout(next)
-    dispatch({ type: 'SET_LAYOUT', lineStarts: next.lines.map((line) => line.firstWord) })
+    dispatch({ type: 'SET_LAYOUT', lines: pacedLines(next) })
   }, [dispatch])
 
   useLayoutEffect(remeasure, [

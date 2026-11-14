@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cursorToY, lineIndexOf, readingOffset, yToCursor, type Layout } from './layout'
+import { cursorToY, lineIndexOf, pacedLines, readingOffset, yToCursor, type Layout } from './layout'
 
 describe('readingOffset', () => {
   it('keeps the line being read inside the Reading window from start to finish', () => {
@@ -57,5 +57,22 @@ describe('layout', () => {
     expect(lineIndexOf({ lines: [] }, 3)).toBe(-1)
     expect(cursorToY({ lines: [] }, 3)).toBe(0)
     expect(yToCursor({ lines: [] }, 30)).toBe(0)
+  })
+})
+
+describe('pacedLines', () => {
+  it('stretches a line by the gap below it, and not the last line', () => {
+    const paragraphs: Layout = {
+      lines: [
+        { top: 0, height: 50, firstWord: 0, endWord: 4 },
+        { top: 50, height: 50, firstWord: 4, endWord: 8 },
+        { top: 125, height: 50, firstWord: 8, endWord: 10 },
+      ],
+    }
+    expect(pacedLines(paragraphs)).toEqual([
+      { start: 0, stretch: 1 },
+      { start: 4, stretch: 1.5 },
+      { start: 8, stretch: 1 },
+    ])
   })
 })

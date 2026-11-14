@@ -1,3 +1,5 @@
+import type { PacedLine } from './playback'
+
 export interface Line {
   top: number
   height: number
@@ -28,6 +30,14 @@ function lineSpan(layout: Layout, index: number): number {
   const line = layout.lines[index]!
   const next = layout.lines[index + 1]
   return next ? next.top - line.top : line.height
+}
+
+/** Each line's first word and how far it scrolls relative to its own row, for pacing. */
+export function pacedLines(layout: Layout): PacedLine[] {
+  return layout.lines.map((line, index) => ({
+    start: line.firstWord,
+    stretch: Math.max(1, lineSpan(layout, index) / line.height),
+  }))
 }
 
 export function cursorToY(layout: Layout, cursor: number): number {
