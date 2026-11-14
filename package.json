@@ -2,7 +2,7 @@
   "name": "teleprompter",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@11.18.0",
+  "packageManager": "pnpm@12.18.0",
   "scripts": {
     "dev": "pnpm --parallel --filter web --filter @teleprompter/server dev",
     "start": "node packages/cli/bin/tp.js serve",
