@@ -79,7 +79,7 @@ export function usePrompter(ui: UiBridge) {
 
   const playbackRef = useRef(playback)
   playbackRef.current = playback
-  const follow = useFollow(playback.mode, tokens.words, dispatch)
+  const follow = useFollow(playback.mode, tokens.words, settings.speedWpm, dispatch)
 
   const [readout, setReadout] = useState<NudgeReadout | null>(null)
   const [replaced, setReplaced] = useState<ReplaceNotice | null>(null)

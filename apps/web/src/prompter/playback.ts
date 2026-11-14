@@ -40,8 +40,11 @@ export type PlaybackEvent =
   | { type: 'PLAY'; countdownSec: number; countdownAtStartOnly: boolean }
   | { type: 'PAUSE' }
   | { type: 'FOLLOW' }
-  /** `position` is where the reader is now; `pace` is how fast they have been reading, in words per ms. */
-  | { type: 'HEARD'; position: number; pace: number }
+  /**
+   * `position` is where the reader is now; `pace` is how fast they have been reading, in words per ms.
+   * `reread` is true when they went back before where they were last heard; only then does the cursor move back.
+   */
+  | { type: 'HEARD'; position: number; pace: number; reread: boolean }
   /** The reader went quiet `forMs` ago: stop near where they stopped, until their voice is matched again. */
   | { type: 'QUIET'; forMs: number }
   | { type: 'TICK'; dtMs: number; wpm: number; minLineMs?: number }
@@ -65,10 +68,10 @@ const FOLLOW_MAX_SPEED = 12 / 1000
 /** Time constant of the move back when the reader goes back to reread. */
 const FOLLOW_BACK_TAU_MS = 300
 /**
- * A match less than this many words behind the target is speech heard again late, or the cursor having coasted
- * past a reader who stopped, not the reader going back to reread.
+ * A reader this many words ahead of the cursor jumped there: the cursor glides all the way to them, as it does for
+ * a step with the arrow keys, instead of scrolling through the words between.
  */
-export const FOLLOW_BACKTRACK_WORDS = 6
+const FOLLOW_JUMP_WORDS = 8
 /**
  * How long the cursor keeps moving at the reader's pace after the last match, before it waits for their voice.
  * Long enough to ride out a slow answer from Whisper; QUIET stops it sooner when the reader stops.
@@ -111,12 +114,17 @@ function follow(state: PlaybackState): PlaybackState {
 
 const listeningAt = (target: number): PlaybackMode => ({ kind: 'following', target, pace: 0, coastMs: FOLLOW_COAST_MS, speed: 0 })
 
-function heard(state: PlaybackState, position: number, pace: number): PlaybackState {
+function heard(state: PlaybackState, position: number, pace: number, reread: boolean): PlaybackState {
   if (state.mode.kind !== 'following') return state
   const { target } = state.mode
-  // A match a little behind still means the reader is reading on, so the cursor keeps going from where it is.
-  const next = position < target && position > target - FOLLOW_BACKTRACK_WORDS ? target : clampCursor(state, position)
-  return { ...state, mode: { ...state.mode, target: next, pace, coastMs: 0 } }
+  // A match behind the cursor that is not a reread means the cursor ran ahead: it waits there for the reader.
+  const next = position < target && !reread ? target : clampCursor(state, position)
+  const jumped = next - (state.animTarget ?? state.cursor) > FOLLOW_JUMP_WORDS
+  return {
+    ...state,
+    animTarget: jumped ? next : state.animTarget,
+    mode: { ...state.mode, target: next, pace, coastMs: 0, speed: jumped ? pace : state.mode.speed },
+  }
 }
 
 /** Takes back the coasting since the reader stopped, without moving the cursor back. */
@@ -218,7 +226,7 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
     case 'FOLLOW':
       return follow(state)
     case 'HEARD':
-      return heard(state, event.position, event.pace)
+      return heard(state, event.position, event.pace, event.reread)
     case 'QUIET':
       return quiet(state, event.forMs)
     case 'TOGGLE':

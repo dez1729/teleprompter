@@ -47,10 +47,15 @@ describe('align', () => {
     expect(align(script, heardWords('the whole product depended'), later)).toBe(at('the whole product depended'))
   })
 
-  it('only searches the Lookahead window', () => {
-    const long = [...Array.from({ length: LOOKAHEAD + 10 }, (_, i) => `filler${i}`), ...heardWords('the closing words of the talk')]
-    expect(align(long, heardWords('the closing words of the talk'), 0)).toBeNull()
-    expect(align(long, heardWords('the closing words of the talk'), 20)).toBe(long.length)
+  it('finds a reader beyond the Lookahead window only on a long run of words', () => {
+    const long = [...Array.from({ length: LOOKAHEAD + 10 }, (_, i) => `filler${i}`), ...heardWords('the closing words of the whole talk')]
+    expect(align(long, heardWords('the closing words'), 0)).toBeNull()
+    expect(align(long, heardWords('the closing words of the whole talk'), 0)).toBe(long.length)
+  })
+
+  it('prefers a near match to an equally good one far away', () => {
+    const twice = [...heardWords('one two three four five six'), ...Array.from({ length: LOOKAHEAD + 10 }, (_, i) => `filler${i}`), ...heardWords('one two three four five six')]
+    expect(align(twice, heardWords('one two three four five six'), 0)).toBe(6)
   })
 
   it('prefers the repeat nearest the reader', () => {

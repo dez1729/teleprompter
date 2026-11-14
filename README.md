@@ -139,7 +139,7 @@ Any Whisper server with the OpenAI transcription API works. [Speaches](https://s
 
 If the Whisper server cannot be reached, Follow stops and the top right corner says why.
 
-In testing with a recorded voice, Follow stayed within about a word of it during steady reading, and stopped about three words past it at a pause. When you start again after a pause, it takes about two seconds to pick you up. Follow listens for words within about 60 words ahead of where you are. If you jump further, move there with the arrow keys and Follow carries on from there. Dragging or scrolling the text stops Follow.
+In testing with a recorded voice, Follow stayed within about a word of it during steady reading, and stopped about three words past it at a pause. It picked the voice up about two seconds after it started again, or after it started 30 words further on. If you start reading somewhere else, Follow jumps there. Within about 60 words of where you are, it needs two or three words to find you. Further away, it needs about five words in a row. If it runs ahead of you, it waits rather than moving back. It moves back only when you go back to reread. Until it has heard enough to measure your pace, it assumes the Speed setting. Dragging or scrolling the text stops Follow.
 
 ### Spoken-only
 

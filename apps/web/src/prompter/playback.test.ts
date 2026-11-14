@@ -258,30 +258,35 @@ describe('Follow', () => {
   })
 
   it('glides to where the voice was heard instead of jumping', () => {
-    const heard = run(following, { type: 'HEARD', position: 14, pace: 0 }, { type: 'TICK', dtMs: 50, wpm: 100 })
+    const heard = run(following, { type: 'HEARD', position: 14, pace: 0, reread: false }, { type: 'TICK', dtMs: 50, wpm: 100 })
     expect(heard.cursor).toBeGreaterThan(10)
     expect(heard.cursor).toBeLessThan(14)
     expect(settle(heard).cursor).toBe(14)
   })
 
   it('keeps moving at the reader\'s pace between matches, then waits for their voice', () => {
-    const reading = run(following, { type: 'HEARD', position: 14, pace: 3 / 1000 })
+    const reading = run(following, { type: 'HEARD', position: 14, pace: 3 / 1000, reread: false })
     const afterOneSecond = run(reading, ...Array.from({ length: 10 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
     expect(afterOneSecond.mode.kind === 'following' && afterOneSecond.mode.target).toBeCloseTo(17)
     expect(settle(afterOneSecond).cursor).toBeCloseTo(14 + 3 * (FOLLOW_COAST_MS / 1000))
   })
 
   it('stops coasting when the reader goes quiet', () => {
-    const coasted = run(following, { type: 'HEARD', position: 14, pace: 3 / 1000 }, ...Array.from({ length: 10 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
+    const coasted = run(following, { type: 'HEARD', position: 14, pace: 3 / 1000, reread: false }, ...Array.from({ length: 10 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
     const quiet = settle(run(coasted, { type: 'QUIET', forMs: 700 }))
     expect(quiet.cursor).toBeCloseTo(Math.max(coasted.cursor, 17 - 3 * 0.7))
     expect(settle(run(quiet, { type: 'QUIET', forMs: 700 })).cursor).toBe(quiet.cursor)
   })
 
-  it('ignores a late match a little behind, but goes back with a reader who rereads', () => {
-    const ahead = settle(run(following, { type: 'HEARD', position: 20, pace: 0 }))
-    expect(settle(run(ahead, { type: 'HEARD', position: 15, pace: 0 })).cursor).toBe(20)
-    expect(settle(run(ahead, { type: 'HEARD', position: 12, pace: 0 })).cursor).toBe(12)
+  it('waits for a reader it ran ahead of, and goes back only with a reader who rereads', () => {
+    const ahead = settle(run(following, { type: 'HEARD', position: 20, pace: 0, reread: false }))
+    expect(settle(run(ahead, { type: 'HEARD', position: 12, pace: 0, reread: false })).cursor).toBe(20)
+    expect(settle(run(ahead, { type: 'HEARD', position: 12, pace: 0, reread: true })).cursor).toBe(12)
+  })
+
+  it('glides to a reader far ahead instead of scrolling through the words between', () => {
+    const jumped = run(following, { type: 'HEARD', position: 40, pace: 3 / 1000, reread: false }, ...Array.from({ length: 6 }, () => ({ type: 'TICK', dtMs: 50, wpm: 100 }) as const))
+    expect(jumped.cursor).toBeGreaterThan(39)
   })
 
   it('a step moves where it listens from', () => {
@@ -294,7 +299,7 @@ describe('Follow', () => {
     expect(run(following, { type: 'PAUSE' }).mode.kind).toBe('paused')
     expect(run(following, { type: 'TOGGLE', countdownSec: 3, countdownAtStartOnly: false }).mode.kind).toBe('paused')
     expect(run(following, { type: 'SCRUB', cursor: 3 }).mode.kind).toBe('paused')
-    expect(run(loaded, { type: 'HEARD', position: 30, pace: 0 })).toBe(loaded)
+    expect(run(loaded, { type: 'HEARD', position: 30, pace: 0, reread: false })).toBe(loaded)
   })
 
   it('starts over from the top after the end, without a countdown', () => {

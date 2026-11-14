@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch } from 'react'
 import { transcribe } from '@/lib/scriptApi'
-import { FOLLOW_BACKTRACK_WORDS, type PlaybackEvent, type PlaybackMode } from '../playback'
+import type { PlaybackEvent, PlaybackMode } from '../playback'
 import type { Word } from '../script'
 import { align, heardWords, normalize } from './align'
 import { openMicrophone, QUIET_MS } from './microphone'
@@ -29,9 +29,16 @@ function paceOver(matches: readonly Match[], fallback: number): number {
   return pace >= 0 && pace <= MAX_PACE ? pace : fallback
 }
 
-/** The same words as the last match, or slightly before them: nothing new, so the cursor carries on as it was. */
-function alreadyHeard(previous: { position: number } | null, position: number): boolean {
-  return previous !== null && position <= previous.position && position > previous.position - FOLLOW_BACKTRACK_WORDS
+/**
+ * A match this many words before where the reader was last heard is them going back to reread. A match closer
+ * behind is the same speech heard again late.
+ */
+const REREAD_WORDS = 6
+
+/** How a new match relates to where the reader was last heard, or to the cursor before the first match. */
+function compare(position: number, lastHeard: number): 'new' | 'same' | 'reread' {
+  if (position < lastHeard - REREAD_WORDS) return 'reread'
+  return position <= lastHeard ? 'same' : 'new'
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -47,12 +54,18 @@ function micError(error: unknown): string {
  * While the mode is following, listens to the reader and reports where they are with HEARD.
  * Stops with an error status, and pauses, when the microphone or the Transcriber fails.
  */
-export function useFollow(mode: PlaybackMode, words: readonly Word[], dispatch: Dispatch<PlaybackEvent>): FollowStatus {
+/** `expectedWpm` is the pace assumed until the reader's own is measured: the Auto Speed. */
+export function useFollow(
+  mode: PlaybackMode,
+  words: readonly Word[],
+  expectedWpm: number,
+  dispatch: Dispatch<PlaybackEvent>,
+): FollowStatus {
   const following = mode.kind === 'following'
   const [status, setStatus] = useState<FollowStatus>({ kind: 'off' })
   const script = useMemo(() => words.map((word) => normalize(word.text)), [words])
-  const live = useRef({ script, target: 0 })
-  live.current = { script, target: mode.kind === 'following' ? mode.target : 0 }
+  const live = useRef({ script, target: 0, expectedWpm })
+  live.current = { script, target: mode.kind === 'following' ? mode.target : 0, expectedWpm }
   const matches = useRef<{ recent: Match[]; pace: number }>({ recent: [], pace: 0 })
 
   useEffect(() => {
@@ -70,7 +83,7 @@ export function useFollow(mode: PlaybackMode, words: readonly Word[], dispatch: 
       dispatch({ type: 'PAUSE' })
     }
     setStatus({ kind: 'starting' })
-    matches.current = { recent: [], pace: 0 }
+    matches.current = { recent: [], pace: live.current.expectedWpm / 60000 }
     const opening = openMicrophone()
     void (async () => {
       const mic = await opening.catch((error: unknown) => stop(micError(error)))
@@ -87,14 +100,15 @@ export function useFollow(mode: PlaybackMode, words: readonly Word[], dispatch: 
             const text = await transcribe(clip)
             const matched = align(live.current.script, heardWords(text), live.current.target)
             const { recent } = matches.current
-            if (!stopped && matched !== null && !alreadyHeard(recent[recent.length - 1] ?? null, matched)) {
-              const wentBack = recent.length > 0 && matched < recent[recent.length - 1]!.position
-              const kept = wentBack ? [] : recent.filter((match) => match.at > started - PACE_WINDOW_MS)
+            const relation = matched === null ? null : compare(matched, recent[recent.length - 1]?.position ?? live.current.target)
+            if (!stopped && matched !== null && relation !== 'same') {
+              const reread = relation === 'reread'
+              const kept = reread ? [] : recent.filter((match) => match.at > started - PACE_WINDOW_MS)
               kept.push({ position: matched, at: started })
               const pace = paceOver(kept, matches.current.pace)
               matches.current = { recent: kept, pace }
               // The clip ended when it was sent; the reader has kept reading since.
-              dispatch({ type: 'HEARD', position: matched + pace * (performance.now() - started), pace })
+              dispatch({ type: 'HEARD', position: matched + pace * (performance.now() - started), pace, reread })
             }
           } catch (error) {
             stop(error instanceof Error ? error.message : String(error))
