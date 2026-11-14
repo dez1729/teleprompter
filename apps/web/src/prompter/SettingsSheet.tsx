@@ -118,7 +118,7 @@ export function SettingsSheet({ open, onOpenChange, settings, onChange }: Props)
             <SettingField key={key} setting={key} def={def} value={settings[key]} set={set} />
           ))}
           {!advanced && (
-            <Button variant="outline" className="justify-between" onClick={() => setPage('advanced')}>
+            <Button variant="ghost" className="-mx-2.5 mt-3 justify-between" onClick={() => setPage('advanced')}>
               Advanced settings
               <ChevronRight data-icon="inline-end" />
             </Button>
