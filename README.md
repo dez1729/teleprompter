@@ -185,6 +185,7 @@ pnpm test:e2e
 6. Follow mode: scrolls as you speak, using a local Whisper server.
 7. Azure Speech as an optional speech-to-text service.
 8. Docker image.
+9. Read aloud: the computer speaks the Script with text-to-speech, to test pacing. The voice has its own words per minute, separate from Speed. With Follow on, the Prompter follows the voice.
 
 ## License
 
