@@ -2,7 +2,7 @@
 export interface PacedLine {
   /** Index of the line's first word. */
   start: number
-  /** The distance the line scrolls (its row plus any gap below it) over the row alone. At least 1. */
+  /** How much longer the line takes than its row alone, for crossing the gap below it. At least 1. */
   stretch: number
 }
 
@@ -90,7 +90,7 @@ function step(state: PlaybackState, starts: readonly number[], delta: 1 | -1): P
 
 /**
  * Reading pace on the Current line: Speed, slowed so a short line stays up at least `minLineMs`,
- * then slowed by the line's stretch so the gap below it scrolls by as steadily as the line itself.
+ * then slowed by the line's stretch to leave time for the gap below it.
  */
 function wordsPerMs(state: PlaybackState, wpm: number, minLineMs: number): number {
   const base = wpm / 60000

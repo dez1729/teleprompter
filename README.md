@@ -101,7 +101,7 @@ Scroll the mouse wheel or drag the text to move through the Script by hand. Eith
 
 Speed is measured in words, not pixels. Changing the text size or line spacing changes how far the text moves, not how fast you read.
 
-Each line stays up for at least the minimum time per line. The text scrolls at an even pace through each line and the gap below it, so the space between paragraphs, or a Section marker, adds a short pause after the line above it.
+Each line stays up for at least the minimum time per line. Then the space below it, between paragraphs or at a Section marker, scrolls by three times faster, so a new paragraph comes up quickly without rushing the line before it.
 
 ### Spoken-only
 

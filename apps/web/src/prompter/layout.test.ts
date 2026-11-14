@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cursorToY, lineIndexOf, pacedLines, readingOffset, yToCursor, type Layout } from './layout'
+import { cursorToY, GAP_PACE, lineIndexOf, pacedLines, readingOffset, yToCursor, type Layout } from './layout'
 
 describe('readingOffset', () => {
   it('keeps the line being read inside the Reading window from start to finish', () => {
@@ -30,9 +30,17 @@ describe('layout', () => {
     expect(cursorToY(layout, 6)).toBe(130)
   })
 
-  it('moves smoothly within a line, through paragraph gaps', () => {
+  it('moves smoothly within a line', () => {
     expect(cursorToY(layout, 2)).toBe(25)
-    expect(cursorToY(layout, 5)).toBe(90)
+  })
+
+  it('crosses the gap below a line faster than the line itself', () => {
+    // Line 1 is a 50 px row over a 30 px gap: the row takes 50 parts of its progress, the gap 30 / GAP_PACE.
+    const rowEnd = 4 + 2 * (50 / (50 + 30 / GAP_PACE))
+    expect(cursorToY(layout, rowEnd)).toBeCloseTo(100)
+    const rowPace = 50 / (rowEnd - 4)
+    const gapPace = 30 / (6 - rowEnd)
+    expect(gapPace / rowPace).toBeCloseTo(GAP_PACE)
   })
 
   it('round-trips between cursor and y', () => {
@@ -61,7 +69,7 @@ describe('layout', () => {
 })
 
 describe('pacedLines', () => {
-  it('stretches a line by the gap below it, and not the last line', () => {
+  it('gives a line extra time for the gap below it, and not the last line', () => {
     const paragraphs: Layout = {
       lines: [
         { top: 0, height: 50, firstWord: 0, endWord: 4 },
@@ -71,7 +79,7 @@ describe('pacedLines', () => {
     }
     expect(pacedLines(paragraphs)).toEqual([
       { start: 0, stretch: 1 },
-      { start: 4, stretch: 1.5 },
+      { start: 4, stretch: 1 + 0.5 / GAP_PACE },
       { start: 8, stretch: 1 },
     ])
   })
