@@ -113,6 +113,7 @@ Open the settings panel (`,`) to change:
 - the Reading window's size and position
 - column width, or full width with minimum side margins
 - the top and bottom margins, which stay blank
+- the minimum time each line stays up, so a line of one or two words does not pass before you can read it
 - mirroring, for use behind beam-splitter glass
 - the countdown, and whether it runs only at the start
 
