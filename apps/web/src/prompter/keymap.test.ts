@@ -31,9 +31,9 @@ describe('helpRows', () => {
     expect(rows.filter((r) => r.description === 'Larger text')).toEqual([{ keys: '+ / =', description: 'Larger text' }])
   })
 
-  it('lists every group and omits hidden bindings', () => {
+  it('lists every group, Follow included', () => {
     expect(helpRows().map((g) => g.group)).toEqual(['Playback', 'Navigation', 'Display', 'Panels'])
-    expect(rows.some((r) => r.description === 'Follow')).toBe(false)
+    expect(rows).toContainEqual({ keys: 'F', description: 'Follow your voice on / off' })
   })
 })
 

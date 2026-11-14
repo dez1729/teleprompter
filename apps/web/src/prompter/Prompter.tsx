@@ -11,6 +11,7 @@ import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
 import { UndoToast } from './UndoToast'
 import { FONT_STACKS, GAP_PACES } from './settings'
+import type { FollowStatus } from './follow/useFollow'
 import { usePrompter } from './usePrompter'
 
 const BAR_HIDE_DELAY_MS = 2000
@@ -22,7 +23,7 @@ const openEditor = () => openNamedWindow('/editor', EDITOR_WINDOW)
 export function Prompter() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const { script, connected, tokens, settings, playback, readout, replaced, undoReplace, dispatch, updateSetting, run } = usePrompter({
+  const { script, connected, tokens, settings, playback, follow, readout, replaced, undoReplace, dispatch, updateSetting, run } = usePrompter({
     helpOpen,
     onUiCommand: (command) => {
       switch (command.type) {
@@ -90,7 +91,8 @@ export function Prompter() {
     void document.fonts?.ready.then(remeasure)
   }, [remeasure, settings.fontFamily])
 
-  const playing = playback.mode.kind === 'playing'
+  const following = playback.mode.kind === 'following'
+  const playing = playback.mode.kind === 'playing' || following
   useEffect(() => setRecentMouse(true), [playing])
 
   const showBar = () => setRecentMouse(true)
@@ -214,6 +216,8 @@ export function Prompter() {
           </div>
         )}
 
+        <FollowStatusLine status={follow} />
+
         {connected === false && (
           <p role="status" className="pointer-events-none absolute left-3 top-3 text-xs opacity-60">
             Not connected to server
@@ -223,7 +227,8 @@ export function Prompter() {
         <div onPointerDown={(e) => e.stopPropagation()}>
           <ControlBar
             visible={!playing || recentMouse}
-            playing={playing || playback.mode.kind === 'countdown'}
+            playing={playback.mode.kind === 'playing' || playback.mode.kind === 'countdown'}
+            following={following}
             speedWpm={settings.speedWpm}
             fontSize={settings.fontSize}
             hasScript={script !== null}
@@ -236,5 +241,15 @@ export function Prompter() {
       <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} settings={settings} onChange={updateSetting} />
       <UndoToast notice={replaced} onUndo={undoReplace} />
     </>
+  )
+}
+
+function FollowStatusLine({ status }: { status: FollowStatus }) {
+  if (status.kind === 'off') return null
+  const text = status.kind === 'error' ? status.message : status.kind === 'starting' ? 'Opening the microphone…' : 'Following your voice'
+  return (
+    <p role="status" className="pointer-events-none absolute right-3 top-3 max-w-md text-right text-xs opacity-60">
+      {text}
+    </p>
   )
 }

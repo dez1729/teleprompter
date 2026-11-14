@@ -1,0 +1,70 @@
+/** How far behind the reader's position a match may land, in words, for when they go back and read a line again. */
+export const BEHIND = 12
+/** The Lookahead window: how far ahead of the reader's position Follow searches, in words. */
+export const LOOKAHEAD = 60
+/** Only the most recent heard words matter; older ones were matched by earlier clips. */
+const HEARD_LIMIT = 16
+
+const MATCH = 2
+const MISMATCH = -1
+const GAP = -1
+/** About three matching words. One common word such as "the" must not move the reader. */
+export const MIN_SCORE = 5
+/** Two words in a row, enough just after the reader's position, where they are expected to go on. */
+const NEAR_MIN_SCORE = 4
+/** How far after the reader's position a match counts as near. */
+const NEAR_WORDS = 4
+/** Breaks ties between equally good matches in favor of the one nearest the reader. */
+const DISTANCE_COST = 0.01
+
+/** Lowercase letters and digits, so "Delivery," matches "delivery". */
+export function normalize(word: string): string {
+  return word.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]/gu, '')
+}
+
+export function heardWords(text: string): string[] {
+  return text.split(/\s+/).map(normalize).filter(Boolean)
+}
+
+/** One letter wrong, missing or extra, in a word long enough that it is still that word. */
+function similar(a: string, b: string): boolean {
+  if (a === b) return true
+  if (Math.min(a.length, b.length) < 4 || Math.abs(a.length - b.length) > 1) return false
+  let i = 0
+  while (i < a.length && a[i] === b[i]) i++
+  let j = 0
+  while (j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++
+  return Math.max(a.length, b.length) - i - j <= 1
+}
+
+/**
+ * Where the reader is after saying `heard`: the index just past the last Script word that the heard words match,
+ * searched from BEHIND words before `from` to LOOKAHEAD words after it. Null when nothing matches well enough.
+ * `script` and `heard` are normalized words.
+ */
+export function align(script: readonly string[], heard: readonly string[], from: number): number | null {
+  const said = heard.slice(-HEARD_LIMIT)
+  const lo = Math.max(0, Math.floor(from) - BEHIND)
+  const hi = Math.min(script.length, Math.ceil(from) + LOOKAHEAD)
+  if (said.length === 0 || hi <= lo) return null
+
+  // Local alignment: previous[j] and current[j] score the best match ending at heard word i and Script word lo + j - 1.
+  const width = hi - lo + 1
+  let previous = new Array<number>(width).fill(0)
+  let best: { score: number; end: number } | null = null
+  for (const word of said) {
+    const current = new Array<number>(width).fill(0)
+    for (let j = 1; j < width; j++) {
+      const diagonal = previous[j - 1]! + (similar(word, script[lo + j - 1]!) ? MATCH : MISMATCH)
+      current[j] = Math.max(0, diagonal, previous[j]! + GAP, current[j - 1]! + GAP)
+      const end = lo + j
+      // Going back is rarer than reading on, so a match behind the reader counts as farther away.
+      const distance = end >= from ? end - from : (from - end) * 3
+      const score = current[j]! - DISTANCE_COST * distance
+      const needed = end >= from && end - from <= NEAR_WORDS ? NEAR_MIN_SCORE : MIN_SCORE
+      if (current[j]! >= needed && (best === null || score > best.score)) best = { score, end }
+    }
+    previous = current
+  }
+  return best?.end ?? null
+}

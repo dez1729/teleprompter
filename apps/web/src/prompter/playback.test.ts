@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initialPlayback, keepPlace, needsTick, playbackReducer, type PlaybackEvent, type PlaybackState } from './playback'
+import { FOLLOW_COAST_MS, initialPlayback, keepPlace, needsTick, playbackReducer, type PlaybackEvent, type PlaybackState } from './playback'
 
 const run = (state: PlaybackState, ...events: PlaybackEvent[]) => events.reduce(playbackReducer, state)
 const rows = (...starts: number[]) => starts.map((start) => ({ start, stretch: 1 }))
@@ -245,5 +245,63 @@ describe('playback', () => {
       const paused = run(countdownThenPlay(loaded), { type: 'PAUSE' })
       expect(run(paused, { type: 'PLAY', countdownSec: 3, countdownAtStartOnly: false }).mode.kind).toBe('countdown')
     })
+  })
+})
+
+describe('Follow', () => {
+  const following = run(loaded, { type: 'SCRUB', cursor: 10 }, { type: 'FOLLOW' })
+  const settle = (state: PlaybackState) => run(state, ...Array.from({ length: 20 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
+
+  it('starts from where the reader is and waits for their voice', () => {
+    expect(following.mode).toMatchObject({ kind: 'following', target: 10 })
+    expect(settle(following).cursor).toBe(10)
+  })
+
+  it('glides to where the voice was heard instead of jumping', () => {
+    const heard = run(following, { type: 'HEARD', position: 14, pace: 0 }, { type: 'TICK', dtMs: 50, wpm: 100 })
+    expect(heard.cursor).toBeGreaterThan(10)
+    expect(heard.cursor).toBeLessThan(14)
+    expect(settle(heard).cursor).toBe(14)
+  })
+
+  it('keeps moving at the reader\'s pace between matches, then waits for their voice', () => {
+    const reading = run(following, { type: 'HEARD', position: 14, pace: 3 / 1000 })
+    const afterOneSecond = run(reading, ...Array.from({ length: 10 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
+    expect(afterOneSecond.mode.kind === 'following' && afterOneSecond.mode.target).toBeCloseTo(17)
+    expect(settle(afterOneSecond).cursor).toBeCloseTo(14 + 3 * (FOLLOW_COAST_MS / 1000))
+  })
+
+  it('stops coasting when the reader goes quiet', () => {
+    const quiet = run(following, { type: 'HEARD', position: 14, pace: 3 / 1000 }, { type: 'QUIET' })
+    expect(settle(quiet).cursor).toBe(14)
+  })
+
+  it('ignores a late match a little behind, but goes back with a reader who rereads', () => {
+    const ahead = settle(run(following, { type: 'HEARD', position: 20, pace: 0 }))
+    expect(settle(run(ahead, { type: 'HEARD', position: 15, pace: 0 })).cursor).toBe(20)
+    expect(settle(run(ahead, { type: 'HEARD', position: 12, pace: 0 })).cursor).toBe(12)
+  })
+
+  it('a step moves where it listens from', () => {
+    const stepped = settle(run(following, { type: 'STEP_PARAGRAPH', delta: 1 }))
+    expect(stepped.mode).toMatchObject({ kind: 'following', target: stepped.cursor })
+    expect(stepped.cursor).toBeGreaterThan(10)
+  })
+
+  it('stops on pause, scrub or Space, and ignores voices while stopped', () => {
+    expect(run(following, { type: 'PAUSE' }).mode.kind).toBe('paused')
+    expect(run(following, { type: 'TOGGLE', countdownSec: 3, countdownAtStartOnly: false }).mode.kind).toBe('paused')
+    expect(run(following, { type: 'SCRUB', cursor: 3 }).mode.kind).toBe('paused')
+    expect(run(loaded, { type: 'HEARD', position: 30, pace: 0 })).toBe(loaded)
+  })
+
+  it('starts over from the top after the end, without a countdown', () => {
+    const ended = run(loaded, { type: 'SCRUB', cursor: loaded.wordCount }, { type: 'FOLLOW' })
+    expect(ended.mode).toMatchObject({ kind: 'following', target: 0 })
+    expect(ended.cursor).toBe(0)
+  })
+
+  it('does nothing without a Script', () => {
+    expect(run(initialPlayback, { type: 'FOLLOW' })).toBe(initialPlayback)
   })
 })

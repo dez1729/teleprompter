@@ -6,7 +6,16 @@ export interface PacedLine {
   stretch: number
 }
 
-export type PlaybackMode = { kind: 'paused' } | { kind: 'countdown'; remainingMs: number } | { kind: 'playing' }
+export type PlaybackMode =
+  | { kind: 'paused' }
+  | { kind: 'countdown'; remainingMs: number }
+  | { kind: 'playing' }
+  /**
+   * Follow: the cursor moves to `target`, where the reader's voice was last matched. Between matches the target
+   * keeps moving at the reader's `pace`, in words per ms, for up to FOLLOW_COAST_MS, so the cursor does not stall
+   * while the next clip is transcribed.
+   */
+  | { kind: 'following'; target: number; pace: number; coastMs: number }
 
 export interface PlaybackState {
   mode: PlaybackMode
@@ -30,6 +39,11 @@ export type PlaybackEvent =
   | { type: 'TOGGLE'; countdownSec: number; countdownAtStartOnly: boolean }
   | { type: 'PLAY'; countdownSec: number; countdownAtStartOnly: boolean }
   | { type: 'PAUSE' }
+  | { type: 'FOLLOW' }
+  /** `position` is where the reader is now; `pace` is how fast they have been reading, in words per ms. */
+  | { type: 'HEARD'; position: number; pace: number }
+  /** The reader has gone quiet: stop moving until their voice is matched again. */
+  | { type: 'QUIET' }
   | { type: 'TICK'; dtMs: number; wpm: number; minLineMs?: number }
   | { type: 'STEP_LINE'; delta: 1 | -1 }
   | { type: 'STEP_PARAGRAPH'; delta: 1 | -1 }
@@ -40,6 +54,15 @@ export type PlaybackEvent =
 
 /** Time constant of the step easing. About 95% of a step lands in 3 of these. */
 export const STEP_EASE_TAU_MS = 65
+/** Time constant of the Follow easing: the cursor glides to each match instead of jumping. */
+export const FOLLOW_EASE_TAU_MS = 300
+/**
+ * A match less than this many words behind the target is speech heard again late, or the cursor having coasted
+ * past a reader who stopped, not the reader going back to reread.
+ */
+export const FOLLOW_BACKTRACK_WORDS = 6
+/** How long the cursor keeps moving at the reader's pace after the last match, before it waits for their voice. */
+export const FOLLOW_COAST_MS = 1500
 const SNAP_DISTANCE = 0.02
 const START_EPSILON = 0.001
 
@@ -69,6 +92,21 @@ function play(state: PlaybackState, countdownSec: number, atStartOnly: boolean):
   return { ...state, cursor, mode, countdownArmed: false }
 }
 
+function follow(state: PlaybackState): PlaybackState {
+  if (state.wordCount === 0 || state.mode.kind === 'following') return state
+  const cursor = state.cursor >= state.wordCount ? 0 : state.cursor
+  return { ...state, cursor, mode: listeningAt(cursor), countdownArmed: false }
+}
+
+const listeningAt = (target: number): PlaybackMode => ({ kind: 'following', target, pace: 0, coastMs: FOLLOW_COAST_MS })
+
+function heard(state: PlaybackState, position: number, pace: number): PlaybackState {
+  if (state.mode.kind !== 'following') return state
+  const { target } = state.mode
+  if (position < target && position > target - FOLLOW_BACKTRACK_WORDS) return state
+  return { ...state, mode: { kind: 'following', target: clampCursor(state, position), pace, coastMs: 0 } }
+}
+
 function pause(state: PlaybackState): PlaybackState {
   return state.mode.kind === 'paused' ? state : { ...state, mode: { kind: 'paused' } }
 }
@@ -85,7 +123,10 @@ function stepTarget(starts: readonly number[], from: number, delta: 1 | -1): num
 
 function step(state: PlaybackState, starts: readonly number[], delta: 1 | -1): PlaybackState {
   const target = stepTarget(starts, state.animTarget ?? state.cursor, delta)
-  return target === null ? state : { ...state, animTarget: target }
+  if (target === null) return state
+  // A step while following moves where Follow listens from, too.
+  const mode = state.mode.kind === 'following' ? listeningAt(target) : state.mode
+  return { ...state, animTarget: target, mode }
 }
 
 /**
@@ -118,6 +159,15 @@ function tick(state: PlaybackState, dtMs: number, wpm: number, minLineMs: number
       const remainingMs = state.mode.remainingMs - dtMs
       return { ...state, mode: remainingMs > 0 ? { kind: 'countdown', remainingMs } : { kind: 'playing' } }
     }
+    case 'following': {
+      const { pace, coastMs } = state.mode
+      const coasting = Math.max(0, Math.min(dtMs, FOLLOW_COAST_MS - coastMs))
+      const target = clampCursor(state, state.mode.target + pace * coasting)
+      const mode: PlaybackMode = coasting > 0 ? { kind: 'following', target, pace, coastMs: coastMs + coasting } : state.mode
+      const distance = target - state.cursor
+      if (Math.abs(distance) <= SNAP_DISTANCE) return state.cursor === target && mode === state.mode ? state : { ...state, cursor: target, mode }
+      return { ...state, cursor: state.cursor + distance * (1 - Math.exp(-dtMs / FOLLOW_EASE_TAU_MS)), mode }
+    }
     case 'playing': {
       const cursor = state.cursor + wordsPerMs(state, wpm, minLineMs) * dtMs
       return cursor >= state.wordCount
@@ -133,6 +183,12 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
       return play(state, event.countdownSec, event.countdownAtStartOnly)
     case 'PAUSE':
       return pause(state)
+    case 'FOLLOW':
+      return follow(state)
+    case 'HEARD':
+      return heard(state, event.position, event.pace)
+    case 'QUIET':
+      return state.mode.kind === 'following' ? { ...state, mode: { ...state.mode, coastMs: FOLLOW_COAST_MS } } : state
     case 'TOGGLE':
       return state.mode.kind === 'paused' ? play(state, event.countdownSec, event.countdownAtStartOnly) : pause(state)
     case 'TICK':

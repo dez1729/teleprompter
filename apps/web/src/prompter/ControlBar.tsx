@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactElement } from 'react'
-import { Keyboard, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen } from 'lucide-react'
+import { Keyboard, Mic, MicOff, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -24,6 +24,7 @@ function Hint({ command, children }: { command: Command; children: ReactElement 
 interface Props {
   visible: boolean
   playing: boolean
+  following: boolean
   speedWpm: number
   fontSize: number
   hasScript: boolean
@@ -33,12 +34,14 @@ interface Props {
 export function ControlBar({
   visible,
   playing,
+  following,
   speedWpm,
   fontSize,
   hasScript,
   onCommand,
 }: Props) {
   const toggle: Command = { type: 'toggle' }
+  const follow: Command = { type: 'follow' }
   const restart: Command = { type: 'restart' }
   const openEditor: Command = { type: 'openEditor' }
   const openSettings: Command = { type: 'openSettings' }
@@ -61,6 +64,18 @@ export function ControlBar({
                 onClick={() => onCommand(toggle)}
               >
                 {playing ? <Pause /> : <Play />}
+              </Button>
+            </Hint>
+            <Hint command={follow}>
+              <Button
+                size="icon"
+                variant={following ? 'default' : 'ghost'}
+                disabled={!hasScript}
+                aria-label={following ? 'Stop following' : 'Follow your voice'}
+                aria-pressed={following}
+                onClick={() => onCommand(follow)}
+              >
+                {following ? <Mic /> : <MicOff />}
               </Button>
             </Hint>
             <Hint command={restart}>

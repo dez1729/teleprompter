@@ -72,3 +72,11 @@ export function openScriptStream(handlers: {
   return () => source.close()
 }
 
+
+/** What the Transcriber heard in a clip of the reader's speech. Rejects with the server's reason. */
+export async function transcribe(clip: Blob): Promise<string> {
+  const response = await fetch('/api/transcribe', { method: 'POST', headers: { 'content-type': clip.type }, body: clip })
+  const body = (await response.json().catch(() => null)) as { text?: string; error?: string } | null
+  if (!response.ok || typeof body?.text !== 'string') throw new Error(body?.error ?? `The server answered ${response.status}.`)
+  return body.text
+}

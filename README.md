@@ -2,7 +2,7 @@
 
 A local teleprompter that runs in your browser. Write or paste a Script in the Editor and the Prompter scrolls it at a steady pace. The lines you are reading stay bright inside the Reading window, and the text above and below it is dimmed.
 
-A local server holds the Script and its recent history, so other tools can send text to the Prompter. The `tp` command, a Claude Code plugin, and an Obsidian plugin do that today. Voice-driven scrolling is next (see [Roadmap](#roadmap)).
+A local server holds the Script and its recent history, so other tools can send text to the Prompter. The `tp` command, a Claude Code plugin, and an Obsidian plugin do that today. Follow scrolls the Prompter as you read aloud, using a Whisper server on your machine.
 
 ## Run it
 
@@ -15,6 +15,8 @@ pnpm start
 ```
 
 Open http://localhost:4747, then press `p` to open the Editor and write or paste a Script. One process serves the app and the API on port 4747.
+
+Follow needs a Whisper server as well. See [Follow your voice](#follow-your-voice).
 
 Set `PORT` or `HOST` to change where it listens. It binds `127.0.0.1` by default, so only your machine can reach it. The server stores the Script in `script.json` and the Script history in `history.json`. Both are in `$TELEPROMPTER_DATA_DIR`, which defaults to `${XDG_DATA_HOME:-~/.local/share}/teleprompter/`.
 
@@ -90,6 +92,7 @@ The server has no login. It rejects requests whose `Host` is not `localhost` or 
 | `GET /api/script` | The current Script: `{ text, format, source, revision }`. |
 | `POST /api/script` | Changes the Script and returns it. The body is `{ kind, text, format?, source? }`. |
 | `GET /api/events` | A server-sent event stream. It sends the current Script as a `script` event, then one `change` event per change: `{ kind, script, previousVersionId }`. |
+| `POST /api/transcribe` | Sends a WAV clip to the Whisper server and returns `{ text }`. Follow uses it. It answers 502 with `{ error }` when the Whisper server cannot be reached or fails. |
 | `GET /api/history` | The Script history, newest first. Each entry is `{ id, revision, savedAt, reason, source, wordCount, preview }`. |
 | `GET /api/history/:id` | One Version with its full `text` and `format`. |
 | `POST /api/history/:id/restore` | Makes that Version the Script again, as a Replace, and returns the Script. |
@@ -110,6 +113,7 @@ Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it 
 | `←` `→` | Move back or forward one line. Hold `Shift` to move one paragraph. |
 | `[` `]` | Change how many lines the Reading window highlights. |
 | `Home` | Go back to the top. |
+| `f` | Turn Follow on or off. |
 | `p` | Open the Editor. |
 | `s` | Turn Spoken-only on or off. |
 | `,` | Open the display settings. |
@@ -119,6 +123,21 @@ Scroll the mouse wheel or drag the text to move through the Script by hand. Eith
 Speed is measured in words, not pixels. Changing the text size or line spacing changes how far the text moves, not how fast you read.
 
 Each line stays up for at least the minimum time per line. Then the space below it, between paragraphs or at a Section marker, scrolls by faster, so a new paragraph comes up quickly without rushing the line before it. The paragraph pause setting sets how much faster.
+
+### Follow your voice
+
+Press `f`, or the microphone button, and read aloud. The Prompter listens and keeps the words you are saying on the Current line. It moves at your pace, waits when you stop, and catches up when you skip a few words or go back to reread a line. Press `f` again, or `Space`, to stop. Speed does not apply while Follow is on.
+
+Follow sends what the microphone hears to a Whisper server on your computer, through the Teleprompter server. Nothing leaves your machine. The browser asks for the microphone the first time.
+
+Any Whisper server with the OpenAI transcription API works. [Speaches](https://speaches.ai) is the default, at http://127.0.0.1:2022, which is also where VoiceMode runs it. To use another server or model, set these before you start the Teleprompter server:
+
+- `TELEPROMPTER_WHISPER_URL`, such as `http://127.0.0.1:8080` for whisper.cpp's server.
+- `TELEPROMPTER_WHISPER_MODEL`. The default is `Systran/faster-whisper-small`. A larger model, such as `deepdml/faster-whisper-large-v3-turbo-ct2`, hears better but answers more slowly.
+
+If the Whisper server cannot be reached, Follow stops and the top right corner says why.
+
+In testing with a recorded voice, Follow was about half a second behind it during steady reading. When you start again after a pause, it takes about two seconds to pick you up. Follow listens for words within about 60 words ahead of where you are. If you jump further, move there with the arrow keys or by dragging, and Follow carries on from there.
 
 ### Spoken-only
 
@@ -175,7 +194,7 @@ If two Editor windows are typing at the same moment, the last one to send wins. 
 ## Project layout
 
 - `apps/web` holds the Prompter and the Editor: Vite, React, TanStack Router, shadcn/ui on Base UI, and CodeMirror 6.
-- `apps/server` is the Hono server that owns the Script and the Script history.
+- `apps/server` is the Hono server that owns the Script and the Script history, and forwards Follow's audio to Whisper.
 - `packages/protocol` holds the types and request schema shared by the web app, server, and CLI.
 - `packages/cli` is the `tp` command.
 - `plugins/teleprompter` is the Claude Code plugin.
@@ -201,7 +220,7 @@ pnpm test:e2e
 3. Editor window with undo, Script history, and live sync to the Prompter: done.
 4. Spoken-only mode for markdown: done.
 5. Obsidian plugin to send selected text to the Prompter: done.
-6. Follow mode: scrolls as you speak, using a local Whisper server.
+6. Follow mode: scrolls as you speak, using a local Whisper server: done.
 7. Azure Speech as an optional speech-to-text service.
 8. Docker image.
 9. Read aloud: the computer speaks the Script with text-to-speech, to test pacing. The voice has its own words per minute, separate from Speed. With Follow on, the Prompter follows the voice.

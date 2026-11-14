@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { EMPTY_SCRIPT, type Script } from '@teleprompter/protocol'
 import { placementFor } from './anchor'
 import { commandForKey, type Command, type UiCommand } from './keymap'
+import { useFollow } from './follow/useFollow'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
 import { openScriptStream, restoreVersion, sendScript, type ScriptMessage } from '@/lib/scriptApi'
 import { EMPTY_TOKENS, tokenize } from './script'
@@ -75,6 +76,10 @@ export function usePrompter(ui: UiBridge) {
       place: 'reset',
     }),
   )
+
+  const playbackRef = useRef(playback)
+  playbackRef.current = playback
+  const follow = useFollow(playback.mode, tokens.words, dispatch)
 
   const [readout, setReadout] = useState<NudgeReadout | null>(null)
   const [replaced, setReplaced] = useState<ReplaceNotice | null>(null)
@@ -185,7 +190,7 @@ export function usePrompter(ui: UiBridge) {
       case 'toggleHelp':
         return uiRef.current.onUiCommand(command)
       case 'follow':
-        return
+        return dispatch({ type: playbackRef.current.mode.kind === 'following' ? 'PAUSE' : 'FOLLOW' })
     }
   }, [changeSettings, showReadout])
 
@@ -220,6 +225,7 @@ export function usePrompter(ui: UiBridge) {
     tokens,
     settings,
     playback,
+    follow,
     readout,
     replaced,
     undoReplace,
