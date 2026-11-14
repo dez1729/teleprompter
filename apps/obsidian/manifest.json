@@ -1,0 +1,9 @@
+{
+  "id": "teleprompter",
+  "name": "Teleprompter",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Send the selection or the whole note to a local Teleprompter.",
+  "author": "Teleprompter",
+  "isDesktopOnly": true
+}

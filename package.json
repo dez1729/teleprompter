@@ -8,6 +8,7 @@
     "start": "node packages/cli/bin/tp.js serve",
     "build": "pnpm --filter web build",
     "link:tp": "pnpm add --global link:./packages/cli",
+    "install:obsidian": "pnpm --filter @teleprompter/obsidian install-plugin",
     "test:e2e": "pnpm build && pnpm --filter @teleprompter/e2e test:e2e"
   },
   "engines": {
