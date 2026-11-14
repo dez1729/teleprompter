@@ -88,6 +88,8 @@ export const SETTING_DEFS = {
   lineHeight: about('The space between lines, as a multiple of the text size.', num('Line spacing', 1.4, 1, 2.2, 0.05)),
   textColor: about("The color of the Script's text.", color('Text color', '#ffffff')),
   bgColor: about('The color behind the text.', color('Background', '#000000')),
+  readWords: about('Colors the words you have already read, karaoke style.', bool('Read words', true)),
+  readWordsColor: about('The color of the words you have already read.', color('Read words color', '#facc15')),
   overlayOpacity: advanced(
     about('How dark the text outside the Reading window is. At 1 it is hidden.', num('Dimming', 0.85, 0, 1, 0.05)),
   ),

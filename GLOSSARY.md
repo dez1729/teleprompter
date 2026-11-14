@@ -85,7 +85,7 @@ _Avoid_: STT, recognizer, voice engine
 The span of upcoming words after the Current line that Follow searches for a match.
 
 **Read words**:
-The words before the reader's position, optionally shown in a distinct color (karaoke style). In Follow they are the words actually spoken; in Auto, the words the pace has passed.
+The words before the reader's position, shown in a distinct color (karaoke style) unless turned off. In Follow they are the words Follow has matched to the reader's voice, and the ones it expects them to have said since; in Auto, the words the pace has passed.
 _Avoid_: Spoken highlight, progress fill
 
 **Speed**:

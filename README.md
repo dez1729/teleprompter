@@ -162,6 +162,7 @@ Open the settings panel (`,`) to change:
 
 - Spoken-only
 - the font, text size, line spacing, and colors
+- Read words, which colors the words you have already read, karaoke style, and their color
 - the Reading window's size and position
 - column or full width
 - mirroring, for use behind beam-splitter glass

@@ -1,5 +1,5 @@
 import { SquarePen } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type WheelEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
@@ -7,6 +7,7 @@ import { ControlBar } from './ControlBar'
 import { NudgeHud } from './NudgeHud'
 import { cursorToY, EMPTY_LAYOUT, measureLayout, pacedLines, readingOffset, yToCursor, type Layout } from './layout'
 import { HelpOverlay } from './HelpOverlay'
+import { readCount, useReadWords } from './readWords'
 import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
 import { UndoToast } from './UndoToast'
@@ -48,19 +49,26 @@ export function Prompter() {
   const textRef = useRef<HTMLDivElement>(null)
 
   const lineHeightPx = settings.fontSize * settings.lineHeight
-  const textStyle = {
-    position: 'relative',
-    margin: '0 auto',
-    width:
-      settings.columnMode === 'column'
-        ? `min(${settings.columnWidthCh}ch, calc(100% - ${2 * settings.marginX}px))`
-        : `calc(100% - ${2 * settings.marginX}px)`,
-    fontFamily: FONT_STACKS[settings.fontFamily],
-    fontSize: settings.fontSize,
-    lineHeight: settings.lineHeight,
-    textAlign: 'left',
-    overflowWrap: 'break-word',
-  } as const
+  // Memoized so ScriptText, which only takes new words or a new style, skips the per-frame renders.
+  const textStyle = useMemo(
+    () =>
+      ({
+        position: 'relative',
+        margin: '0 auto',
+        width:
+          settings.columnMode === 'column'
+            ? `min(${settings.columnWidthCh}ch, calc(100% - ${2 * settings.marginX}px))`
+            : `calc(100% - ${2 * settings.marginX}px)`,
+        fontFamily: FONT_STACKS[settings.fontFamily],
+        fontSize: settings.fontSize,
+        lineHeight: settings.lineHeight,
+        textAlign: 'left',
+        overflowWrap: 'break-word',
+        '--read-color': settings.readWordsColor,
+      }) as CSSProperties,
+    [settings.columnMode, settings.columnWidthCh, settings.marginX, settings.fontFamily, settings.fontSize, settings.lineHeight, settings.readWordsColor],
+  )
+  useReadWords(textRef, tokens, settings.readWords ? readCount(playback.cursor, tokens.words.length) : 0)
 
   const remeasure = useCallback(() => {
     if (!textRef.current) return
