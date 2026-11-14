@@ -71,12 +71,11 @@ test('a Pushed Script appears, plays and pauses', async ({ page }) => {
 })
 
 test('the old browser-stored Script moves to the server once', async ({ page }) => {
-  await page.goto(url)
-  await expect(page.getByText('No Script yet')).toBeVisible()
-  await page.evaluate(() =>
+  // Stored before the app's first load, as an earlier version left it.
+  await page.addInitScript(() =>
     localStorage.setItem('teleprompter.script', JSON.stringify({ source: 'kept from before', format: 'text' })),
   )
-  await page.reload()
+  await page.goto(url)
 
   await expect(page.getByText('kept from before')).toBeVisible()
   await expect.poll(() => page.evaluate(() => localStorage.getItem('teleprompter.script'))).toBeNull()
