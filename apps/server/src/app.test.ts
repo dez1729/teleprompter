@@ -167,9 +167,9 @@ describe('Host and Origin guards', () => {
     expect(store.get().revision).toBe(0)
   })
 
-  it('accepts the app origins and a request with no Origin', async () => {
+  it('accepts the app origins, Obsidian, and a request with no Origin', async () => {
     const { push } = setup()
-    for (const origin of ['http://localhost:4747', 'http://localhost:4748', 'http://127.0.0.1:4747', 'http://127.0.0.1:4748']) {
+    for (const origin of ['http://localhost:4747', 'http://localhost:4748', 'http://127.0.0.1:4747', 'http://127.0.0.1:4748', 'app://obsidian.md']) {
       expect((await push({ kind: 'replace', text: 'a' }, { origin })).status, origin).toBe(200)
     }
     expect((await push({ kind: 'replace', text: 'a' })).status).toBe(200)

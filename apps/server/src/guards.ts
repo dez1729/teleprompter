@@ -5,6 +5,8 @@ export const DEV_PORT = 4748
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const LOOPBACK_NAMES = ['localhost', '127.0.0.1']
+/** Obsidian desktop. A web page cannot send an app:// origin, so this opens nothing to browsers. */
+const OBSIDIAN_ORIGIN = 'app://obsidian.md'
 
 function allowed(ports: readonly number[]) {
   const hosts = new Set<string>()
@@ -23,14 +25,14 @@ export function hostGuard(ports: () => readonly number[]): MiddlewareHandler {
 
 /**
  * Rejects state-changing requests from other web origins. A missing Origin is
- * allowed: browsers always send one on cross-site writes, while the CLI and
- * Obsidian's requestUrl send none.
+ * allowed: browsers always send one on cross-site writes, while the CLI sends
+ * none. Obsidian's requestUrl may send none or Obsidian's own origin.
  */
 export function originGuard(ports: () => readonly number[]): MiddlewareHandler {
   return async (c, next) => {
     const origin = c.req.header('origin')
     if (origin !== undefined && !SAFE_METHODS.has(c.req.method)) {
-      const origins = new Set([...allowed(ports())].map((host) => `http://${host}`))
+      const origins = new Set([...allowed(ports())].map((host) => `http://${host}`)).add(OBSIDIAN_ORIGIN)
       if (!origins.has(origin.toLowerCase())) return c.json({ error: 'Forbidden origin' }, 403)
     }
     await next()
