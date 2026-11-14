@@ -73,6 +73,7 @@ export const SETTING_DEFS = {
   marginBottom: num('Bottom margin', 0, 0, 600, 8, 'px'),
   mirror: bool('Mirror', false),
   speedWpm: num('Speed', 140, 40, 400, 5, 'wpm'),
+  minLineSec: num('Minimum time per line', 1.5, 0, 5, 0.25, 's'),
   countdownSec: num('Countdown', 3, 0, 10, 1, 's'),
   countdownAtStartOnly: bool('Countdown only at start', true),
 } as const satisfies Record<string, Field>

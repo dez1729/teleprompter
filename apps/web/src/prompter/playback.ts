@@ -13,16 +13,21 @@ export interface PlaybackState {
   lineStarts: readonly number[]
 }
 
+/** Where the reader goes when the Script changes: back to the top, or wherever their old position now is. */
+export type Placement = 'reset' | ((cursor: number) => number)
+
+export const keepPlace: Placement = (cursor) => cursor
+
 export type PlaybackEvent =
   | { type: 'TOGGLE'; countdownSec: number; countdownAtStartOnly: boolean }
   | { type: 'PLAY'; countdownSec: number; countdownAtStartOnly: boolean }
   | { type: 'PAUSE' }
-  | { type: 'TICK'; dtMs: number; wpm: number }
+  | { type: 'TICK'; dtMs: number; wpm: number; minLineMs?: number }
   | { type: 'STEP_LINE'; delta: 1 | -1 }
   | { type: 'STEP_PARAGRAPH'; delta: 1 | -1 }
   | { type: 'RESTART' }
   | { type: 'SCRUB'; cursor: number }
-  | { type: 'SET_SCRIPT'; wordCount: number; paragraphStarts: readonly number[]; reset: boolean }
+  | { type: 'SET_SCRIPT'; wordCount: number; paragraphStarts: readonly number[]; place: Placement }
   | { type: 'SET_LAYOUT'; lineStarts: readonly number[] }
 
 /** Time constant of the step easing. About 95% of a step lands in 3 of these. */
@@ -75,7 +80,18 @@ function step(state: PlaybackState, starts: readonly number[], delta: 1 | -1): P
   return target === null ? state : { ...state, animTarget: target }
 }
 
-function tick(state: PlaybackState, dtMs: number, wpm: number): PlaybackState {
+/** Reading pace on the Current line: Speed, slowed so a short line stays up at least `minLineMs`. */
+function wordsPerMs(state: PlaybackState, wpm: number, minLineMs: number): number {
+  const base = wpm / 60000
+  const { lineStarts, cursor } = state
+  let line = -1
+  for (let i = 0; i < lineStarts.length && lineStarts[i]! <= cursor; i++) line = i
+  if (line < 0) return base
+  const words = (lineStarts[line + 1] ?? state.wordCount) - lineStarts[line]!
+  return words > 0 ? Math.min(base, words / minLineMs) : base
+}
+
+function tick(state: PlaybackState, dtMs: number, wpm: number, minLineMs: number): PlaybackState {
   if (state.animTarget !== null) {
     const distance = state.animTarget - state.cursor
     if (Math.abs(distance) <= SNAP_DISTANCE) return { ...state, cursor: state.animTarget, animTarget: null }
@@ -90,7 +106,7 @@ function tick(state: PlaybackState, dtMs: number, wpm: number): PlaybackState {
       return { ...state, mode: remainingMs > 0 ? { kind: 'countdown', remainingMs } : { kind: 'playing' } }
     }
     case 'playing': {
-      const cursor = state.cursor + (wpm * dtMs) / 60000
+      const cursor = state.cursor + wordsPerMs(state, wpm, minLineMs) * dtMs
       return cursor >= state.wordCount
         ? { ...state, cursor: state.wordCount, mode: { kind: 'paused' } }
         : { ...state, cursor }
@@ -107,7 +123,7 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
     case 'TOGGLE':
       return state.mode.kind === 'paused' ? play(state, event.countdownSec, event.countdownAtStartOnly) : pause(state)
     case 'TICK':
-      return tick(state, event.dtMs, event.wpm)
+      return tick(state, event.dtMs, event.wpm, event.minLineMs ?? 0)
     case 'STEP_LINE':
       return step(state, state.lineStarts, event.delta)
     case 'STEP_PARAGRAPH':
@@ -118,9 +134,9 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
       return { ...state, cursor: clampCursor(state, event.cursor), animTarget: null, mode: { kind: 'paused' } }
     case 'SET_SCRIPT': {
       const next = { ...state, wordCount: event.wordCount, paragraphStarts: event.paragraphStarts }
-      return event.reset
+      return event.place === 'reset'
         ? { ...next, cursor: 0, animTarget: null, mode: { kind: 'paused' }, lineStarts: [], countdownArmed: true }
-        : { ...next, cursor: clampCursor(next, state.cursor), animTarget: null }
+        : { ...next, cursor: clampCursor(next, event.place(state.cursor)), animTarget: null }
     }
     case 'SET_LAYOUT':
       return { ...state, lineStarts: event.lineStarts }

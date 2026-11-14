@@ -1,8 +1,8 @@
 # Teleprompter
 
-A local teleprompter that runs in your browser. Paste a Script and the Prompter scrolls it at a steady pace. The lines you are reading stay bright inside the Reading window, and the text above and below it is dimmed.
+A local teleprompter that runs in your browser. Write or paste a Script in the Editor and the Prompter scrolls it at a steady pace. The lines you are reading stay bright inside the Reading window, and the text above and below it is dimmed.
 
-A local server holds the Script, so other tools can send text to the Prompter. The `tp` command and a Claude Code plugin do that today. Voice-driven scrolling is next (see [Roadmap](#roadmap)).
+A local server holds the Script and its recent history, so other tools can send text to the Prompter. The `tp` command and a Claude Code plugin do that today. Voice-driven scrolling is next (see [Roadmap](#roadmap)).
 
 ## Run it
 
@@ -14,9 +14,9 @@ pnpm build
 pnpm start
 ```
 
-Open http://localhost:4747, then press `p` to paste a Script. One process serves the app and the API on port 4747.
+Open http://localhost:4747, then press `p` to open the Editor and write or paste a Script. One process serves the app and the API on port 4747.
 
-Set `PORT` or `HOST` to change where it listens. It binds `127.0.0.1` by default, so only your machine can reach it. The server stores the Script in `$TELEPROMPTER_DATA_DIR/script.json`, which defaults to `${XDG_DATA_HOME:-~/.local/share}/teleprompter/`.
+Set `PORT` or `HOST` to change where it listens. It binds `127.0.0.1` by default, so only your machine can reach it. The server stores the Script in `script.json` and the Script history in `history.json`. Both are in `$TELEPROMPTER_DATA_DIR`, which defaults to `${XDG_DATA_HOME:-~/.local/share}/teleprompter/`.
 
 ### Develop
 
@@ -46,7 +46,7 @@ tp send --replace "Welcome to the show."  # replace the Script
 echo "More text." | tp send --append      # add to the end, from stdin
 ```
 
-`tp send` takes `--replace` or `--append`, and optionally `--markdown` for markdown text and `--source <label>` to say where the text came from, such as a note title. It reads stdin when you give no text. A Replace returns every open Prompter to the top, paused. An Append keeps the reader's place.
+`tp send` takes `--replace` or `--append`, and optionally `--markdown` to mark the text as markdown and `--source <label>` to say where the text came from, such as a note title. Without `--markdown`, the server detects the format, and an Append never turns a markdown Script into text. It reads stdin when you give no text. A Replace returns every open Prompter to the top, paused, and the Prompter offers to undo it. An Append keeps the reader's place.
 
 If the server is not running, `tp send` exits with an error and tells you to run `tp serve`. Set `TELEPROMPTER_URL` to send to a server other than http://127.0.0.1:4747.
 
@@ -72,9 +72,14 @@ The server has no login. It rejects requests whose `Host` is not `localhost` or 
 |---|---|
 | `GET /api/script` | The current Script: `{ text, format, source, revision }`. |
 | `POST /api/script` | Changes the Script and returns it. The body is `{ kind, text, format?, source? }`. |
-| `GET /api/events` | A server-sent event stream. It sends the current Script as a `script` event, then one `change` event per change: `{ kind, script }`. |
+| `GET /api/events` | A server-sent event stream. It sends the current Script as a `script` event, then one `change` event per change: `{ kind, script, previousVersionId }`. |
+| `GET /api/history` | The Script history, newest first. Each entry is `{ id, revision, savedAt, reason, source, wordCount, preview }`. |
+| `GET /api/history/:id` | One Version with its full `text` and `format`. |
+| `POST /api/history/:id/restore` | Makes that Version the Script again, as a Replace, and returns the Script. |
 
-`kind` is `replace`, `append` or `apply`. Replace and Append are Pushes. Apply is the Script dialog's edit, and each Prompter keeps its place if the words it has read are unchanged. `format` is `markdown` or `text`, and is detected when omitted. `revision` goes up by one on every change.
+`kind` is `replace`, `append` or `edit`. Replace and Append are Pushes, and their `text` must not be empty. Edit is a change made in the Editor: it carries the whole text, may be empty, and each Prompter keeps its place on the same words. `format` is `markdown` or `text`. When you omit it, a Push detects it and an Edit keeps the Script's format. `revision` goes up by one on every change.
+
+The server saves a Version of the Script before every Push, and before an Edit that follows 30 seconds with no Edit. It keeps the newest 20 and never saves an empty Script. A Version's `reason` is the kind of change it was saved before. In a `change` event, `previousVersionId` is the Version saved before that change, or `null` if none was saved. Restore that Version to undo the change.
 
 ## Use the Prompter
 
@@ -88,18 +93,16 @@ Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it 
 | `←` `→` | Move back or forward one line. Hold `Shift` to move one paragraph. |
 | `[` `]` | Change how many lines the Reading window highlights. |
 | `Home` | Go back to the top. |
-| `p` | Open the Script dialog. |
+| `p` | Open the Editor. |
 | `,` | Open the display settings. |
 
 Scroll the mouse wheel or drag the text to move through the Script by hand. Either one pauses playback.
 
 Speed is measured in words, not pixels. Changing the text size or line spacing changes how far the text moves, not how fast you read.
 
-### Edit the Script
+### Undo a Replace
 
-The Script dialog (`p`) opens with your current text selected. Paste over it, or edit it, then press **Apply** or `Ctrl+Enter`. If nothing before your reading position changed, you keep your place. Otherwise the Prompter goes back to the top.
-
-The dialog keeps your edits when you close it. An amber dot on the toolbar shows that you have edits you have not applied. **Discard** throws them away. **Append clipboard** adds your clipboard text to the end of the Script without moving your place.
+When a Replace arrives, the Prompter shows **Undo** at the top of the window for 10 seconds. Undo brings back the Script as it was before the Replace. You can also restore any earlier Version from the Editor's **History** menu.
 
 ### Display settings
 
@@ -110,15 +113,30 @@ Open the settings panel (`,`) to change:
 - the Reading window's size and position
 - column width, or full width with minimum side margins
 - the top and bottom margins, which stay blank
+- the minimum time each line stays up, so a line of one or two words does not pass before you can read it
 - mirroring, for use behind beam-splitter glass
 - the countdown, and whether it runs only at the start
 
-Settings and any unapplied edits are saved in your browser. The Script is saved by the server, so every open Prompter shows the same one.
+Settings are saved in your browser. The Script is saved by the server, so every open Prompter and Editor shows the same one.
+
+## Use the Editor
+
+Press `p` in the Prompter, or open http://localhost:4747/editor, to edit the Script in its own window. Put it on a second screen and edit while the Prompter runs.
+
+- There is no save button. The Editor sends your text to the server when you stop typing for a moment, and every open Prompter updates.
+- The Prompter keeps your place through an edit. It stays on the word you were reading, even when you add or delete text before it. If you delete that word, it moves to the next word that is still there.
+- A Push from `tp` or Claude Code appears in the Editor as it arrives, without losing what you are typing. `Ctrl+Z` undoes it like any other change.
+- **Markdown** and **Text** set the Script's format. Markdown turns on syntax highlighting.
+- **Preview** shows the rendered markdown beside the text.
+- **History** lists the last 20 Versions of the Script, with when and why each was saved. **Restore** makes one the Script again. The Script it replaces is saved first, so you can go back.
+- **Open Prompter** goes to the Prompter window.
+
+If two Editor windows are typing at the same moment, the last one to send wins. See [ADR 0002](./docs/adr/0002-editor-syncs-full-text.md).
 
 ## Project layout
 
-- `apps/web` holds the Prompter: Vite, React, TanStack Router, and shadcn/ui on Base UI.
-- `apps/server` is the Hono server that owns the Script.
+- `apps/web` holds the Prompter and the Editor: Vite, React, TanStack Router, shadcn/ui on Base UI, and CodeMirror 6.
+- `apps/server` is the Hono server that owns the Script and the Script history.
 - `packages/protocol` holds the types and request schema shared by the web app, server, and CLI.
 - `packages/cli` is the `tp` command.
 - `plugins/teleprompter` is the Claude Code plugin.
@@ -140,7 +158,7 @@ pnpm test:e2e
 
 1. Prompter: done.
 2. Local server, Push API, the `tp` command, and a Claude Code plugin: done.
-3. Editor window with undo, Script history, and live sync to the Prompter.
+3. Editor window with undo, Script history, and live sync to the Prompter: done.
 4. Spoken-only mode for markdown, which hides headings, italics, and code.
 5. Obsidian plugin to send selected text to the Prompter.
 6. Follow mode: scrolls as you speak, using a local Whisper server.

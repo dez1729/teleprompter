@@ -28,7 +28,7 @@ describe('tp send', () => {
     const [url, init] = fetchMock.mock.calls[0]!
     expect(String(url)).toBe('http://127.0.0.1:4747/api/script')
     expect(init?.method).toBe('POST')
-    expect(body()).toEqual({ kind: 'replace', text: 'hello world', format: 'text' })
+    expect(body()).toEqual({ kind: 'replace', text: 'hello world' })
     expect(out).toEqual(['Replaced the Script (revision 4).'])
   })
 

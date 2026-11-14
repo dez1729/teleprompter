@@ -128,3 +128,49 @@
     @apply font-sans;
     }
 }
+/* The Editor's rendered-markdown preview. */
+.script-preview {
+  @apply text-base leading-relaxed;
+}
+.script-preview :is(h1, h2, h3, h4, h5, h6) {
+  @apply mt-6 mb-2 font-semibold first:mt-0;
+}
+.script-preview h1 {
+  @apply text-2xl;
+}
+.script-preview h2 {
+  @apply text-xl;
+}
+.script-preview h3 {
+  @apply text-lg;
+}
+.script-preview :is(p, ul, ol, blockquote, pre) {
+  @apply mb-4;
+}
+.script-preview ul {
+  @apply list-disc pl-6;
+}
+.script-preview ol {
+  @apply list-decimal pl-6;
+}
+.script-preview blockquote {
+  @apply border-l-2 pl-4 text-muted-foreground italic;
+}
+.script-preview a {
+  @apply underline underline-offset-2;
+}
+.script-preview :is(code, pre) {
+  @apply rounded bg-muted font-mono text-sm;
+}
+.script-preview code {
+  @apply px-1 py-0.5;
+}
+.script-preview pre {
+  @apply overflow-x-auto p-3;
+}
+.script-preview pre code {
+  @apply bg-transparent p-0;
+}
+.script-preview hr {
+  @apply my-6;
+}

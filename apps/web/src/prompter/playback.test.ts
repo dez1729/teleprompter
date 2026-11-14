@@ -1,13 +1,41 @@
 import { describe, expect, it } from 'vitest'
-import { initialPlayback, needsTick, playbackReducer, type PlaybackEvent, type PlaybackState } from './playback'
+import { initialPlayback, keepPlace, needsTick, playbackReducer, type PlaybackEvent, type PlaybackState } from './playback'
 
 const run = (state: PlaybackState, ...events: PlaybackEvent[]) => events.reduce(playbackReducer, state)
 
 const loaded = run(
   initialPlayback,
-  { type: 'SET_SCRIPT', wordCount: 100, paragraphStarts: [0, 40, 70], reset: true },
+  { type: 'SET_SCRIPT', wordCount: 100, paragraphStarts: [0, 40, 70], place: 'reset' },
   { type: 'SET_LAYOUT', lineStarts: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
 )
+
+describe('minimum time per line', () => {
+  const short = run(
+    initialPlayback,
+    { type: 'SET_SCRIPT', wordCount: 22, paragraphStarts: [0], place: 'reset' },
+    { type: 'SET_LAYOUT', lineStarts: [0, 10, 12] },
+    { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false },
+  )
+  const tickFor = (state: PlaybackState, ms: number) => {
+    for (let t = 0; t < ms; t += 10) state = run(state, { type: 'TICK', dtMs: 10, wpm: 300, minLineMs: 1500 })
+    return state
+  }
+
+  it('reads a full line at Speed', () => {
+    expect(tickFor(short, 2000).cursor).toBeCloseTo(10, 0)
+  })
+
+  it('holds a two-word line up for the minimum time', () => {
+    const atShort = tickFor(short, 2000)
+    expect(tickFor(atShort, 1400).cursor).toBeLessThan(12)
+    expect(tickFor(atShort, 1600).cursor).toBeGreaterThan(12)
+  })
+
+  it('reads at Speed when the minimum is 0', () => {
+    const state = run(short, { type: 'TICK', dtMs: 1000, wpm: 300, minLineMs: 0 })
+    expect(state.cursor).toBeCloseTo(5)
+  })
+})
 
 describe('playback', () => {
   it('starts paused at the top', () => {
@@ -121,12 +149,25 @@ describe('playback', () => {
 
   it('replace resets position, append keeps it', () => {
     const mid = run(loaded, { type: 'SCRUB', cursor: 50 })
-    const appended = run(mid, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0, 40, 70, 100], reset: false })
+    const appended = run(mid, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0, 40, 70, 100], place: keepPlace })
     expect(appended.cursor).toBe(50)
     expect(appended.wordCount).toBe(150)
-    const replaced = run(mid, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], reset: true })
+    const replaced = run(mid, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], place: 'reset' })
     expect(replaced.cursor).toBe(0)
     expect(replaced.mode.kind).toBe('paused')
+  })
+
+  it('an Edit moves the position without pausing or re-arming the countdown', () => {
+    const playing = run(loaded, { type: 'SCRUB', cursor: 50 }, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: true })
+    const edited = run(playing, { type: 'SET_SCRIPT', wordCount: 103, paragraphStarts: [0], place: (cursor) => cursor + 3 })
+    expect(edited.cursor).toBe(53)
+    expect(edited.mode.kind).toBe('playing')
+    expect(edited.countdownArmed).toBe(false)
+  })
+
+  it('clamps a placed position to the new Script', () => {
+    const mid = run(loaded, { type: 'SCRUB', cursor: 50 })
+    expect(run(mid, { type: 'SET_SCRIPT', wordCount: 10, paragraphStarts: [0], place: keepPlace }).cursor).toBe(10)
   })
 
   describe('countdown only at start', () => {
@@ -156,9 +197,9 @@ describe('playback', () => {
 
     it('counts down again after a replace but not an append', () => {
       const started = run(countdownThenPlay(loaded), { type: 'PAUSE' })
-      const appended = run(started, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0], reset: false })
+      const appended = run(started, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0], place: keepPlace })
       expect(play(appended).mode.kind).toBe('playing')
-      const replaced = run(started, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], reset: true })
+      const replaced = run(started, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], place: 'reset' })
       expect(play(replaced).mode.kind).toBe('countdown')
     })
 

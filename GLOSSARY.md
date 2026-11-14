@@ -9,7 +9,10 @@ The single current body of text being prompted. Replaced or appended to as a who
 _Avoid_: Document, text, note, prompt
 
 **Script history**:
-The last ~20 prior versions of the Script, kept so a replace can be undone.
+The last 20 prior versions of the Script, kept so a Replace or an Edit can be undone. A version is saved before every Push and before an Edit that follows 30 seconds of quiet.
+
+**Version**:
+One saved copy of the Script in Script history.
 _Avoid_: Library, saved scripts
 
 **Source**:
@@ -25,9 +28,9 @@ A Push that swaps out the whole Script and returns to the top, paused.
 **Append**:
 A Push that adds text to the end of the Script without moving the Current line.
 
-**Apply**:
-Replacing the Script with text edited in the app. Unlike a Replace, it keeps the reader's place when the words before it are unchanged.
-_Avoid_: Save, commit
+**Edit**:
+A change to the Script made by hand in the Editor. Every Prompter keeps its Current line on the same words through an Edit.
+_Avoid_: Apply, save, commit
 
 **Spoken-only**:
 A display filter for markdown Scripts that hides everything not meant to be read aloud (headings, italics, code, frontmatter, comments, callouts). The stored Script is unchanged.
@@ -54,7 +57,7 @@ The horizontal band of the display where text is shown at full brightness; every
 _Avoid_: Focus area, highlight, viewport
 
 **Current line**:
-The line at the top edge of the Reading window: the reader's position in the Script.
+The line being read: the reader's position in the Script. It enters the Reading window below the top edge and rises to the top edge as it is read, so it is never dimmed.
 _Avoid_: Cursor, playhead
 
 **Dimming overlay**:

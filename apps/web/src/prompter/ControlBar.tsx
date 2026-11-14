@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactElement } from 'react'
-import { Keyboard, Minus, Pause, Play, Plus, RotateCcw, ClipboardPaste, Settings } from 'lucide-react'
+import { Keyboard, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -28,7 +28,6 @@ interface Props {
   fontSize: number
   hasScript: boolean
   onCommand: (command: Command) => void
-  draftDirty: boolean
 }
 
 export function ControlBar({
@@ -38,11 +37,10 @@ export function ControlBar({
   fontSize,
   hasScript,
   onCommand,
-  draftDirty,
 }: Props) {
   const toggle: Command = { type: 'toggle' }
   const restart: Command = { type: 'restart' }
-  const openPaste: Command = { type: 'openPaste' }
+  const openEditor: Command = { type: 'openEditor' }
   const openSettings: Command = { type: 'openSettings' }
   const toggleHelp: Command = { type: 'toggleHelp' }
   return (
@@ -72,16 +70,9 @@ export function ControlBar({
             </Hint>
             <Stepper label="Speed" value={`${speedWpm} wpm`} setting="speedWpm" onCommand={onCommand} />
             <Stepper label="Text size" value={`${fontSize}px`} setting="fontSize" onCommand={onCommand} />
-            <Hint command={openPaste}>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label={draftDirty ? 'Paste a Script (unapplied changes)' : 'Paste a Script'}
-                className="relative"
-                onClick={() => onCommand(openPaste)}
-              >
-                <ClipboardPaste />
-                {draftDirty && <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500" />}
+            <Hint command={openEditor}>
+              <Button size="icon" variant="ghost" aria-label="Open the Editor" onClick={() => onCommand(openEditor)}>
+                <SquarePen />
               </Button>
             </Hint>
             <Hint command={openSettings}>

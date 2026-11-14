@@ -13,7 +13,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.0",
     "@teleprompter/protocol": "workspace:*",
-    "hono": "^4.9.0"
+    "hono": "^4.13.18"
   },
   "devDependencies": { "@types/node": "^26.6.6", "typescript": "^7.0.2", "vitest": "^5.1.0" }
 }
