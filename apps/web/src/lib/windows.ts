@@ -1,7 +1,7 @@
-import { isNil } from 'es-toolkit'
+import { isNil } from "es-toolkit";
 
-export const PROMPTER_WINDOW = 'teleprompter-prompter'
-export const EDITOR_WINDOW = 'teleprompter-editor'
+export const PROMPTER_WINDOW = "teleprompter-prompter";
+export const EDITOR_WINDOW = "teleprompter-editor";
 
 /**
  * Brings the window with this name to the front, opening it at `path` if there is none.
@@ -9,16 +9,17 @@ export const EDITOR_WINDOW = 'teleprompter-editor'
  * history and an open Prompter its place, so a window that is already there is left as it is.
  */
 export const openNamedWindow = (path: string, name: string): void => {
-  const target = window.open('', name)
-  if (isNil(target)) return
-  let isNew: boolean
+  const target = window.open("", name);
+  if (isNil(target)) return;
+  let isNew: boolean;
   try {
-    isNew = target.location.href === 'about:blank'
-  } catch {
+    isNew = target.location.href === "about:blank";
+  }
+  catch {
     // The window has gone to another site, so it is ours to take back.
-    isNew = true
+    isNew = true;
   }
 
-  if (isNew) target.location.replace(path)
-  target.focus()
-}
+  if (isNew) target.location.replace(path);
+  target.focus();
+};

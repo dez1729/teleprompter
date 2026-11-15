@@ -87,15 +87,15 @@ If your vault is on Windows and the server runs in WSL, give the Windows path in
 
 The server has no login. It rejects requests whose `Host` is not `localhost` or `127.0.0.1`, and writes from a browser page on another origin. Requests with no `Origin` header, such as from `tp`, are allowed, and so are requests from Obsidian (`app://obsidian.md`). Bodies over 2 MB are refused.
 
-| Request | Result |
-|---|---|
-| `GET /api/script` | The current Script: `{ text, format, source, revision }`. |
-| `POST /api/script` | Changes the Script and returns it. The body is `{ kind, text, format?, source? }`. |
-| `GET /api/events` | A server-sent event stream. It sends the current Script as a `script` event, then one `change` event per change: `{ kind, script, previousVersionId }`. |
-| `POST /api/transcribe` | Sends a WAV clip to the Whisper server and returns `{ text }`. Follow uses it. It answers 502 with `{ error }` when the Whisper server cannot be reached or fails. |
-| `GET /api/history` | The Script history, newest first. Each entry is `{ id, revision, savedAt, reason, source, wordCount, preview }`. |
-| `GET /api/history/:id` | One Version with its full `text` and `format`. |
-| `POST /api/history/:id/restore` | Makes that Version the Script again, as a Replace, and returns the Script. |
+| Request                         | Result                                                                                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/script`               | The current Script: `{ text, format, source, revision }`.                                                                                                          |
+| `POST /api/script`              | Changes the Script and returns it. The body is `{ kind, text, format?, source? }`.                                                                                 |
+| `GET /api/events`               | A server-sent event stream. It sends the current Script as a `script` event, then one `change` event per change: `{ kind, script, previousVersionId }`.            |
+| `POST /api/transcribe`          | Sends a WAV clip to the Whisper server and returns `{ text }`. Follow uses it. It answers 502 with `{ error }` when the Whisper server cannot be reached or fails. |
+| `GET /api/history`              | The Script history, newest first. Each entry is `{ id, revision, savedAt, reason, source, wordCount, preview }`.                                                   |
+| `GET /api/history/:id`          | One Version with its full `text` and `format`.                                                                                                                     |
+| `POST /api/history/:id/restore` | Makes that Version the Script again, as a Replace, and returns the Script.                                                                                         |
 
 `kind` is `replace`, `append` or `edit`. Replace and Append are Pushes, and their `text` must not be empty. Edit is a change made in the Editor: it carries the whole text, may be empty, and each Prompter keeps its place on the same words. `format` is `markdown` or `text`. When you omit it, a Push detects it and an Edit keeps the Script's format. `revision` goes up by one on every change.
 
@@ -105,18 +105,18 @@ The server saves a Version of the Script before every Push, and before an Edit t
 
 Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it does and its shortcut. The common ones:
 
-| Key | Action |
-|---|---|
+| Key     | Action                                                                                                                     |
+| ------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `Space` | Play or pause, in Auto or Follow. In Auto, the first play counts down from 3, unless the Countdown setting says otherwise. |
-| `↑` `↓` | Change the speed, in words per minute. |
-| `+` `-` | Change the text size. |
-| `←` `→` | Move back or forward one line. Hold `Shift` to move one paragraph. |
-| `[` `]` | Change how many lines the Reading window highlights. |
-| `Home` | Go back to the top. |
-| `f` | Switch between Auto and Follow. |
-| `p` | Open the Editor. |
-| `s` | Turn Spoken-only on or off. |
-| `,` | Open the display settings. |
+| `↑` `↓` | Change the speed, in words per minute.                                                                                     |
+| `+` `-` | Change the text size.                                                                                                      |
+| `←` `→` | Move back or forward one line. Hold `Shift` to move one paragraph.                                                         |
+| `[` `]` | Change how many lines the Reading window highlights.                                                                       |
+| `Home`  | Go back to the top.                                                                                                        |
+| `f`     | Switch between Auto and Follow.                                                                                            |
+| `p`     | Open the Editor.                                                                                                           |
+| `s`     | Turn Spoken-only on or off.                                                                                                |
+| `,`     | Open the display settings.                                                                                                 |
 
 Scroll the mouse wheel or drag the text to move through the Script by hand. Scrolling, dragging, and the arrow keys keep playing from where you move to, in Auto or Follow. To have them pause instead, turn off **Keep playing when you move** in Advanced settings.
 
