@@ -115,7 +115,7 @@ describe('playback', () => {
   })
 
   it('eases toward a stepped line instead of jumping', () => {
-    let state = run(loaded, { type: 'STEP_LINE', delta: 1 })
+    let state = run(loaded, { type: 'STEP_LINE', delta: 1, keepPlaying: false })
     expect(state.animTarget).toBe(10)
     expect(state.cursor).toBe(0)
     expect(needsTick(state)).toBe(true)
@@ -129,39 +129,39 @@ describe('playback', () => {
   })
 
   it('chains steps from the pending target', () => {
-    const state = run(loaded, { type: 'STEP_LINE', delta: 1 }, { type: 'STEP_LINE', delta: 1 })
+    const state = run(loaded, { type: 'STEP_LINE', delta: 1, keepPlaying: false }, { type: 'STEP_LINE', delta: 1, keepPlaying: false })
     expect(state.animTarget).toBe(20)
   })
 
   it('steps back to the start of the current line first, then the previous', () => {
-    let state = run(loaded, { type: 'SCRUB', cursor: 25 }, { type: 'STEP_LINE', delta: -1 })
+    let state = run(loaded, { type: 'SCRUB', cursor: 25, keepPlaying: false }, { type: 'STEP_LINE', delta: -1, keepPlaying: false })
     expect(state.animTarget).toBe(20)
-    state = run(state, { type: 'STEP_LINE', delta: -1 })
+    state = run(state, { type: 'STEP_LINE', delta: -1, keepPlaying: false })
     expect(state.animTarget).toBe(10)
   })
 
   it('steps by paragraph', () => {
-    let state = run(loaded, { type: 'STEP_PARAGRAPH', delta: 1 })
+    let state = run(loaded, { type: 'STEP_PARAGRAPH', delta: 1, keepPlaying: false })
     expect(state.animTarget).toBe(40)
-    state = run(state, { type: 'STEP_PARAGRAPH', delta: 1 })
+    state = run(state, { type: 'STEP_PARAGRAPH', delta: 1, keepPlaying: false })
     expect(state.animTarget).toBe(70)
-    state = run(state, { type: 'STEP_PARAGRAPH', delta: 1 })
+    state = run(state, { type: 'STEP_PARAGRAPH', delta: 1, keepPlaying: false })
     expect(state.animTarget).toBe(70)
   })
 
-  it('stepping while playing continues playing afterwards', () => {
-    let state = run(loaded, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false }, { type: 'STEP_LINE', delta: 1 })
+  it('stepping while playing continues playing afterwards, when set to keep playing', () => {
+    let state = run(loaded, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false }, { type: 'STEP_LINE', delta: 1, keepPlaying: true })
     for (let i = 0; i < 40; i++) state = run(state, { type: 'TICK', dtMs: 16, wpm: 140 })
     expect(state.mode.kind).toBe('playing')
     expect(state.cursor).toBeGreaterThan(10)
   })
 
-  it('scrubbing moves the cursor and pauses', () => {
-    const state = run(loaded, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false }, { type: 'SCRUB', cursor: 33.5 })
+  it('scrubbing moves the cursor and pauses, when not set to keep playing', () => {
+    const state = run(loaded, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false }, { type: 'SCRUB', cursor: 33.5, keepPlaying: false })
     expect(state.cursor).toBe(33.5)
     expect(state.mode.kind).toBe('paused')
-    expect(run(state, { type: 'SCRUB', cursor: -5 }).cursor).toBe(0)
-    expect(run(state, { type: 'SCRUB', cursor: 999 }).cursor).toBe(100)
+    expect(run(state, { type: 'SCRUB', cursor: -5, keepPlaying: false }).cursor).toBe(0)
+    expect(run(state, { type: 'SCRUB', cursor: 999, keepPlaying: false }).cursor).toBe(100)
   })
 
   it('restart returns to the top, paused', () => {
@@ -176,7 +176,7 @@ describe('playback', () => {
   })
 
   it('replace resets position, append keeps it', () => {
-    const mid = run(loaded, { type: 'SCRUB', cursor: 50 })
+    const mid = run(loaded, { type: 'SCRUB', cursor: 50, keepPlaying: false })
     const appended = run(mid, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0, 40, 70, 100], place: keepPlace })
     expect(appended.cursor).toBe(50)
     expect(appended.wordCount).toBe(150)
@@ -186,7 +186,7 @@ describe('playback', () => {
   })
 
   it('an Edit moves the position without pausing or re-arming the countdown', () => {
-    const playing = run(loaded, { type: 'SCRUB', cursor: 50 }, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: true })
+    const playing = run(loaded, { type: 'SCRUB', cursor: 50, keepPlaying: false }, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: true })
     const edited = run(playing, { type: 'SET_SCRIPT', wordCount: 103, paragraphStarts: [0], place: (cursor) => cursor + 3 })
     expect(edited.cursor).toBe(53)
     expect(edited.mode.kind).toBe('playing')
@@ -194,7 +194,7 @@ describe('playback', () => {
   })
 
   it('clamps a placed position to the new Script', () => {
-    const mid = run(loaded, { type: 'SCRUB', cursor: 50 })
+    const mid = run(loaded, { type: 'SCRUB', cursor: 50, keepPlaying: false })
     expect(run(mid, { type: 'SET_SCRIPT', wordCount: 10, paragraphStarts: [0], place: keepPlace }).cursor).toBe(10)
   })
 
@@ -214,8 +214,8 @@ describe('playback', () => {
 
     it('resumes immediately after a step or scrub', () => {
       const started = run(countdownThenPlay(loaded), { type: 'PAUSE' })
-      expect(play(run(started, { type: 'STEP_LINE', delta: 1 })).mode.kind).toBe('playing')
-      expect(play(run(started, { type: 'SCRUB', cursor: 30 })).mode.kind).toBe('playing')
+      expect(play(run(started, { type: 'STEP_LINE', delta: 1, keepPlaying: false })).mode.kind).toBe('playing')
+      expect(play(run(started, { type: 'SCRUB', cursor: 30, keepPlaying: false })).mode.kind).toBe('playing')
     })
 
     it('counts down again after restart', () => {
@@ -249,7 +249,7 @@ describe('playback', () => {
 })
 
 describe('Follow', () => {
-  const following = run(loaded, { type: 'SCRUB', cursor: 10 }, { type: 'FOLLOW' })
+  const following = run(loaded, { type: 'SCRUB', cursor: 10, keepPlaying: false }, { type: 'FOLLOW' })
   const heardAt = (position: number, pace = 0): PlaybackEvent => ({ type: 'HEARD', matched: position, position, pace })
   const settle = (state: PlaybackState) => run(state, ...Array.from({ length: 60 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
 
@@ -298,17 +298,22 @@ describe('Follow', () => {
   })
 
   it('keeps following through a step or a scroll, listening from where the reader moved', () => {
-    const stepped = settle(run(following, { type: 'STEP_PARAGRAPH', delta: 1 }))
+    const stepped = settle(run(following, { type: 'STEP_PARAGRAPH', delta: 1, keepPlaying: true }))
     expect(stepped.mode).toMatchObject({ kind: 'following', target: stepped.cursor, heard: stepped.cursor })
     expect(stepped.cursor).toBe(40)
-    const scrolled = run(following, { type: 'SCRUB', cursor: 30 })
+    const scrolled = run(following, { type: 'SCRUB', cursor: 30, keepPlaying: true })
     expect(scrolled.mode).toMatchObject({ kind: 'following', target: 30, heard: 30 })
     expect(settle(run(scrolled, heardAt(33))).cursor).toBe(33)
   })
 
   it('goes back to the voice when the reader moved ahead but reads on where they were', () => {
-    const scrolled = run(following, heardAt(14), { type: 'SCRUB', cursor: 30 })
+    const scrolled = run(following, heardAt(14), { type: 'SCRUB', cursor: 30, keepPlaying: true })
     expect(settle(run(scrolled, heardAt(16))).cursor).toBe(16)
+  })
+
+  it('stops on a move by hand when it should not keep playing', () => {
+    expect(run(following, { type: 'SCRUB', cursor: 30, keepPlaying: false }).mode.kind).toBe('paused')
+    expect(run(following, { type: 'STEP_LINE', delta: 1, keepPlaying: false }).mode.kind).toBe('paused')
   })
 
   it('stops on pause or Space, and ignores voices while stopped', () => {
@@ -318,12 +323,26 @@ describe('Follow', () => {
   })
 
   it('starts over from the top after the end, without a countdown', () => {
-    const ended = run(loaded, { type: 'SCRUB', cursor: loaded.wordCount }, { type: 'FOLLOW' })
+    const ended = run(loaded, { type: 'SCRUB', cursor: loaded.wordCount, keepPlaying: false }, { type: 'FOLLOW' })
     expect(ended.mode).toMatchObject({ kind: 'following', target: 0 })
     expect(ended.cursor).toBe(0)
   })
 
   it('does nothing without a Script', () => {
     expect(run(initialPlayback, { type: 'FOLLOW' })).toBe(initialPlayback)
+  })
+})
+
+describe('moving by hand in Auto', () => {
+  const playing = run(loaded, { type: 'SCRUB', cursor: 10, keepPlaying: false }, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false })
+
+  it('keeps playing from the new place when set to', () => {
+    expect(run(playing, { type: 'SCRUB', cursor: 30, keepPlaying: true })).toMatchObject({ cursor: 30, mode: { kind: 'playing' } })
+    expect(run(playing, { type: 'STEP_LINE', delta: 1, keepPlaying: true }).mode.kind).toBe('playing')
+  })
+
+  it('pauses otherwise', () => {
+    expect(run(playing, { type: 'SCRUB', cursor: 30, keepPlaying: false })).toMatchObject({ cursor: 30, mode: { kind: 'paused' } })
+    expect(run(playing, { type: 'STEP_LINE', delta: 1, keepPlaying: false }).mode.kind).toBe('paused')
   })
 })

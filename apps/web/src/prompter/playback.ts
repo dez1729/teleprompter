@@ -49,10 +49,11 @@ export type PlaybackEvent =
   /** The reader went quiet `forMs` ago: stop near where they stopped, until their voice is matched again. */
   | { type: 'QUIET'; forMs: number }
   | { type: 'TICK'; dtMs: number; wpm: number; minLineMs?: number }
-  | { type: 'STEP_LINE'; delta: 1 | -1 }
-  | { type: 'STEP_PARAGRAPH'; delta: 1 | -1 }
+  /** Moves by hand: `keepPlaying` carries on scrolling from the new place, otherwise they pause. */
+  | { type: 'STEP_LINE'; delta: 1 | -1; keepPlaying: boolean }
+  | { type: 'STEP_PARAGRAPH'; delta: 1 | -1; keepPlaying: boolean }
   | { type: 'RESTART' }
-  | { type: 'SCRUB'; cursor: number }
+  | { type: 'SCRUB'; cursor: number; keepPlaying: boolean }
   | { type: 'SET_SCRIPT'; wordCount: number; paragraphStarts: readonly number[]; place: Placement }
   | { type: 'SET_LAYOUT'; lines: readonly PacedLine[] }
 
@@ -170,10 +171,16 @@ function stepTarget(starts: readonly number[], from: number, delta: 1 | -1): num
   return starts[Math.min(starts.length - 1, Math.max(0, target))]!
 }
 
-function step(state: PlaybackState, starts: readonly number[], delta: 1 | -1): PlaybackState {
+function step(state: PlaybackState, starts: readonly number[], delta: 1 | -1, keepPlaying: boolean): PlaybackState {
   const target = stepTarget(starts, state.animTarget ?? state.cursor, delta)
   if (target === null) return state
-  return { ...state, animTarget: target, mode: movedTo(state.mode, target) }
+  return { ...state, animTarget: target, mode: afterMove(state.mode, target, keepPlaying) }
+}
+
+/** Where scrolling stands after the reader moved to `position` by hand. */
+function afterMove(mode: PlaybackMode, position: number, keepPlaying: boolean): PlaybackMode {
+  if (!keepPlaying) return { kind: 'paused' }
+  return movedTo(mode, position)
 }
 
 /**
@@ -253,16 +260,14 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
     case 'TICK':
       return tick(state, event.dtMs, event.wpm, event.minLineMs ?? 0)
     case 'STEP_LINE':
-      return step(state, state.lines.map((line) => line.start), event.delta)
+      return step(state, state.lines.map((line) => line.start), event.delta, event.keepPlaying)
     case 'STEP_PARAGRAPH':
-      return step(state, state.paragraphStarts, event.delta)
+      return step(state, state.paragraphStarts, event.delta, event.keepPlaying)
     case 'RESTART':
       return { ...state, cursor: 0, animTarget: null, mode: { kind: 'paused' }, countdownArmed: true }
     case 'SCRUB': {
-      // Scrolling stops Auto, so the reader can find their place; Follow carries on from where they scroll to.
       const cursor = clampCursor(state, event.cursor)
-      const mode = state.mode.kind === 'following' ? movedTo(state.mode, cursor) : { kind: 'paused' as const }
-      return { ...state, cursor, animTarget: null, mode }
+      return { ...state, cursor, animTarget: null, mode: afterMove(state.mode, cursor, event.keepPlaying) }
     }
     case 'SET_SCRIPT': {
       const next = { ...state, wordCount: event.wordCount, paragraphStarts: event.paragraphStarts }

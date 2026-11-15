@@ -111,7 +111,7 @@ export function Prompter() {
 
   const scrubBy = (startCursor: number, dy: number) => {
     const y = cursorToY(layout, startCursor) + dy
-    dispatch({ type: 'SCRUB', cursor: yToCursor(layout, y) })
+    dispatch({ type: 'SCRUB', cursor: yToCursor(layout, y), keepPlaying: settings.keepPlayingOnMove })
   }
 
   const onWheel = (event: WheelEvent) => {

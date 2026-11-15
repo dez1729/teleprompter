@@ -136,6 +136,12 @@ export const SETTING_DEFS = {
     ]),
   ),
   countdownSec: advanced(about('How many seconds the countdown lasts.', num('Countdown length', 3, 1, 10, 1, 's'))),
+  keepPlayingOnMove: advanced(
+    about(
+      'Scrolling, dragging or the arrow keys move your place and scrolling carries on from there. Off, they pause.',
+      bool('Keep playing when you move', true),
+    ),
+  ),
 } as const satisfies Record<string, Field>
 
 /** How many times faster than a line the gap below it scrolls by, for each Paragraph pause. */

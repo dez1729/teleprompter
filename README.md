@@ -118,7 +118,7 @@ Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it 
 | `s` | Turn Spoken-only on or off. |
 | `,` | Open the display settings. |
 
-Scroll the mouse wheel or drag the text to move through the Script by hand. In Auto, either one pauses playback. In Follow, Follow keeps listening from where you move to.
+Scroll the mouse wheel or drag the text to move through the Script by hand. Scrolling, dragging, and the arrow keys keep playing from where you move to, in Auto or Follow. To have them pause instead, turn off **Keep playing when you move** in Advanced settings.
 
 Speed is measured in words, not pixels. Changing the text size or line spacing changes how far the text moves, not how fast you read.
 
@@ -139,7 +139,7 @@ Any Whisper server with the OpenAI transcription API works. [Speaches](https://s
 
 If the Whisper server cannot be reached, Follow stops and the top right corner says why.
 
-In testing with a recorded voice, Follow stayed within about a word of it during steady reading, and stopped about three words past it at a pause. It picked the voice up about two seconds after it started again, or after it started 30 words further on. If you start reading somewhere else, Follow jumps there. Within about 60 words of where you are, it needs two or three words to find you. Further away, it needs about five words in a row. If it runs ahead of you, it waits rather than moving back. It moves back only when you go back to reread. Until it has heard enough to measure your pace, it assumes the Speed setting. You can also move there yourself with the arrow keys, the mouse wheel, or by dragging the text, and Follow carries on from there without pausing. If your voice is clearly somewhere else, Follow goes back to it.
+In testing with a recorded voice, Follow stayed within about a word of it during steady reading, and stopped about three words past it at a pause. It picked the voice up about two seconds after it started again, or after it started 30 words further on. If you start reading somewhere else, Follow jumps there. Within about 60 words of where you are, it needs two or three words to find you. Further away, it needs about five words in a row. If it runs ahead of you, it waits rather than moving back. It moves back only when you go back to reread. Until it has heard enough to measure your pace, it assumes the Speed setting. You can also move there yourself with the arrow keys, the mouse wheel, or by dragging the text, and Follow carries on from there, unless you turned off **Keep playing when you move**. If your voice is clearly somewhere else, Follow goes back to it.
 
 ### Spoken-only
 
@@ -177,6 +177,7 @@ Open the settings panel (`,`) to change:
 - the minimum time each line stays up, so a line of one or two words does not pass before you can read it
 - the paragraph pause: how quickly the space between paragraphs scrolls by, Short, Normal, or Long
 - how long the countdown is
+- whether scrolling, dragging, and the arrow keys keep playing or pause
 
 Settings are saved in your browser. The Script is saved by the server, so every open Prompter and Editor shows the same one.
 

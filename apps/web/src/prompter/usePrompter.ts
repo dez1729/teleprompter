@@ -183,9 +183,9 @@ export function usePrompter(ui: UiBridge) {
         return showReadout(`${SETTING_DEFS[command.setting].label}: ${on ? 'on' : 'off'}`)
       }
       case 'stepLine':
-        return dispatch({ type: 'STEP_LINE', delta: command.delta })
+        return dispatch({ type: 'STEP_LINE', delta: command.delta, keepPlaying: settingsRef.current.keepPlayingOnMove })
       case 'stepParagraph':
-        return dispatch({ type: 'STEP_PARAGRAPH', delta: command.delta })
+        return dispatch({ type: 'STEP_PARAGRAPH', delta: command.delta, keepPlaying: settingsRef.current.keepPlayingOnMove })
       case 'openSettings':
       case 'openEditor':
       case 'toggleHelp':
