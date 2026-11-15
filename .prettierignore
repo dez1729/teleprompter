@@ -1,0 +1,3 @@
+pnpm-lock.yaml
+# Rewritten by the TanStack Router plugin on every build.
+apps/web/src/routeTree.gen.ts

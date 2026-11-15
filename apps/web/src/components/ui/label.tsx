@@ -1,7 +1,7 @@
-import * as React from "react"
-import { cn } from "cn"
+import { type ComponentProps } from "react";
+import { cn } from "cn";
 
-function Label({ className, ...props }: React.ComponentProps<"label">) {
+function Label({ className, ...props }: ComponentProps<"label">) {
   return (
     <label
       data-slot="label"
@@ -11,7 +11,7 @@ function Label({ className, ...props }: React.ComponentProps<"label">) {
       )}
       {...props}
     />
-  )
+  );
 }
 
-export { Label }
+export { Label };
