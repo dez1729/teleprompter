@@ -5,10 +5,10 @@ on:
   push:
     branches: [main]
 
-# A newer push to the same branch cancels the run it replaces.
+# On a pull request, a newer push cancels the run it replaces. Every commit on main keeps its own run.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
