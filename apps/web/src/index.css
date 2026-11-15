@@ -154,13 +154,13 @@
   @apply list-decimal pl-6;
 }
 .script-preview blockquote {
-  @apply text-muted-foreground border-l-2 pl-4 italic;
+  @apply border-l-2 pl-4 text-muted-foreground italic;
 }
 .script-preview a {
   @apply underline underline-offset-2;
 }
 .script-preview :is(code, pre) {
-  @apply bg-muted rounded font-mono text-sm;
+  @apply rounded bg-muted font-mono text-sm;
 }
 .script-preview code {
   @apply px-1 py-0.5;

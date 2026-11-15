@@ -63,7 +63,7 @@ export const ControlBar = ({ visible, playing, scrollMode, speedWpm, fontSize, h
             visible ? "opacity-100" : "pointer-events-none opacity-0"
           )}
         >
-          <div className="bg-popover/90 text-popover-foreground flex cursor-default items-center gap-1 rounded-xl border p-1.5 shadow-lg backdrop-blur">
+          <div className="flex cursor-default items-center gap-1 rounded-xl border bg-popover/90 p-1.5 text-popover-foreground shadow-lg backdrop-blur">
             <Hint command={toggle}>
               <Button
                 size="icon"

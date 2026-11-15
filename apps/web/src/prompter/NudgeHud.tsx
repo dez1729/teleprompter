@@ -19,7 +19,7 @@ export const NudgeHud = ({ readout }: NudgeHudProps) => {
         visible ? "opacity-100" : "opacity-0"
       )}
     >
-      <span className="bg-popover/90 text-popover-foreground rounded-lg border px-3 py-1.5 text-sm tabular-nums shadow-lg backdrop-blur">
+      <span className="rounded-lg border bg-popover/90 px-3 py-1.5 text-sm text-popover-foreground tabular-nums shadow-lg backdrop-blur">
         {readout?.text}
       </span>
     </div>

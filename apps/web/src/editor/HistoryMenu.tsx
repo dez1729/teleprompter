@@ -78,10 +78,10 @@ export const HistoryMenu = ({ revision }: HistoryMenuProps) => {
             {versions.map((version) => (
               <li
                 key={version.id}
-                className="hover:bg-muted/50 flex items-center gap-3 rounded-md px-1 py-2"
+                className="flex items-center gap-3 rounded-md px-1 py-2 hover:bg-muted/50"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-xs text-muted-foreground">
                     <time
                       dateTime={version.savedAt}
                       title={new Date(version.savedAt).toLocaleString()}

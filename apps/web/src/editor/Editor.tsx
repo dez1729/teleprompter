@@ -94,13 +94,13 @@ export const Editor = () => {
   };
 
   return (
-    <div className="bg-background text-foreground flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col bg-background text-foreground">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-2">
         <h1 className="text-sm font-medium">Script</h1>
-        <p className="text-muted-foreground min-w-0 flex-1 truncate text-sm">{script?.source ? `Source: ${script.source}` : "No Source"}</p>
+        <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{script?.source ? `Source: ${script.source}` : "No Source"}</p>
         <p
           role="status"
-          className="text-muted-foreground text-xs"
+          className="text-xs text-muted-foreground"
         >
           {connected === false ? "Not connected to server" : script ? STATUS_TEXT[status] : "Connecting…"}
         </p>

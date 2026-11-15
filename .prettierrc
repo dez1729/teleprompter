@@ -5,6 +5,7 @@
     "./node_modules/prettier-plugin-merge/dist/index.js"
   ],
   "tailwindFunctions": ["cn"],
+  "tailwindStylesheet": "./apps/web/src/index.css",
   "singleAttributePerLine": true,
   "printWidth": 150,
   "tabWidth": 2,

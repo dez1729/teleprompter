@@ -36,7 +36,7 @@ const SettingField = ({ setting, def, value, set }: FieldProps) => {
         <Field>
           <div className="flex items-baseline justify-between">
             <FieldLabel htmlFor={id}>{def.label}</FieldLabel>
-            <span className="text-muted-foreground text-sm tabular-nums">
+            <span className="text-sm text-muted-foreground tabular-nums">
               {value as number}
               {def.unit ? ` ${def.unit}` : ""}
             </span>
@@ -90,7 +90,7 @@ const SettingField = ({ setting, def, value, set }: FieldProps) => {
             type="color"
             value={value as string}
             onChange={(event) => set(setting, event.target.value)}
-            className="border-input h-8 w-12 cursor-pointer rounded-md border bg-transparent"
+            className="h-8 w-12 cursor-pointer rounded-md border border-input bg-transparent"
           />
         </Field>
       );

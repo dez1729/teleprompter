@@ -22,7 +22,7 @@ export const UndoToast = ({ notice, onUndo }: UndoToastProps) => {
       )}
     >
       {notice && (
-        <div className="bg-popover/90 text-popover-foreground flex items-center gap-2 rounded-lg border py-1.5 pr-1.5 pl-3 text-sm shadow-lg backdrop-blur">
+        <div className="flex items-center gap-2 rounded-lg border bg-popover/90 py-1.5 pr-1.5 pl-3 text-sm text-popover-foreground shadow-lg backdrop-blur">
           <span className="max-w-[60vw] truncate">{notice.text}</span>
           <Button
             size="sm"
