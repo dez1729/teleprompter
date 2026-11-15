@@ -310,6 +310,19 @@ describe("Follow", () => {
     expect(settle(run(following, heardFar)).cursor).toBe(32);
   });
 
+  it("counts a reader just past the jump distance as far ahead, before trailing", () => {
+    const heardJustFar = { type: "HEARD", matched: 18, position: 18.5, pace: 0 } as const;
+    expect(settle(run(following, heardJustFar)).cursor).toBe(18.5);
+  });
+
+  it("trails the reader again from the first match after a jump", () => {
+    // The jump lands on where the reader is by now; a second later they have read three words further.
+    const heardFar = { type: "HEARD", matched: 30, position: 32, pace: 3 / 1000 } as const;
+    const jumped = run(following, heardFar, ...Array.from({ length: 10 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) as const));
+    const next = run(jumped, { type: "HEARD", matched: 33, position: 35, pace: 3 / 1000 });
+    expect(next.mode.kind === "following" && next.mode.target).toBeCloseTo(34.25);
+  });
+
   it("keeps following through a step or a scroll, listening from where the reader moved", () => {
     const stepped = settle(run(following, { type: "STEP_PARAGRAPH", delta: 1, keepPlaying: true }));
     expect(stepped.mode).toMatchObject({ kind: "following", target: stepped.cursor, heard: stepped.cursor });
