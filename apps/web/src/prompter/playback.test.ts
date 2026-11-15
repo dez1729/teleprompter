@@ -303,6 +303,13 @@ describe("Follow", () => {
     expect(jumped.cursor).toBeGreaterThan(39);
   });
 
+  it("aims a little behind a reader it is keeping up with, but right at one it has to catch up with", () => {
+    const heardNear = { type: "HEARD", matched: 12, position: 14, pace: 0 } as const;
+    expect(settle(run(following, heardNear)).cursor).toBeCloseTo(13.25);
+    const heardFar = { type: "HEARD", matched: 30, position: 32, pace: 0 } as const;
+    expect(settle(run(following, heardFar)).cursor).toBe(32);
+  });
+
   it("keeps following through a step or a scroll, listening from where the reader moved", () => {
     const stepped = settle(run(following, { type: "STEP_PARAGRAPH", delta: 1, keepPlaying: true }));
     expect(stepped.mode).toMatchObject({ kind: "following", target: stepped.cursor, heard: stepped.cursor });
