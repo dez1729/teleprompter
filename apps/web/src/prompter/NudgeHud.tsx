@@ -10,12 +10,13 @@ interface NudgeHudProps {
 }
 
 export const NudgeHud = ({ readout }: NudgeHudProps) => {
-  const [visible, setVisible] = useState(false)
+  // Each readout shows until its own timer runs out; a new one shows at once.
+  const [expired, setExpired] = useState<NudgeReadout | null>(null)
+  const visible = !isNil(readout) && readout !== expired
 
   useEffect(() => {
     if (isNil(readout)) return
-    setVisible(true)
-    const timer = setTimeout(() => setVisible(false), HUD_VISIBLE_MS)
+    const timer = setTimeout(() => setExpired(readout), HUD_VISIBLE_MS)
     return () => clearTimeout(timer)
   }, [readout])
 

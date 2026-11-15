@@ -12,12 +12,13 @@ interface UndoToastProps {
 }
 
 export const UndoToast = ({ notice, onUndo }: UndoToastProps) => {
-  const [visible, setVisible] = useState(false)
+  // Each notice shows until its own timer runs out; a new one shows at once.
+  const [expired, setExpired] = useState<ReplaceNotice | null>(null)
+  const visible = !isNil(notice) && notice !== expired
 
   useEffect(() => {
-    setVisible(notice !== null)
     if (isNil(notice)) return
-    const timer = setTimeout(() => setVisible(false), TOAST_VISIBLE_MS)
+    const timer = setTimeout(() => setExpired(notice), TOAST_VISIBLE_MS)
     return () => clearTimeout(timer)
   }, [notice])
 

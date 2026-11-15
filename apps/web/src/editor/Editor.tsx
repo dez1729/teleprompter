@@ -5,7 +5,7 @@ import { isNil } from 'es-toolkit'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { openScriptStream, sendScript } from '@/lib/scriptApi'
+import { ScriptStream, sendScript } from '@/lib/scriptApi'
 import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { normalizeLineBreaks } from './changes'
 import { createScriptEditor, type ScriptEditor } from './codemirror'
@@ -44,6 +44,8 @@ export const Editor = () => {
           onState: (state) => {
             setStatus(state.status)
             setScript(state.script)
+            // The editor is created with the Script's format; this keeps its highlighting in step afterwards.
+            session.current?.editor.setFormat(state.script.format)
           },
         },
         initial,
@@ -64,20 +66,21 @@ export const Editor = () => {
       return { editor, sync }
     }
 
-    const closeStream = openScriptStream({
+    const stream = new ScriptStream({
       onConnection: setConnected,
       onMessage: (message) => {
         if (session.current) session.current.sync.receive(message.script, message.type === 'snapshot')
         else session.current = start(message.script)
       },
     })
+    stream.start()
 
     const flush = () => session.current?.sync.flush()
     window.addEventListener('pagehide', flush)
 
     return () => {
       window.removeEventListener('pagehide', flush)
-      closeStream()
+      stream.stop()
       session.current?.sync.dispose()
       session.current?.editor.destroy()
       session.current = null
@@ -85,9 +88,6 @@ export const Editor = () => {
   }, [])
 
   const format = script?.format
-  useEffect(() => {
-    if (format) session.current?.editor.setFormat(format)
-  }, [format])
 
   const chooseFormat = (next: ScriptFormat) => {
     if (next !== format) session.current?.sync.setFormat(next)

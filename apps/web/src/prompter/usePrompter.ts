@@ -5,7 +5,7 @@ import { placementFor } from './anchor'
 import { commandForKey, type Command, type UiCommand } from './keymap'
 import { useFollow } from './follow/useFollow'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
-import { openScriptStream, restoreVersion, sendScript, type ScriptMessage } from '@/lib/scriptApi'
+import { restoreVersion, ScriptStream, sendScript, type ScriptMessage } from '@/lib/scriptApi'
 import { EMPTY_TOKENS, tokenize } from './script'
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from './settings'
 import { clearLegacyDraft, clearLegacyScript, loadLegacyScript, loadSettings, saveSettings } from './storage'
@@ -94,7 +94,6 @@ export const usePrompter = (ui: UiBridge) => {
   const uiRef = useRef(ui)
   uiRef.current = ui
 
-  useEffect(() => saveSettings(settings), [settings])
   useEffect(clearLegacyDraft, [])
 
   const active = needsTick(playback)
@@ -117,6 +116,7 @@ export const usePrompter = (ui: UiBridge) => {
     const previous = settingsRef.current
     settingsRef.current = next
     setSettings(next)
+    saveSettings(next)
     if (next.spokenOnly === previous.spokenOnly) return
     const { current, tokens: before } = live.current
     const after = tokenize(current, next.spokenOnly)
@@ -151,7 +151,11 @@ export const usePrompter = (ui: UiBridge) => {
     if (kind === 'replace') restoring.current = false
   }, [])
 
-  useEffect(() => openScriptStream({ onMessage: receive, onConnection: setConnected }), [receive])
+  useEffect(() => {
+    const stream = new ScriptStream({ onMessage: receive, onConnection: setConnected })
+    stream.start()
+    return () => stream.stop()
+  }, [receive])
 
   /** Restores the Version saved just before the Replace. The Script changes when the server's change comes back. */
   const undoReplace = useCallback((notice: ReplaceNotice) => {

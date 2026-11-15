@@ -13,7 +13,7 @@ import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
 import { UndoToast } from './UndoToast'
 import { FONT_STACKS, GAP_PACES } from './settings'
-import type { FollowStatus } from './follow/useFollow'
+import type { FollowStatus } from './follow/session'
 import { usePrompter } from './usePrompter'
 
 const BAR_HIDE_DELAY_MS = 2000
@@ -97,12 +97,19 @@ export const Prompter = () => {
     return () => observer.disconnect()
   }, [remeasure, script])
 
+  // A web font that finishes loading after the first measure moves every word.
   useEffect(() => {
-    void document.fonts?.ready.then(remeasure)
-  }, [remeasure, settings.fontFamily])
+    document.fonts.addEventListener('loadingdone', remeasure)
+    return () => document.fonts.removeEventListener('loadingdone', remeasure)
+  }, [remeasure])
 
   const playing = playback.mode.kind === 'playing' || playback.mode.kind === 'following'
-  useEffect(() => setRecentMouse(true), [playing])
+  // Starting or stopping shows the bar again, as a mouse move does.
+  const [barShownFor, setBarShownFor] = useState(playing)
+  if (barShownFor !== playing) {
+    setBarShownFor(playing)
+    setRecentMouse(true)
+  }
 
   const showBar = () => setRecentMouse(true)
   useEffect(() => {

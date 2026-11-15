@@ -7,7 +7,7 @@ import {
   type ScriptChange,
   type VersionSummary,
 } from '@teleprompter/protocol'
-import { isString } from 'es-toolkit'
+import { isNil, isString } from 'es-toolkit'
 
 /** Chrome refuses a keepalive request whose body is over 64 KiB. */
 const KEEPALIVE_MAX_CHARS = 20_000
@@ -61,24 +61,38 @@ interface ScriptStreamHandlers {
 }
 
 /**
- * Opens the server's event stream. EventSource reconnects on its own and the
+ * The server's event stream, from start() to stop(). EventSource reconnects on its own and the
  * server sends the current Script again each time, which arrives as a snapshot.
  */
-export const openScriptStream = (handlers: ScriptStreamHandlers): () => void => {
-  const source = new EventSource('/api/events')
-  source.onopen = () => handlers.onConnection(true)
-  source.onerror = () => handlers.onConnection(false)
-  source.addEventListener('script', (event) => {
-    const script = parse(ScriptSchema, (event as MessageEvent<string>).data)
-    if (script) handlers.onMessage({ type: 'snapshot', script })
-  })
+export class ScriptStream {
+  readonly #handlers: ScriptStreamHandlers
+  #source: EventSource | null = null
 
-  source.addEventListener('change', (event) => {
-    const change = parse(ScriptChangeSchema, (event as MessageEvent<string>).data)
-    if (change) handlers.onMessage({ type: 'change', ...change })
-  })
+  constructor(handlers: ScriptStreamHandlers) {
+    this.#handlers = handlers
+  }
 
-  return () => source.close()
+  start(): void {
+    const source = new EventSource('/api/events')
+    source.onopen = () => this.#handlers.onConnection(true)
+    source.onerror = () => this.#handlers.onConnection(false)
+    source.addEventListener('script', (event) => {
+      const script = parse(ScriptSchema, (event as MessageEvent<string>).data)
+      if (!isNil(script)) this.#handlers.onMessage({ type: 'snapshot', script })
+    })
+
+    source.addEventListener('change', (event) => {
+      const change = parse(ScriptChangeSchema, (event as MessageEvent<string>).data)
+      if (!isNil(change)) this.#handlers.onMessage({ type: 'change', ...change })
+    })
+
+    this.#source = source
+  }
+
+  stop(): void {
+    this.#source?.close()
+    this.#source = null
+  }
 }
 
 /** What the Transcriber heard in a clip of the reader's speech. Rejects with the server's reason. */
