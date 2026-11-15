@@ -34,10 +34,12 @@ export const whisperTranscriber = ({
     } catch {
       throw new TranscriberError(`Cannot reach the Whisper server at ${url}. Start it, or set TELEPROMPTER_WHISPER_URL.`)
     }
+
     if (!response.ok) {
       const detail = (await response.text().catch(() => '')).slice(0, 200)
       throw new TranscriberError(`The Whisper server at ${url} answered ${response.status}. ${detail}`.trim())
     }
+
     const body = (await response.json().catch(() => null)) as { text?: unknown } | null
     if (!isString(body?.text)) throw new TranscriberError(`The Whisper server at ${url} sent no text.`)
     return body.text

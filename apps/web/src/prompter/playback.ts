@@ -272,6 +272,7 @@ const followTick = (state: PlaybackState, mode: Extract<PlaybackMode, { kind: 'f
     // The reader has read on: coast to the next sentence end, with fresh coasting time.
     return { ...state, mode: { ...mode, coastFrom: limit, pausedAtEnd: false, heldMs: 0, coastMs: 0 } }
   }
+
   const coasting = coastable
   const target = clampCursor(state, Math.min(Math.max(mode.target, limit), mode.target + mode.pace * coasting))
   const coastMs = mode.coastMs + coasting
@@ -281,6 +282,7 @@ const followTick = (state: PlaybackState, mode: Extract<PlaybackMode, { kind: 'f
     const cursor = eased - target <= SNAP_DISTANCE ? target : eased
     return { ...state, cursor, mode: { ...mode, target, coastMs, speed: 0, pausedAtEnd, heldMs } }
   }
+
   const pace = coasting > 0 ? mode.pace : 0
   const wanted = gap <= 0 ? 0 : Math.min(FOLLOW_MAX_SPEED, Math.max(FOLLOW_MIN_SPEED, pace + gap / FOLLOW_CATCHUP_MS))
   const speed = mode.speed + (wanted - mode.speed) * (1 - Math.exp(-dtMs / FOLLOW_SPEED_TAU_MS))
@@ -288,6 +290,7 @@ const followTick = (state: PlaybackState, mode: Extract<PlaybackMode, { kind: 'f
   if (idle && heldMs === mode.heldMs && pausedAtEnd === mode.pausedAtEnd) {
     return mode.speed === 0 ? state : { ...state, mode: { ...mode, speed: 0 } }
   }
+
   const cursor = Math.min(target, state.cursor + speed * dtMs)
   return { ...state, cursor, mode: { ...mode, target, coastMs, speed, pausedAtEnd, heldMs } }
 }
@@ -299,6 +302,7 @@ const tick = (state: PlaybackState, dtMs: number, wpm: number, minLineMs: number
     const eased = state.cursor + distance * (1 - Math.exp(-dtMs / STEP_EASE_TAU_MS))
     return { ...state, cursor: eased }
   }
+
   switch (state.mode.kind) {
     case 'paused':
       return state

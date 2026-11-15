@@ -56,6 +56,7 @@ describe('sending to a real server, as Obsidian does', () => {
     dataDir = mkdtempSync(join(tmpdir(), 'tp-obsidian-'))
     server = await startServer({ port: 0, dataDir, webDir: dataDir })
   })
+
   afterAll(async () => {
     await server.close()
     rmSync(dataDir, { recursive: true, force: true })

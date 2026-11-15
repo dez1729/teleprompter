@@ -9,8 +9,8 @@ import {
   requestUrl,
   Setting,
 } from 'obsidian'
-import { DEFAULT_SERVER_URL, PushError, pushFor, sendPush, type Http, type PushKind } from './push.ts'
 import { isNil } from 'es-toolkit'
+import { DEFAULT_SERVER_URL, PushError, pushFor, sendPush, type Http, type PushKind } from './push.ts'
 
 interface Settings {
   serverUrl: string
@@ -71,6 +71,7 @@ export default class TeleprompterPlugin extends Plugin {
       new Notice('Nothing to send: the note is empty.')
       return
     }
+
     try {
       await sendPush(request, this.settings.serverUrl, obsidianHttp)
       new Notice(ACTIONS[kind].done)

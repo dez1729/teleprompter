@@ -56,6 +56,7 @@ export const tokenize = (script: Pick<Script, 'text' | 'format'>, spokenOnly: bo
       ),
     )
   }
+
   const sentenceEnds = words.flatMap((word, index) => (SENTENCE_END.test(word.text) ? [index + 1] : []))
   return { words, paragraphStarts, sectionStarts, sentenceEnds }
 }

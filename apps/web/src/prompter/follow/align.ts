@@ -53,12 +53,17 @@ export const align = (script: readonly string[], heard: readonly string[], from:
   )
 }
 
+interface Span {
+  lo: number
+  hi: number
+}
+
 /** The best local alignment of `said` against script[lo, hi) scoring at least `needed(end)`, by its end. */
 const bestEnd = (
   script: readonly string[],
   said: readonly string[],
   from: number,
-  { lo, hi }: { lo: number; hi: number },
+  { lo, hi }: Span,
   needed: (end: number) => number,
 ): number | null => {
   if (said.length === 0 || hi <= lo) return null
@@ -77,7 +82,9 @@ const bestEnd = (
       const score = current.at(j)! - DISTANCE_COST * distance
       if (current.at(j)! >= needed(end) && (best === null || score > best.score)) best = { score, end }
     }
+
     previous = current
   }
+
   return best?.end ?? null
 }

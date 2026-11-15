@@ -42,7 +42,11 @@ export const restoreVersion = async (id: string): Promise<Script> => {
 
 export type ScriptMessage = { type: 'snapshot'; script: Script } | ({ type: 'change' } & ScriptChange)
 
-const parse = <T>(schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false } }, data: string) => {
+interface SafeParser<T> {
+  safeParse: (value: unknown) => { success: true; data: T } | { success: false }
+}
+
+const parse = <T>(schema: SafeParser<T>, data: string) => {
   try {
     const result = schema.safeParse(JSON.parse(data))
     return result.success ? result.data : null
@@ -51,14 +55,16 @@ const parse = <T>(schema: { safeParse: (value: unknown) => { success: true; data
   }
 }
 
+interface ScriptStreamHandlers {
+  onMessage: (message: ScriptMessage) => void
+  onConnection: (connected: boolean) => void
+}
+
 /**
  * Opens the server's event stream. EventSource reconnects on its own and the
  * server sends the current Script again each time, which arrives as a snapshot.
  */
-export const openScriptStream = (handlers: {
-  onMessage: (message: ScriptMessage) => void
-  onConnection: (connected: boolean) => void
-}): () => void => {
+export const openScriptStream = (handlers: ScriptStreamHandlers): () => void => {
   const source = new EventSource('/api/events')
   source.onopen = () => handlers.onConnection(true)
   source.onerror = () => handlers.onConnection(false)
@@ -66,13 +72,14 @@ export const openScriptStream = (handlers: {
     const script = parse(ScriptSchema, (event as MessageEvent<string>).data)
     if (script) handlers.onMessage({ type: 'snapshot', script })
   })
+
   source.addEventListener('change', (event) => {
     const change = parse(ScriptChangeSchema, (event as MessageEvent<string>).data)
     if (change) handlers.onMessage({ type: 'change', ...change })
   })
+
   return () => source.close()
 }
-
 
 /** What the Transcriber heard in a clip of the reader's speech. Rejects with the server's reason. */
 export const transcribe = async (clip: Blob): Promise<string> => {

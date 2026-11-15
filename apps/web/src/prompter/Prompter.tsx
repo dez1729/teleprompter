@@ -1,5 +1,6 @@
 import { SquarePen } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type WheelEvent } from 'react'
+import { isNil } from 'es-toolkit'
 import { Button } from '@/components/ui/button'
 import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
@@ -14,7 +15,6 @@ import { UndoToast } from './UndoToast'
 import { FONT_STACKS, GAP_PACES } from './settings'
 import type { FollowStatus } from './follow/useFollow'
 import { usePrompter } from './usePrompter'
-import { isNil } from 'es-toolkit'
 
 const BAR_HIDE_DELAY_MS = 2000
 const DRAG_THRESHOLD_PX = 3
@@ -38,6 +38,7 @@ export const Prompter = () => {
       }
     },
   })
+
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT)
   const [recentMouse, setRecentMouse] = useState(true)
 
@@ -126,6 +127,7 @@ export const Prompter = () => {
     drag.current = { startY: event.clientY, startCursor: playback.cursor, moved: false }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
+
   const onPointerMove = (event: PointerEvent) => {
     showBar()
     const current = drag.current
@@ -135,6 +137,7 @@ export const Prompter = () => {
     current.moved = true
     scrubBy(current.startCursor, -dy)
   }
+
   const onPointerUp = () => {
     drag.current = null
   }
@@ -252,7 +255,11 @@ export const Prompter = () => {
   )
 }
 
-const FollowStatusLine = ({ status }: { status: FollowStatus }) => {
+interface FollowStatusLineProps {
+  status: FollowStatus
+}
+
+const FollowStatusLine = ({ status }: FollowStatusLineProps) => {
   if (status.kind === 'off') return null
   const text = status.kind === 'error' ? status.message : status.kind === 'starting' ? 'Opening the microphone…' : 'Following your voice'
   return (

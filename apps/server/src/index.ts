@@ -65,6 +65,7 @@ export const startServer = (options: ServerOptions = {}): Promise<RunningServer>
           }),
       })
     })
+
     server.once('error', reject)
     if (!hasWeb) console.warn(`The web app is not built (${webDir}). Run "pnpm build" to serve it; the API still works.`)
   })

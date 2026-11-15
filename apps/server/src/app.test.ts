@@ -34,12 +34,14 @@ const setup = (heartbeatMs?: number) => {
   const app = createApp({ store, port: () => PORT, heartbeatMs })
   const request = (path: string, init: RequestInit & { headers?: Record<string, string> } = {}) =>
     app.request(path, { ...init, headers: { host: HOST, ...init.headers } })
+
   const push = (body: unknown, headers: Record<string, string> = {}) =>
     request('/api/script', {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...headers },
       body: JSON.stringify(body),
     })
+
   return { store, app, request, push }
 }
 
@@ -134,6 +136,7 @@ describe('validation', () => {
       headers: { 'content-type': 'application/json', 'content-length': String(big.length) },
       body: big,
     })
+
     expect(res.status).toBe(413)
   })
 
@@ -164,6 +167,7 @@ describe('Host and Origin guards', () => {
     for (const origin of ['https://evil.example', 'http://localhost:9999', 'null']) {
       expect((await push({ kind: 'replace', text: 'a' }, { origin })).status, origin).toBe(403)
     }
+
     expect(store.get().revision).toBe(0)
   })
 
@@ -172,6 +176,7 @@ describe('Host and Origin guards', () => {
     for (const origin of ['http://localhost:4747', 'http://localhost:4748', 'http://127.0.0.1:4747', 'http://127.0.0.1:4748', 'app://obsidian.md']) {
       expect((await push({ kind: 'replace', text: 'a' }, { origin })).status, origin).toBe(200)
     }
+
     expect((await push({ kind: 'replace', text: 'a' })).status).toBe(200)
   })
 
@@ -202,6 +207,7 @@ describe('Script history', () => {
   const history = async (request: ReturnType<typeof setup>['request']) => {
     return VersionSummarySchema.array().parse(await (await request('/api/history')).json())
   }
+
   const restore = (request: ReturnType<typeof setup>['request'], id: string, headers: Record<string, string> = {}) =>
     request(`/api/history/${id}/restore`, { method: 'POST', headers })
 
@@ -361,6 +367,7 @@ const readUntil = async (reader: ReadableStreamDefaultReader<Uint8Array>, needle
     if (done) throw new Error(`stream ended before ${JSON.stringify(needle)}: ${text}`)
     text += decoder.decode(value)
   }
+
   return text
 }
 

@@ -1,6 +1,7 @@
 import { Eye, MonitorPlay } from 'lucide-react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import type { Script, ScriptFormat } from '@teleprompter/protocol'
+import type { PushRequest, Script, ScriptFormat } from '@teleprompter/protocol'
+import { isNil } from 'es-toolkit'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -10,7 +11,6 @@ import { normalizeLineBreaks } from './changes'
 import { createScriptEditor, type ScriptEditor } from './codemirror'
 import { HistoryMenu } from './HistoryMenu'
 import { ScriptSync, type SyncStatus } from './scriptSync'
-import { isNil } from 'es-toolkit'
 
 /** The markdown renderer is loaded when the preview is first opened. */
 const Preview = lazy(() => import('./Preview').then((module) => ({ default: module.Preview })))
@@ -40,7 +40,7 @@ export const Editor = () => {
         {
           doc: () => editor.text(),
           applyRemote: (changes) => editor.applyRemote(changes),
-          send: (text, format) => sendScript({ kind: 'edit', text, ...(format && { format }) }),
+          send: (text, format) => sendScript({ kind: 'edit', text, ...(format && { format }) } satisfies PushRequest as PushRequest),
           onState: (state) => {
             setStatus(state.status)
             setScript(state.script)
@@ -57,6 +57,7 @@ export const Editor = () => {
           sync.documentChanged()
         },
       })
+
       setScript(initial)
       setText(editor.text())
       editor.focus()
@@ -70,6 +71,7 @@ export const Editor = () => {
         else session.current = start(message.script)
       },
     })
+
     const flush = () => session.current?.sync.flush()
     window.addEventListener('pagehide', flush)
 

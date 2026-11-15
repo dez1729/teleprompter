@@ -79,6 +79,7 @@ describe('pacedLines', () => {
       ],
       gapPace: 3,
     }
+
     expect(pacedLines(paragraphs)).toEqual([
       { start: 0, stretch: 1 },
       { start: 4, stretch: 1 + 0.5 / 3 },

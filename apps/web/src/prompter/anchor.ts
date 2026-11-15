@@ -1,8 +1,8 @@
 import { diffArrays } from 'diff'
 import type { ChangeKind } from '@teleprompter/protocol'
+import { isNil } from 'es-toolkit'
 import { keepPlace, type Placement } from './playback'
 import type { TokenizedScript } from './script'
-import { isNil } from 'es-toolkit'
 
 /**
  * Past this many inserted plus deleted words the two texts are treated as unrelated
@@ -37,6 +37,7 @@ const segments = (oldWords: readonly string[], newWords: readonly string[]): Seg
       last.newLength += newLength
     }
   }
+
   if (isNil(parts)) change(oldMiddle.length, newMiddle.length)
   else {
     for (const part of parts) {
@@ -45,6 +46,7 @@ const segments = (oldWords: readonly string[], newWords: readonly string[]): Seg
       else result.push({ oldLength: part.count, newLength: part.count, kept: true })
     }
   }
+
   result.push({ oldLength: suffix, newLength: suffix, kept: true })
   return result
 }
@@ -67,9 +69,11 @@ export const mapCursor = (oldWords: readonly string[], newWords: readonly string
       mapped = newStart + share * newLength
       if (position < oldStart + oldLength) break
     }
+
     oldStart += oldLength
     newStart += newLength
   }
+
   return mapped
 }
 

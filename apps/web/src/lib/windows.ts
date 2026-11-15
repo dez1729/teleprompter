@@ -18,6 +18,7 @@ export const openNamedWindow = (path: string, name: string): void => {
     // The window has gone to another site, so it is ours to take back.
     isNew = true
   }
+
   if (isNew) target.location.replace(path)
   target.focus()
 }

@@ -18,6 +18,7 @@ describe('settings', () => {
       textColor: '#abcdef',
       windowHeightLines: 5,
     })
+
     expect(parsed.speedWpm).toBe(SETTING_DEFS.speedWpm.max)
     expect(parsed.fontSize).toBe(SETTING_DEFS.fontSize.min)
     expect(parsed.mirror).toBe(true)

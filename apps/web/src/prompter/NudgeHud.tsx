@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
+import { isNil } from 'es-toolkit'
 import { cn } from '@/lib/utils'
 import type { NudgeReadout } from './usePrompter'
-import { isNil } from 'es-toolkit'
 
 const HUD_VISIBLE_MS = 1200
 
-export const NudgeHud = ({ readout }: { readout: NudgeReadout | null }) => {
+interface NudgeHudProps {
+  readout: NudgeReadout | null
+}
+
+export const NudgeHud = ({ readout }: NudgeHudProps) => {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {

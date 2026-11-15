@@ -29,6 +29,7 @@ export const changesBetween = (from: string, to: string): ChangeSet => {
     fromMiddle === '' || toMiddle === ''
       ? undefined
       : diffArrays(pieces(fromMiddle), pieces(toMiddle), { maxEditLength: MAX_EDIT_WORDS })
+
   if (isNil(parts)) return ChangeSet.of({ from: prefix, to: prefix + fromMiddle.length, insert: toMiddle }, from.length)
 
   const specs: ChangeSpec[] = []
@@ -41,6 +42,7 @@ export const changesBetween = (from: string, to: string): ChangeSet => {
       position += text.length
     }
   }
+
   return ChangeSet.of(specs, from.length)
 }
 

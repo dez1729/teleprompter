@@ -14,8 +14,12 @@ const REASON_LABELS: Record<VersionSummary['reason'], string> = {
 
 type Listing = { state: 'loading' } | { state: 'failed' } | { state: 'ready'; versions: VersionSummary[] }
 
+interface HistoryMenuProps {
+  revision: number
+}
+
 /** `revision` is the Script's, so the list reloads when the Script changes while the menu is open. */
-export const HistoryMenu = ({ revision }: { revision: number }) => {
+export const HistoryMenu = ({ revision }: HistoryMenuProps) => {
   const [open, setOpen] = useState(false)
   const [listing, setListing] = useState<Listing>({ state: 'loading' })
 

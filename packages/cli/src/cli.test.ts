@@ -17,6 +17,7 @@ const setup = (overrides: Partial<Io> = {}) => {
     serve: async () => {},
     ...overrides,
   }
+
   const body = () => JSON.parse(String(fetchMock.mock.calls.at(0)?.[1]?.body))
   return { io, out, err, fetchMock, body }
 }

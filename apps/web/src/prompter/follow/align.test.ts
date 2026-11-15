@@ -10,6 +10,7 @@ const at = (phrase: string) => {
   for (let i = 0; i + words.length <= script.length; i++) {
     if (words.every((word, k) => script.at(i + k) === word)) return i + words.length
   }
+
   throw new Error(`"${phrase}" is not in the Script`)
 }
 

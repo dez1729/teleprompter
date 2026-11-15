@@ -1,5 +1,5 @@
+import { isPlainObject, isString } from 'es-toolkit'
 import { DEFAULT_SETTINGS, parseSettings, type DisplaySettings } from './settings'
-import { isString } from 'es-toolkit'
 
 const LEGACY_SCRIPT_KEY = 'teleprompter.script'
 const LEGACY_DRAFT_KEY = 'teleprompter.draft'
@@ -23,10 +23,16 @@ const write = (key: string, value: unknown): void => {
 }
 
 /** The Script this browser stored before the server owned it, for the one-time move to the server. */
-export const loadLegacyScript = (): { text: string; format?: 'markdown' | 'text' } | null => {
+/** A Script saved in this browser by an earlier version. */
+interface LegacyScript {
+  text: string
+  format?: 'markdown' | 'text'
+}
+
+export const loadLegacyScript = (): LegacyScript | null => {
   const raw = read(LEGACY_SCRIPT_KEY)
-  if (typeof raw !== 'object' || raw === null) return null
-  const { source, format } = raw as Record<string, unknown>
+  if (!isPlainObject(raw)) return null
+  const { source, format } = raw
   if (!isString(source) || source.trim() === '') return null
   return { text: source, format: format === 'markdown' || format === 'text' ? format : undefined }
 }

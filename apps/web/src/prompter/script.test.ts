@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { placementFor } from './anchor'
 import { tokenize } from './script'
 
+interface ShownOptions {
+  format?: 'markdown' | 'text'
+  spokenOnly?: boolean
+}
+
 /** What the Prompter shows: one string per paragraph, lines joined by " / ", "——" for a Section marker. */
-const shown = (text: string, { format = 'markdown', spokenOnly = true }: { format?: 'markdown' | 'text'; spokenOnly?: boolean } = {}) => {
+const shown = (text: string, { format = 'markdown', spokenOnly = true }: ShownOptions = {}) => {
   const tokens = tokenize({ text, format }, spokenOnly)
   const out: string[] = []
   tokens.paragraphStarts.forEach((start, paragraph) => {
@@ -16,6 +21,7 @@ const shown = (text: string, { format = 'markdown', spokenOnly = true }: { forma
         .join(' '),
     )
   })
+
   return out
 }
 

@@ -13,6 +13,7 @@ export const readJsonFile = <T>(file: string, schema: Schema<T>, fallback: T): T
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return fallback
     throw error
   }
+
   const parsed = schema.safeParse(safeJson(raw))
   if (parsed.success) return parsed.data
   // Keep the unreadable file for the user and start clean rather than refuse to run.

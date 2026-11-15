@@ -14,11 +14,13 @@ export const ScriptText = memo(
   forwardRef<HTMLDivElement, Props>(function ScriptText({ tokens, style }, ref) {
     const paragraphs: { key: number; words: { index: number; text: string; lineBreakBefore: boolean }[] }[] = []
     tokens.words.forEach((word, index) => {
-      if (paragraphs.length === 0 || paragraphs.at(paragraphs.length - 1)!.key !== word.paragraphIndex) {
+      if (paragraphs.length === 0 || paragraphs.at(-1)!.key !== word.paragraphIndex) {
         paragraphs.push({ key: word.paragraphIndex, words: [] })
       }
-      paragraphs.at(paragraphs.length - 1)!.words.push({ index, text: word.text, lineBreakBefore: word.lineBreakBefore })
+
+      paragraphs.at(-1)!.words.push({ index, text: word.text, lineBreakBefore: word.lineBreakBefore })
     })
+
     const sectionStarts = new Set(tokens.sectionStarts)
     return (
       <div ref={ref} style={style}>

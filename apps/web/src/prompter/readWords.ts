@@ -22,6 +22,7 @@ export const useReadWords = (textRef: RefObject<HTMLElement | null>, words: unkn
       current = { words, spans: [...text.querySelectorAll<HTMLElement>('[data-word]')], count: 0 }
       marked.current = current
     }
+
     const target = Math.min(count, current.spans.length)
     for (let i = current.count; i < target; i++) current.spans.at(i)!.dataset.read = ''
     for (let i = target; i < current.count; i++) delete current.spans.at(i)!.dataset.read

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch } from 'react'
+import { isNil } from 'es-toolkit'
 import { transcribe } from '@/lib/scriptApi'
 import type { PlaybackEvent, PlaybackMode } from '../playback'
 import type { Word } from '../script'
 import { align, heardWords, normalize } from './align'
 import { openMicrophone, QUIET_MS } from './microphone'
-import { isNil } from 'es-toolkit'
 
 /** The least time between clips, so Whisper is not asked about the same half second over and over. */
 const INTERVAL_MS = 600
@@ -26,7 +26,7 @@ interface Match {
 /** Words per ms across the recent matches, or `fallback` when they span too little time, such as after a pause. */
 const paceOver = (matches: readonly Match[], fallback: number): number => {
   const first = matches.at(0)
-  const last = matches.at(matches.length - 1)
+  const last = matches.at(-1)
   if (isNil(first) || isNil(last) || last.at - first.at < PACE_WINDOW_MS / 3) return fallback
   const pace = (last.position - first.position) / (last.at - first.at)
   return pace >= 0 && pace <= MAX_PACE ? pace : fallback
@@ -64,6 +64,7 @@ export const useFollow = (
       setStatus((current) => (current.kind === 'error' ? current : { kind: 'off' }))
       return
     }
+
     let stopped = false
     let stopQuietCheck = () => {}
     const stop = (message: string) => {
@@ -73,6 +74,7 @@ export const useFollow = (
       setStatus({ kind: 'error', message })
       dispatch({ type: 'PAUSE' })
     }
+
     setStatus({ kind: 'starting' })
     matches.current = { recent: [], pace: live.current.expectedWpm / 60000 }
     const opening = openMicrophone()
@@ -97,7 +99,7 @@ export const useFollow = (
             const { recent } = matches.current
             if (!stopped && matched !== null) {
               // Going back starts the pace over; the matches before it say nothing about it.
-              const wentBack = matched < (recent.at(recent.length - 1)?.position ?? 0)
+              const wentBack = matched < (recent.at(-1)?.position ?? 0)
               const kept = wentBack ? [] : recent.filter((match) => match.at > started - PACE_WINDOW_MS)
               kept.push({ position: matched, at: started })
               const pace = paceOver(kept, matches.current.pace)
@@ -111,6 +113,7 @@ export const useFollow = (
             stop(error instanceof Error ? error.message : String(error))
           }
         }
+
         await sleep(Math.max(0, INTERVAL_MS - (performance.now() - started)))
       }
     })()

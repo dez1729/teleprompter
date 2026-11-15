@@ -30,10 +30,12 @@ test.beforeEach(async () => {
     env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', TELEPROMPTER_DATA_DIR: dataDir },
     stdio: 'inherit',
   })
+
   for (let attempt = 0; attempt < 100; attempt++) {
     if (await fetch(`${url}/api/script`).then((r) => r.ok, () => false)) return
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
+
   throw new Error('The server did not start')
 })
 
@@ -48,6 +50,7 @@ const tp = (args: string[], input: string) => {
     encoding: 'utf8',
     env: { ...process.env, TELEPROMPTER_URL: url },
   })
+
   expect(result.status, result.stderr).toBe(0)
 }
 

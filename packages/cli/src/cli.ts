@@ -58,6 +58,7 @@ const runSend = async (args: string[], io: Io): Promise<number> => {
   } catch (error) {
     throw new CliError(`${(error as Error).message}\n${USAGE}`)
   }
+
   const { values, positionals } = parsed
   if (values.replace === values.append) throw new CliError('Pass exactly one of --replace or --append.')
 
@@ -66,6 +67,7 @@ const runSend = async (args: string[], io: Io): Promise<number> => {
     if (io.stdinIsTty) throw new CliError('No text given. Pass it as an argument or pipe it in.')
     text = await io.readStdin()
   }
+
   if (text.trim() === '') throw new CliError('The text is empty.')
 
   const kind = values.replace ? 'replace' : 'append'

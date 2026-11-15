@@ -49,7 +49,12 @@ export const KEYMAP: readonly Binding[] = [
   { key: '?', label: '?', shift: true, command: { type: 'toggleHelp' }, description: 'Keyboard shortcuts', group: 'Panels' },
 ]
 
-export const commandForKey = (event: { key: string; shiftKey: boolean }): Command | null => {
+interface KeyPress {
+  key: string
+  shiftKey: boolean
+}
+
+export const commandForKey = (event: KeyPress): Command | null => {
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
   const binding = KEYMAP.find((b) => b.key === key && (b.shift === undefined || b.shift === event.shiftKey))
   return binding?.command ?? null
@@ -84,6 +89,7 @@ export const helpRows = (): { group: HelpGroup; rows: HelpRow[] }[] => {
     if (existing) existing.keys += ` / ${binding.label}`
     else byCommand.set(id, { keys: binding.label, description: binding.description, group: binding.group })
   }
+
   return HELP_GROUPS.map((group) => ({
     group,
     rows: [...byCommand.values()].filter((row) => row.group === group).map(({ keys, description }) => ({ keys, description })),

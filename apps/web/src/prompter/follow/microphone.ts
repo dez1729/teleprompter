@@ -34,6 +34,7 @@ export const openMicrophone = async (): Promise<Microphone> => {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
   })
+
   const context = new AudioContext()
   try {
     const url = URL.createObjectURL(new Blob([CAPTURE_WORKLET], { type: 'text/javascript' }))
@@ -43,6 +44,7 @@ export const openMicrophone = async (): Promise<Microphone> => {
     void context.close()
     throw error
   }
+
   const rate = context.sampleRate
   const ring = new Float32Array(Math.round((rate * CLIP_MS) / 1000))
   let written = 0
@@ -52,6 +54,7 @@ export const openMicrophone = async (): Promise<Microphone> => {
   node.port.onmessage = (event: MessageEvent<Float32Array>) => {
     for (const sample of event.data) ring[written++ % ring.length] = sample
   }
+
   source.connect(node)
 
   // Copied in two blocks, oldest first; reading it sample by sample is many times slower.
@@ -90,6 +93,7 @@ const loud = (samples: Float32Array, rate: number): boolean => {
     for (const sample of samples.subarray(start, start + window)) sum += sample ** 2
     if (Math.sqrt(sum / window) >= SPEECH_RMS) return true
   }
+
   return false
 }
 
@@ -105,6 +109,7 @@ export const resample = (samples: Float32Array, from: number, to: number): Float
     for (const sample of samples.subarray(start, end)) sum += sample
     out[i] = sum / (end - start)
   }
+
   return out
 }
 

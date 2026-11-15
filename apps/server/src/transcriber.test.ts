@@ -52,6 +52,7 @@ describe('whisperTranscriber', () => {
         return Response.json({ text: ' Hello there.' })
       },
     })
+
     expect(await transcriber(speech)).toBe(' Hello there.')
     expect(sent!.url).toBe('http://127.0.0.1:2022/v1/audio/transcriptions')
     expect(sent!.form.get('model')).toBe('tiny')

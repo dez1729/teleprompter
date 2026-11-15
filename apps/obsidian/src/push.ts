@@ -15,7 +15,7 @@ export interface Note {
 export const pushFor = (kind: PushKind, selection: string, note: Note): PushRequest | null => {
   const text = selection.trim() !== '' ? selection : note.text
   if (text.trim() === '') return null
-  return { kind, text, format: 'markdown', source: note.basename }
+  return { kind, text, format: 'markdown', source: note.basename } satisfies PushRequest as PushRequest
 }
 
 export interface HttpRequest {
@@ -37,12 +37,14 @@ export const sendPush = async (request: PushRequest, serverUrl: string, http: Ht
   } catch {
     throw new PushError(`The Teleprompter server address "${serverUrl}" is not a URL. Fix it in the plugin settings.`)
   }
+
   let response: Awaited<ReturnType<Http>>
   try {
-    response = await http({ url: endpoint, method: 'POST', contentType: 'application/json', body: JSON.stringify(request) })
+    response = await http({ url: endpoint, method: 'POST', contentType: 'application/json', body: JSON.stringify(request) } satisfies HttpRequest as HttpRequest)
   } catch {
     throw new PushError(`Cannot reach the Teleprompter server at ${serverUrl}. Start it with "tp serve".`)
   }
+
   if (response.status < 200 || response.status >= 300) {
     throw new PushError(`The Teleprompter server rejected the text (${response.status}). ${response.text}`.trim())
   }

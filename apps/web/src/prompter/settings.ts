@@ -1,4 +1,4 @@
-import { isBoolean, isNumber, isString } from 'es-toolkit'
+import { isBoolean, isNumber, isPlainObject, isString } from 'es-toolkit'
 
 export interface NumberField {
   kind: 'number'
@@ -193,7 +193,7 @@ const migrateCountdown = (record: Record<string, unknown>): Record<string, unkno
 
 /** Validates untrusted persisted values: bad fields fall back to defaults, numbers are clamped. */
 export const parseSettings = (raw: unknown): DisplaySettings => {
-  const record = migrateCountdown(typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {})
+  const record = migrateCountdown(isPlainObject(raw) ? raw : {})
   return Object.fromEntries(
     Object.entries(SETTING_DEFS).map(([key, def]) => [key, parseField(def, record[key])]),
   ) as DisplaySettings

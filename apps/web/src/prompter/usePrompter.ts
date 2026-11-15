@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { EMPTY_SCRIPT, type Script } from '@teleprompter/protocol'
+import { EMPTY_SCRIPT, type PushRequest, type Script } from '@teleprompter/protocol'
+import { isNil } from 'es-toolkit'
 import { placementFor } from './anchor'
 import { commandForKey, type Command, type UiCommand } from './keymap'
 import { useFollow } from './follow/useFollow'
@@ -8,7 +9,6 @@ import { openScriptStream, restoreVersion, sendScript, type ScriptMessage } from
 import { EMPTY_TOKENS, tokenize } from './script'
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from './settings'
 import { clearLegacyDraft, clearLegacyScript, loadLegacyScript, loadSettings, saveSettings } from './storage'
-import { isNil } from 'es-toolkit'
 
 const MAX_FRAME_MS = 100
 
@@ -59,7 +59,7 @@ interface UiBridge {
 const moveLegacyScript = () => {
   const legacy = loadLegacyScript()
   if (isNil(legacy)) return
-  sendScript({ kind: 'replace', ...legacy }).then(clearLegacyScript, () => {})
+  sendScript({ kind: 'replace', ...legacy } satisfies PushRequest as PushRequest).then(clearLegacyScript, () => {})
 }
 
 export const usePrompter = (ui: UiBridge) => {
@@ -107,6 +107,7 @@ export const usePrompter = (ui: UiBridge) => {
       last = now
       frame = requestAnimationFrame(loop)
     }
+
     frame = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(frame)
   }, [active])
@@ -201,6 +202,7 @@ export const usePrompter = (ui: UiBridge) => {
           dispatch({ type: 'PAUSE' })
           dispatch(scrollMode === 'follow' ? { type: 'FOLLOW' } : { type: 'PLAY', countdownSec: 0, countdownAtStartOnly })
         }
+
         return showReadout(`Scroll mode: ${scrollMode === 'follow' ? 'Follow' : 'Auto'}`)
       }
     }
@@ -219,10 +221,12 @@ export const usePrompter = (ui: UiBridge) => {
       if (event.repeat && (command.type === 'toggle' || command.type === 'restart')) return
       run(command)
     }
+
     // Stops Space from clicking a focused button when released.
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.key === ' ' && !isTypingTarget(event.target)) event.preventDefault()
     }
+
     window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('keyup', onKeyUp)
     return () => {

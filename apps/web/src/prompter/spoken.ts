@@ -51,6 +51,7 @@ const inlineText = (text: string, node: Node): string => {
     else if (!HIDDEN_INLINE.has(child.name)) out += inlineText(text, child)
     pos = child.to
   }
+
   return out + text.slice(pos, node.to)
 }
 
@@ -61,6 +62,7 @@ const listLines = (text: string, list: Node, lines: string[]): string[] => {
     if (child.name === 'Paragraph' || child.name === 'Task') lines.push(...linesOf(text, child))
     else if (LIST.test(child.name)) listLines(text, child, lines)
   }
+
   return lines
 }
 
@@ -77,6 +79,7 @@ export const spokenBlocks = (source: string): Block[] => {
     blocks.push({ lines, sectionStart })
     sectionStart = false
   }
+
   const visit = (container: Node) => {
     for (let child = container.firstChild; child; child = child.nextSibling) {
       if (SECTION_BREAK.test(child.name)) sectionStart = true
@@ -85,6 +88,7 @@ export const spokenBlocks = (source: string): Block[] => {
       else if (child.name === 'Blockquote' && !CALLOUT.test(text.slice(child.from, child.to))) visit(child)
     }
   }
+
   visit(markdown.parse(text).topNode)
   return blocks
 }

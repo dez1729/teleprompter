@@ -49,12 +49,14 @@ export interface ScriptEditor {
   destroy: () => void
 }
 
-export const createScriptEditor = (options: {
+interface ScriptEditorOptions {
   parent: HTMLElement
   text: string
   format: ScriptFormat
   onChange: (text: string) => void
-}): ScriptEditor => {
+}
+
+export const createScriptEditor = (options: ScriptEditorOptions): ScriptEditor => {
   const language = new Compartment()
   const view = new EditorView({
     parent: options.parent,
@@ -76,6 +78,7 @@ export const createScriptEditor = (options: {
       ],
     }),
   })
+
   return {
     text: () => view.state.doc.toString(),
     applyRemote: (changes) =>

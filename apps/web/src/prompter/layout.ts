@@ -25,6 +25,7 @@ export const lineIndexOf = (layout: Layout, cursor: number): number => {
     if (lines.at(mid)!.firstWord <= cursor) lo = mid
     else hi = mid - 1
   }
+
   return lo
 }
 
@@ -81,6 +82,7 @@ export const yToCursor = (layout: Layout, y: number): number => {
     if (lines.at(mid)!.top <= y) lo = mid
     else hi = mid - 1
   }
+
   const { line, gap, rowShare } = lineMotion(layout, lo)
   const offset = y - line.top
   const fraction =
@@ -96,12 +98,13 @@ export const measureLayout = (container: HTMLElement, gapPace: number): Layout =
   const lines: Line[] = []
   spans.forEach((span, word) => {
     const rowTop = span.offsetTop
-    const current = lines.at(lines.length - 1)
+    const current = lines.at(-1)
     const lineHeight = parseFloat(getComputedStyle(span).lineHeight) || span.offsetHeight
     if (current && Math.abs(current.top - (rowTop - (lineHeight - span.offsetHeight) / 2)) < 1) {
       current.endWord = word + 1
       return
     }
+
     lines.push({
       top: rowTop - (lineHeight - span.offsetHeight) / 2,
       height: lineHeight,
@@ -109,5 +112,6 @@ export const measureLayout = (container: HTMLElement, gapPace: number): Layout =
       endWord: word + 1,
     })
   })
+
   return { lines, gapPace }
 }

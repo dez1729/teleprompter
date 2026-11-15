@@ -15,7 +15,12 @@ const SCROLL_MODE_ITEM = 'aria-pressed:bg-primary aria-pressed:text-primary-fore
 /** The bar fades out while playing; a tooltip must not outlive it. */
 const BarVisible = createContext(true)
 
-const Hint = ({ command, children }: { command: Command; children: ReactElement }) => {
+interface HintProps {
+  command: Command
+  children: ReactElement
+}
+
+const Hint = ({ command, children }: HintProps) => {
   const barVisible = useContext(BarVisible)
   const [open, setOpen] = useState(false)
   return (
@@ -125,20 +130,22 @@ export const ControlBar = ({
   )
 }
 
-const Stepper = ({
-  label,
-  value,
-  setting,
-  disabled = false,
-  onCommand,
-}: {
+interface StepperProps {
   label: string
   value: string
   setting: 'speedWpm' | 'fontSize'
   /** Shown but inactive, as Speed is while Follow sets the pace. */
   disabled?: boolean
   onCommand: (command: Command) => void
-}) => {
+}
+
+const Stepper = ({
+  label,
+  value,
+  setting,
+  disabled = false,
+  onCommand,
+}: StepperProps) => {
   const down: Command = { type: 'nudge', setting, direction: -1 }
   const up: Command = { type: 'nudge', setting, direction: 1 }
   return (
