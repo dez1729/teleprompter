@@ -14,8 +14,9 @@ export type PlaybackMode =
    * Follow: the cursor moves to `target`, where the reader's voice was last matched. Between matches the target
    * keeps moving at the reader's `pace`, in words per ms, for up to FOLLOW_COAST_MS, so the cursor does not stall
    * while the next clip is transcribed. The cursor moves at `speed`, in words per ms, which changes gradually.
+   * `heard` is the word the reader's voice was last matched to, or where they last moved by hand.
    */
-  | { kind: 'following'; target: number; pace: number; coastMs: number; speed: number }
+  | { kind: 'following'; target: number; pace: number; coastMs: number; speed: number; heard: number }
 
 export interface PlaybackState {
   mode: PlaybackMode
@@ -41,10 +42,10 @@ export type PlaybackEvent =
   | { type: 'PAUSE' }
   | { type: 'FOLLOW' }
   /**
-   * `position` is where the reader is now; `pace` is how fast they have been reading, in words per ms.
-   * `reread` is true when they went back before where they were last heard; only then does the cursor move back.
+   * `matched` is the word just past what the reader's voice matched; `position` is where they are now, allowing
+   * for the time the match took; `pace` is how fast they have been reading, in words per ms.
    */
-  | { type: 'HEARD'; position: number; pace: number; reread: boolean }
+  | { type: 'HEARD'; matched: number; position: number; pace: number }
   /** The reader went quiet `forMs` ago: stop near where they stopped, until their voice is matched again. */
   | { type: 'QUIET'; forMs: number }
   | { type: 'TICK'; dtMs: number; wpm: number; minLineMs?: number }
@@ -72,6 +73,11 @@ const FOLLOW_BACK_TAU_MS = 300
  * a step with the arrow keys, instead of scrolling through the words between.
  */
 const FOLLOW_JUMP_WORDS = 8
+/**
+ * A match this many words before where the reader was last heard is them going back to reread. A match closer
+ * behind is the same speech heard again late.
+ */
+const FOLLOW_REREAD_WORDS = 6
 /**
  * How long the cursor keeps moving at the reader's pace after the last match, before it waits for their voice.
  * Long enough to ride out a slow answer from Whisper; QUIET stops it sooner when the reader stops.
@@ -112,18 +118,33 @@ function follow(state: PlaybackState): PlaybackState {
   return { ...state, cursor, mode: listeningAt(cursor), countdownArmed: false }
 }
 
-const listeningAt = (target: number): PlaybackMode => ({ kind: 'following', target, pace: 0, coastMs: FOLLOW_COAST_MS, speed: 0 })
+const listeningAt = (target: number): PlaybackMode => ({
+  kind: 'following',
+  target,
+  pace: 0,
+  coastMs: FOLLOW_COAST_MS,
+  speed: 0,
+  heard: target,
+})
 
-function heard(state: PlaybackState, position: number, pace: number, reread: boolean): PlaybackState {
+/** The reader moved by hand while following: Follow listens from there, keeping their pace. */
+function movedTo(mode: PlaybackMode, position: number): PlaybackMode {
+  return mode.kind === 'following' ? { ...mode, target: position, heard: position, coastMs: FOLLOW_COAST_MS, speed: 0 } : mode
+}
+
+function heard(state: PlaybackState, matched: number, position: number, pace: number): PlaybackState {
   if (state.mode.kind !== 'following') return state
-  const { target } = state.mode
-  // A match behind the cursor that is not a reread means the cursor ran ahead: it waits there for the reader.
+  const { target, heard: last } = state.mode
+  const reread = matched < last - FOLLOW_REREAD_WORDS
+  // Nothing new: carrying on as before keeps the cursor from coasting on stale speech.
+  if (!reread && matched <= last) return state
+  // A new match behind the cursor means the cursor ran ahead: it waits there for the reader.
   const next = position < target && !reread ? target : clampCursor(state, position)
   const jumped = next - (state.animTarget ?? state.cursor) > FOLLOW_JUMP_WORDS
   return {
     ...state,
     animTarget: jumped ? next : state.animTarget,
-    mode: { ...state.mode, target: next, pace, coastMs: 0, speed: jumped ? pace : state.mode.speed },
+    mode: { ...state.mode, target: next, pace, coastMs: 0, speed: jumped ? pace : state.mode.speed, heard: matched },
   }
 }
 
@@ -152,9 +173,7 @@ function stepTarget(starts: readonly number[], from: number, delta: 1 | -1): num
 function step(state: PlaybackState, starts: readonly number[], delta: 1 | -1): PlaybackState {
   const target = stepTarget(starts, state.animTarget ?? state.cursor, delta)
   if (target === null) return state
-  // A step while following moves where Follow listens from, too.
-  const mode = state.mode.kind === 'following' ? listeningAt(target) : state.mode
-  return { ...state, animTarget: target, mode }
+  return { ...state, animTarget: target, mode: movedTo(state.mode, target) }
 }
 
 /**
@@ -226,7 +245,7 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
     case 'FOLLOW':
       return follow(state)
     case 'HEARD':
-      return heard(state, event.position, event.pace, event.reread)
+      return heard(state, event.matched, event.position, event.pace)
     case 'QUIET':
       return quiet(state, event.forMs)
     case 'TOGGLE':
@@ -239,8 +258,12 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
       return step(state, state.paragraphStarts, event.delta)
     case 'RESTART':
       return { ...state, cursor: 0, animTarget: null, mode: { kind: 'paused' }, countdownArmed: true }
-    case 'SCRUB':
-      return { ...state, cursor: clampCursor(state, event.cursor), animTarget: null, mode: { kind: 'paused' } }
+    case 'SCRUB': {
+      // Scrolling stops Auto, so the reader can find their place; Follow carries on from where they scroll to.
+      const cursor = clampCursor(state, event.cursor)
+      const mode = state.mode.kind === 'following' ? movedTo(state.mode, cursor) : { kind: 'paused' as const }
+      return { ...state, cursor, animTarget: null, mode }
+    }
     case 'SET_SCRIPT': {
       const next = { ...state, wordCount: event.wordCount, paragraphStarts: event.paragraphStarts }
       return event.place === 'reset'

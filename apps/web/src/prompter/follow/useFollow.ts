@@ -29,18 +29,6 @@ function paceOver(matches: readonly Match[], fallback: number): number {
   return pace >= 0 && pace <= MAX_PACE ? pace : fallback
 }
 
-/**
- * A match this many words before where the reader was last heard is them going back to reread. A match closer
- * behind is the same speech heard again late.
- */
-const REREAD_WORDS = 6
-
-/** How a new match relates to where the reader was last heard, or to the cursor before the first match. */
-function compare(position: number, lastHeard: number): 'new' | 'same' | 'reread' {
-  if (position < lastHeard - REREAD_WORDS) return 'reread'
-  return position <= lastHeard ? 'same' : 'new'
-}
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 function micError(error: unknown): string {
@@ -100,15 +88,15 @@ export function useFollow(
             const text = await transcribe(clip)
             const matched = align(live.current.script, heardWords(text), live.current.target)
             const { recent } = matches.current
-            const relation = matched === null ? null : compare(matched, recent[recent.length - 1]?.position ?? live.current.target)
-            if (!stopped && matched !== null && relation !== 'same') {
-              const reread = relation === 'reread'
-              const kept = reread ? [] : recent.filter((match) => match.at > started - PACE_WINDOW_MS)
+            if (!stopped && matched !== null) {
+              // Going back starts the pace over; the matches before it say nothing about it.
+              const wentBack = matched < (recent[recent.length - 1]?.position ?? 0)
+              const kept = wentBack ? [] : recent.filter((match) => match.at > started - PACE_WINDOW_MS)
               kept.push({ position: matched, at: started })
               const pace = paceOver(kept, matches.current.pace)
               matches.current = { recent: kept, pace }
               // The clip ended when it was sent; the reader has kept reading since.
-              dispatch({ type: 'HEARD', position: matched + pace * (performance.now() - started), pace, reread })
+              dispatch({ type: 'HEARD', matched, position: matched + pace * (performance.now() - started), pace })
             }
           } catch (error) {
             stop(error instanceof Error ? error.message : String(error))

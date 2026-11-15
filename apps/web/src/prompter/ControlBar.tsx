@@ -80,7 +80,11 @@ export function ControlBar({
                 spacing={0}
                 aria-label="Scroll mode"
                 value={[scrollMode]}
-                onValueChange={(next) => next[0] !== undefined && next[0] !== scrollMode && onCommand(switchScrollMode)}
+                onValueChange={(next) => {
+                  if (next[0] !== undefined && next[0] !== scrollMode) onCommand(switchScrollMode)
+                  // The switch would keep the arrow keys for itself; the Prompter needs them to step through lines.
+                  if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+                }}
               >
                 <ToggleGroupItem value="auto" className={SCROLL_MODE_ITEM} aria-label="Auto: scroll at the set speed">
                   <Gauge />
