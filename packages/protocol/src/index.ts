@@ -81,3 +81,11 @@ export const guessFormat = (text: string): ScriptFormat => {
 export const appendText = (text: string, addition: string): string => {
   return text.trim() === "" ? addition : `${text.replace(/\s+$/, "")}\n\n${addition}`;
 };
+
+/** A word as Follow compares it: lowercase letters and digits, so "Delivery," matches "delivery". */
+export const normalizeWord = (word: string): string => {
+  return word
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}]/gu, "");
+};

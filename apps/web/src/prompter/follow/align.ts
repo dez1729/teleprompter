@@ -1,3 +1,5 @@
+import { normalizeWord } from "@teleprompter/protocol";
+
 /** How far behind the reader's position a match may land, in words, for when they go back and read a line again. */
 export const BEHIND = 12;
 /** The Lookahead window: how far ahead of the reader's position Follow searches, in words. */
@@ -19,16 +21,8 @@ export const FAR_MIN_SCORE = 9;
 /** Breaks ties between equally good matches in favor of the one nearest the reader. */
 const DISTANCE_COST = 0.01;
 
-/** Lowercase letters and digits, so "Delivery," matches "delivery". */
-export const normalize = (word: string): string => {
-  return word
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\p{L}\p{N}]/gu, "");
-};
-
 export const heardWords = (text: string): string[] => {
-  return text.split(/\s+/).map(normalize).filter(Boolean);
+  return text.split(/\s+/).map(normalizeWord).filter(Boolean);
 };
 
 /** One letter wrong, missing or extra, in a word long enough that it is still that word. */
