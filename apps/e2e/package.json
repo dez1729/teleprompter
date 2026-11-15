@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
+    "@teleprompter/protocol": "workspace:*",
     "@teleprompter/server": "workspace:*",
     "@types/node": "^26.6.6",
     "es-toolkit": "1.53.2",

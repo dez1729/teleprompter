@@ -5,9 +5,11 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { chromium, type Page } from "@playwright/test";
+import { chromium, type Browser, type Page } from "@playwright/test";
+import type { PushRequest } from "@teleprompter/protocol";
 import { optionsFromEnv, startServer } from "@teleprompter/server";
 import { isNil } from "es-toolkit";
+import { normalize } from "../../web/src/prompter/follow/align.ts";
 
 // Each word is one Whisper word ("streetlights" would come back as two), so word timestamps line up with the Script.
 const PARAGRAPH =
@@ -15,6 +17,7 @@ const PARAGRAPH =
   "follow them out past the breakwater. By seven the first catch is on the dock, sorted into crates of ice. Buyers " +
   "from the restaurants arrive with lists and cash. Nobody haggles for long, because the tide waits for no one. By " +
   "noon the boats are scrubbed, the nets are mended, and the harbor falls quiet again until evening.";
+const SCRIPT_WORDS = PARAGRAPH.split(/\s+/);
 const KOKORO_URL = process.env.KOKORO_URL ?? "http://127.0.0.1:8880";
 const WHISPER_URL = process.env.TELEPROMPTER_WHISPER_URL ?? "http://127.0.0.1:2022";
 const WHISPER_MODEL = process.env.TELEPROMPTER_WHISPER_MODEL ?? "Systran/faster-whisper-small";
@@ -51,8 +54,6 @@ interface RunResult {
   ahead: number;
   pastSentenceEnd: number;
 }
-
-const normalize = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
 const speak = async (text: string): Promise<ArrayBuffer> => {
   const response = await fetch(new URL("/v1/audio/speech", KOKORO_URL), {
@@ -95,7 +96,10 @@ const parseWav = (wav: Buffer): Pcm => {
     if (id === "data") data = body;
     offset += 8 + size + (size % 2);
   }
-  if (isNil(fmt) || isNil(data)) throw new Error("Kokoro did not send a PCM WAV");
+  // Chromium's fake microphone plays 16-bit PCM; anything else would make every run silent.
+  if (isNil(fmt) || isNil(data) || fmt.readUInt16LE(0) !== 1 || fmt.readUInt16LE(14) !== 16) {
+    throw new Error("Kokoro did not send a 16-bit PCM WAV");
+  }
 
   return { fmt, data, rate: fmt.readUInt32LE(4), blockAlign: fmt.readUInt16LE(12) };
 };
@@ -127,10 +131,11 @@ const clipFrom = (pcm: Pcm, cutSec: number) => {
 // Runs in the page: records when the microphone opened, and every SAMPLE_MS which word is on the Current line, one
 // line below the Reading window's top edge.
 const watchCursor = (sampleMs: number) => {
-  const w = window as unknown as { micOpenedAt?: number; cursorSamples: [number, number][] };
+  const w = window as unknown as { micRequestedAt?: number; micOpenedAt?: number; cursorSamples: [number, number][] };
   w.cursorSamples = [];
   const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia = async (constraints) => {
+    w.micRequestedAt = performance.now();
     const stream = await getUserMedia(constraints);
     w.micOpenedAt = performance.now();
     return stream;
@@ -164,7 +169,7 @@ const readSamples = (page: Page) => page.evaluate(() => (window as unknown as { 
 
 const median = (values: readonly number[]) => [...values].sort((a, b) => a - b).at(values.length >> 1) ?? NaN;
 
-// Seconds or words to two places; NaN when Follow only caught up after the voice had finished.
+// Seconds or words to two places; NaN when Follow never caught up while the voice was speaking.
 const show = (value: number) => (Number.isNaN(value) ? "n/a" : value.toFixed(2));
 
 const score = (points: readonly Point[], sentenceEnds: readonly number[], wordCount: number): RunResult => {
@@ -175,7 +180,7 @@ const score = (points: readonly Point[], sentenceEnds: readonly number[], wordCo
     catchUp: caught?.since ?? NaN,
     medianLag: median(reading.map((p) => p.spoken - p.cursor)),
     ahead: reading.length === 0 ? NaN : Math.max(...reading.map((p) => p.cursor - p.spoken)),
-    pastSentenceEnd: Math.max(0, ...reading.map((p) => p.cursor - nextEnd(p.spoken))),
+    pastSentenceEnd: reading.length === 0 ? NaN : Math.max(0, ...reading.map((p) => p.cursor - nextEnd(p.spoken))),
   };
 };
 
@@ -188,43 +193,71 @@ interface RunOptions {
 
 const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<RunResult> => {
   const dataDir = mkdtempSync(join(tmpdir(), "tp-follow-bench-"));
-  const server = await startServer({ ...optionsFromEnv(), port: 0, dataDir, webDir: WEB_DIR });
-  const browser = await chromium.launch({
-    args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-audio-capture=${clipPath}`],
-  });
   try {
-    const pushed = await fetch(`${server.url}/api/script`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ kind: "replace", text: PARAGRAPH }),
-    });
-    if (!pushed.ok) throw new Error(`Pushing the Script failed: ${pushed.status}`);
-
-    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-    await page.addInitScript(watchCursor, SAMPLE_MS);
-    await page.goto(server.url);
-    await page.locator("[data-word]").first().waitFor();
-    await page.keyboard.press("f");
-    await page.keyboard.press(" ");
-    const cutSec = cutBefore(timing, from);
-    const speechSec = timing.at(-1)!.end - cutSec;
-    await page.waitForTimeout((LEAD_IN_SEC + speechSec + TAIL_SEC - 0.5) * 1000);
-
-    const began = timing.at(from)!.start;
-    const points = (await readSamples(page)).map(([ms, cursor]): Point => {
-      const sec = ms / 1000 - LEAD_IN_SEC + cutSec;
-      return { since: sec - began, cursor, spoken: timing.filter((w) => w.start <= sec).length };
-    });
-    if (trace) for (const p of points) console.log(`${p.since.toFixed(2)}\tspoken ${p.spoken}\tcursor ${p.cursor.toFixed(2)}`);
-
-    const sentenceEnds = timing.flatMap((w, i) => (/[.!?]$/.test(w.word) ? [i + 1] : []));
-    return score(points, sentenceEnds, timing.length);
+    const server = await startServer({ ...optionsFromEnv(), port: 0, dataDir, webDir: WEB_DIR });
+    try {
+      const browser = await chromium.launch({
+        args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-audio-capture=${clipPath}`],
+      });
+      try {
+        return await follow(server.url, browser, { from, timing, trace });
+      }
+      finally {
+        await browser.close();
+      }
+    }
+    finally {
+      await server.close();
+    }
   }
   finally {
-    await browser.close();
-    await server.close();
     rmSync(dataDir, { recursive: true, force: true });
   }
+};
+
+interface FollowOptions {
+  from: number;
+  timing: readonly TimedWord[];
+  trace: boolean;
+}
+
+const follow = async (url: string, browser: Browser, { from, timing, trace }: FollowOptions): Promise<RunResult> => {
+  const pushed = await fetch(`${url}/api/script`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ kind: "replace", text: PARAGRAPH } satisfies PushRequest as PushRequest),
+  });
+  if (!pushed.ok) throw new Error(`Pushing the Script failed: ${pushed.status}`);
+
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  await page.addInitScript(watchCursor, SAMPLE_MS);
+  await page.goto(url);
+  await page.locator("[data-word]").first().waitFor();
+  await page.keyboard.press("f");
+  await page.keyboard.press(" ");
+  // Timed from when the microphone opened, so a slow start cannot end the run before the speech does.
+  await page.waitForFunction(() => (window as unknown as { micOpenedAt?: number }).micOpenedAt !== undefined);
+  const cutSec = cutBefore(timing, from);
+  const speechSec = timing.at(-1)!.end - cutSec;
+  await page.waitForTimeout((LEAD_IN_SEC + speechSec + TAIL_SEC - 0.5) * 1000);
+
+  const began = timing.at(from)!.start;
+  const points = (await readSamples(page)).map(([ms, cursor]): Point => {
+    const sec = ms / 1000 - LEAD_IN_SEC + cutSec;
+    return { since: sec - began, cursor, spoken: timing.filter((w) => w.start <= sec).length };
+  });
+  if (trace) {
+    const opening = await page.evaluate(() => {
+      const w = window as unknown as { micRequestedAt: number; micOpenedAt: number };
+      return w.micOpenedAt - w.micRequestedAt;
+    });
+    // The fake microphone may start playing anywhere in this time, so it bounds how far off every time below can be.
+    console.log(`microphone opened ${opening.toFixed(0)} ms after it was requested`);
+    for (const p of points) console.log(`${p.since.toFixed(2)}\tspoken ${p.spoken}\tcursor ${p.cursor.toFixed(2)}`);
+  }
+
+  const sentenceEnds = timing.flatMap((w, i) => (/[.!?]$/.test(w.word) ? [i + 1] : []));
+  return score(points, sentenceEnds, timing.length);
 };
 
 const { values } = parseArgs({
@@ -234,16 +267,21 @@ const { values } = parseArgs({
     trace: { type: "boolean", default: false },
   },
 });
-const runs = Number(values.runs);
-const starts = values.from.map(Number);
+const wholeNumber = (option: string, value: string, below: number) => {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n >= below) throw new Error(`${option} must be a whole number from 0 to ${below - 1}, not ${value}`);
+  return n;
+};
+const starts = values.from.map((value) => wholeNumber("--from", value, SCRIPT_WORDS.length));
+const runs = wholeNumber("--runs", values.runs, 1000);
+if (runs === 0) throw new Error("--runs must be at least 1");
 
 const recording = await speak(PARAGRAPH);
-const timing = await timeWords(recording, PARAGRAPH.split(/\s+/));
+const timing = await timeWords(recording, SCRIPT_WORDS);
 const pcm = parseWav(Buffer.from(recording));
 const clipDir = mkdtempSync(join(tmpdir(), "tp-follow-clips-"));
 try {
   for (const from of starts) {
-    if (from < 0 || from >= timing.length) throw new Error(`--from must be a word index below ${timing.length}`);
     const clipPath = join(clipDir, `from-${from}.wav`);
     writeFileSync(clipPath, clipFrom(pcm, cutBefore(timing, from)));
     const results: RunResult[] = [];
@@ -256,8 +294,10 @@ try {
       );
     }
 
-    const mean = results.reduce((sum, r) => sum + r.catchUp, 0) / results.length;
-    console.log(`from ${from}: mean catch-up ${show(mean)} s over ${runs} runs\n`);
+    const caughtUp = results.map((r) => r.catchUp).filter(Number.isFinite);
+    const mean = caughtUp.length === 0 ? NaN : caughtUp.reduce((sum, t) => sum + t, 0) / caughtUp.length;
+    const missed = runs - caughtUp.length;
+    console.log(`from ${from}: mean catch-up ${show(mean)} s over ${caughtUp.length} runs${missed > 0 ? `, ${missed} never caught up` : ""}\n`);
   }
 }
 finally {
