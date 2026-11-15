@@ -78,7 +78,11 @@ export function useFollow(
       if (!mic) return
       if (!stopped) setStatus({ kind: 'listening' })
       // Checked often, apart from the slower transcription loop, so the cursor stops soon after the reader does.
-      const quietCheck = setInterval(() => !stopped && !mic.speaking() && dispatch({ type: 'QUIET', forMs: QUIET_MS }), QUIET_CHECK_MS)
+      const quietCheck = setInterval(() => {
+        if (stopped) return
+        dispatch({ type: 'VOICE', speaking: mic.voiced() })
+        if (!mic.speaking()) dispatch({ type: 'QUIET', forMs: QUIET_MS })
+      }, QUIET_CHECK_MS)
       stopQuietCheck = () => clearInterval(quietCheck)
       while (!stopped) {
         const started = performance.now()

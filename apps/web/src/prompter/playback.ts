@@ -15,8 +15,24 @@ export type PlaybackMode =
    * keeps moving at the reader's `pace`, in words per ms, for up to FOLLOW_COAST_MS, so the cursor does not stall
    * while the next clip is transcribed. The cursor moves at `speed`, in words per ms, which changes gradually.
    * `heard` is the word the reader's voice was last matched to, or where they last moved by hand.
+   *
+   * Coasting stops at the next sentence end after `coastFrom`, where readers usually pause. If the reader pauses
+   * while the cursor waits there and then speaks for long enough (`heldMs`), they have started the next sentence,
+   * and coasting goes on to the next sentence end, once per match.
    */
-  | { kind: 'following'; target: number; pace: number; coastMs: number; speed: number; heard: number }
+  | {
+      kind: 'following'
+      target: number
+      pace: number
+      coastMs: number
+      speed: number
+      heard: number
+      coastFrom: number
+      speaking: boolean
+      /** Whether the reader paused while the cursor waited at the end of the sentence. */
+      pausedAtEnd: boolean
+      heldMs: number
+    }
 
 export interface PlaybackState {
   mode: PlaybackMode
@@ -28,6 +44,8 @@ export interface PlaybackState {
   animTarget: number | null
   wordCount: number
   paragraphStarts: readonly number[]
+  /** Where a reader usually pauses: after a sentence, and at the end of a paragraph. Follow does not coast past them. */
+  pausePoints: readonly number[]
   lines: readonly PacedLine[]
 }
 
@@ -46,6 +64,8 @@ export type PlaybackEvent =
    * for the time the match took; `pace` is how fast they have been reading, in words per ms.
    */
   | { type: 'HEARD'; matched: number; position: number; pace: number }
+  /** Whether the microphone hears speech right now. */
+  | { type: 'VOICE'; speaking: boolean }
   /** The reader went quiet `forMs` ago: stop near where they stopped, until their voice is matched again. */
   | { type: 'QUIET'; forMs: number }
   | { type: 'TICK'; dtMs: number; wpm: number; minLineMs?: number }
@@ -54,7 +74,13 @@ export type PlaybackEvent =
   | { type: 'STEP_PARAGRAPH'; delta: 1 | -1; keepPlaying: boolean }
   | { type: 'RESTART' }
   | { type: 'SCRUB'; cursor: number; keepPlaying: boolean }
-  | { type: 'SET_SCRIPT'; wordCount: number; paragraphStarts: readonly number[]; place: Placement }
+  | {
+      type: 'SET_SCRIPT'
+      wordCount: number
+      paragraphStarts: readonly number[]
+      sentenceEnds: readonly number[]
+      place: Placement
+    }
   | { type: 'SET_LAYOUT'; lines: readonly PacedLine[] }
 
 /** Time constant of the step easing. About 95% of a step lands in 3 of these. */
@@ -80,6 +106,11 @@ const FOLLOW_JUMP_WORDS = 8
  */
 const FOLLOW_REREAD_WORDS = 6
 /**
+ * Speech for this long without a break, while the cursor waits at the end of a sentence, means the reader has read
+ * on into the next one, so the cursor goes on without waiting for Whisper to say so.
+ */
+const FOLLOW_READ_ON_MS = 300
+/**
  * How long the cursor keeps moving at the reader's pace after the last match, before it waits for their voice.
  * Long enough to ride out a slow answer from Whisper; QUIET stops it sooner when the reader stops.
  */
@@ -94,6 +125,7 @@ export const initialPlayback: PlaybackState = {
   animTarget: null,
   wordCount: 0,
   paragraphStarts: [],
+  pausePoints: [],
   lines: [],
 }
 
@@ -126,11 +158,17 @@ const listeningAt = (target: number): PlaybackMode => ({
   coastMs: FOLLOW_COAST_MS,
   speed: 0,
   heard: target,
+  coastFrom: target,
+  speaking: false,
+  pausedAtEnd: false,
+  heldMs: 0,
 })
 
 /** The reader moved by hand while following: Follow listens from there, keeping their pace. */
 function movedTo(mode: PlaybackMode, position: number): PlaybackMode {
-  return mode.kind === 'following' ? { ...mode, target: position, heard: position, coastMs: FOLLOW_COAST_MS, speed: 0 } : mode
+  return mode.kind === 'following'
+    ? { ...mode, target: position, heard: position, coastFrom: position, pausedAtEnd: false, heldMs: 0, coastMs: FOLLOW_COAST_MS, speed: 0 }
+    : mode
 }
 
 function heard(state: PlaybackState, matched: number, position: number, pace: number): PlaybackState {
@@ -139,13 +177,25 @@ function heard(state: PlaybackState, matched: number, position: number, pace: nu
   const reread = matched < last - FOLLOW_REREAD_WORDS
   // Nothing new: carrying on as before keeps the cursor from coasting on stale speech.
   if (!reread && matched <= last) return state
+  // The time the match took is allowed for only up to the end of the sentence, where the reader may have paused.
+  const allowed = Math.min(position, Math.max(matched, nextPausePoint(state, matched)))
   // A new match behind the cursor means the cursor ran ahead: it waits there for the reader.
-  const next = position < target && !reread ? target : clampCursor(state, position)
+  const next = allowed < target && !reread ? target : clampCursor(state, allowed)
   const jumped = next - (state.animTarget ?? state.cursor) > FOLLOW_JUMP_WORDS
   return {
     ...state,
     animTarget: jumped ? next : state.animTarget,
-    mode: { ...state.mode, target: next, pace, coastMs: 0, speed: jumped ? pace : state.mode.speed, heard: matched },
+    mode: {
+      ...state.mode,
+      target: next,
+      pace,
+      coastMs: 0,
+      speed: jumped ? pace : state.mode.speed,
+      heard: matched,
+      coastFrom: reread ? matched : Math.max(matched, state.mode.coastFrom),
+      pausedAtEnd: false,
+      heldMs: 0,
+    },
   }
 }
 
@@ -199,23 +249,47 @@ function wordsPerMs(state: PlaybackState, wpm: number, minLineMs: number): numbe
   return reading / line.stretch
 }
 
-/** Moves the cursor toward the target at the reader's pace, changing speed gradually. */
+/** The first place after `position` where a reader usually pauses, or the end of the Script. */
+function nextPausePoint(state: PlaybackState, position: number): number {
+  return state.pausePoints.find((point) => point > position + SNAP_DISTANCE) ?? state.wordCount
+}
+
+/**
+ * Moves the cursor toward the target at the reader's pace, changing speed gradually. Coasting waits at the end of
+ * each sentence until the reader is heard past it, or the microphone hears them read on.
+ */
 function followTick(state: PlaybackState, mode: Extract<PlaybackMode, { kind: 'following' }>, dtMs: number): PlaybackState {
-  const coasting = Math.max(0, Math.min(dtMs, FOLLOW_COAST_MS - mode.coastMs))
-  const target = clampCursor(state, mode.target + mode.pace * coasting)
+  const limit = nextPausePoint(state, mode.coastFrom)
+  const coastable = Math.max(0, Math.min(dtMs, FOLLOW_COAST_MS - mode.coastMs))
+  const held = mode.target + mode.pace * coastable >= limit - SNAP_DISTANCE
+  // The microphone can carry the cursor past one sentence end beyond where Whisper last heard the reader, no more,
+  // so speech that is not in the Script cannot run it through sentence after sentence.
+  const releasable = limit === nextPausePoint(state, mode.heard)
+  // Speech before a pause is the reader finishing the sentence; only speech after one starts the next.
+  const pausedAtEnd = held && (mode.pausedAtEnd || !mode.speaking)
+  const heldMs = pausedAtEnd && releasable && mode.speaking ? mode.heldMs + dtMs : 0
+  if (heldMs >= FOLLOW_READ_ON_MS) {
+    // The reader has read on: coast to the next sentence end, with fresh coasting time.
+    return { ...state, mode: { ...mode, coastFrom: limit, pausedAtEnd: false, heldMs: 0, coastMs: 0 } }
+  }
+  const coasting = coastable
+  const target = clampCursor(state, Math.min(Math.max(mode.target, limit), mode.target + mode.pace * coasting))
   const coastMs = mode.coastMs + coasting
   const gap = target - state.cursor
   if (gap < -SNAP_DISTANCE) {
     const eased = state.cursor + gap * (1 - Math.exp(-dtMs / FOLLOW_BACK_TAU_MS))
     const cursor = eased - target <= SNAP_DISTANCE ? target : eased
-    return { ...state, cursor, mode: { ...mode, target, coastMs, speed: 0 } }
+    return { ...state, cursor, mode: { ...mode, target, coastMs, speed: 0, pausedAtEnd, heldMs } }
   }
   const pace = coasting > 0 ? mode.pace : 0
   const wanted = gap <= 0 ? 0 : Math.min(FOLLOW_MAX_SPEED, Math.max(FOLLOW_MIN_SPEED, pace + gap / FOLLOW_CATCHUP_MS))
   const speed = mode.speed + (wanted - mode.speed) * (1 - Math.exp(-dtMs / FOLLOW_SPEED_TAU_MS))
-  if (speed < 1e-6 && wanted === 0 && coasting === 0) return mode.speed === 0 ? state : { ...state, mode: { ...mode, speed: 0 } }
+  const idle = speed < 1e-6 && wanted === 0 && coasting === 0
+  if (idle && heldMs === mode.heldMs && pausedAtEnd === mode.pausedAtEnd) {
+    return mode.speed === 0 ? state : { ...state, mode: { ...mode, speed: 0 } }
+  }
   const cursor = Math.min(target, state.cursor + speed * dtMs)
-  return { ...state, cursor, mode: { ...mode, target, coastMs, speed } }
+  return { ...state, cursor, mode: { ...mode, target, coastMs, speed, pausedAtEnd, heldMs } }
 }
 
 function tick(state: PlaybackState, dtMs: number, wpm: number, minLineMs: number): PlaybackState {
@@ -253,6 +327,10 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
       return follow(state)
     case 'HEARD':
       return heard(state, event.matched, event.position, event.pace)
+    case 'VOICE':
+      if (state.mode.kind !== 'following') return state
+      if (event.speaking === state.mode.speaking) return state
+      return { ...state, mode: { ...state.mode, speaking: event.speaking, heldMs: 0 } }
     case 'QUIET':
       return quiet(state, event.forMs)
     case 'TOGGLE':
@@ -270,7 +348,8 @@ export function playbackReducer(state: PlaybackState, event: PlaybackEvent): Pla
       return { ...state, cursor, animTarget: null, mode: afterMove(state.mode, cursor, event.keepPlaying) }
     }
     case 'SET_SCRIPT': {
-      const next = { ...state, wordCount: event.wordCount, paragraphStarts: event.paragraphStarts }
+      const pausePoints = [...new Set([...event.sentenceEnds, ...event.paragraphStarts])].sort((a, b) => a - b)
+      const next = { ...state, wordCount: event.wordCount, paragraphStarts: event.paragraphStarts, pausePoints }
       return event.place === 'reset'
         ? { ...next, cursor: 0, animTarget: null, mode: { kind: 'paused' }, lines: [], countdownArmed: true }
         : { ...next, cursor: clampCursor(next, event.place(state.cursor)), animTarget: null }

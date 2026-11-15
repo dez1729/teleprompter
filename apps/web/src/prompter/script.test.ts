@@ -111,3 +111,10 @@ describe('turning Spoken-only on or off', () => {
     expect(wordAt(on, toOn(off.words.findIndex((w) => w.text === '*(smile)*')))).toBe('to')
   })
 })
+
+describe('sentence ends', () => {
+  it('follow a full stop, question or exclamation mark, or ellipsis, with any closing quote or bracket', () => {
+    const { sentenceEnds } = tokenize({ text: 'One. Two? "Three!" Four… (five.) six, seven', format: 'text' }, false)
+    expect(sentenceEnds).toEqual([1, 2, 3, 4, 5])
+  })
+})

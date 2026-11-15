@@ -6,14 +6,14 @@ const rows = (...starts: number[]) => starts.map((start) => ({ start, stretch: 1
 
 const loaded = run(
   initialPlayback,
-  { type: 'SET_SCRIPT', wordCount: 100, paragraphStarts: [0, 40, 70], place: 'reset' },
+  { type: 'SET_SCRIPT', wordCount: 100, paragraphStarts: [0, 40, 70], sentenceEnds: [], place: 'reset' },
   { type: 'SET_LAYOUT', lines: rows(0, 10, 20, 30, 40, 50, 60, 70, 80, 90) },
 )
 
 describe('minimum time per line', () => {
   const short = run(
     initialPlayback,
-    { type: 'SET_SCRIPT', wordCount: 22, paragraphStarts: [0], place: 'reset' },
+    { type: 'SET_SCRIPT', wordCount: 22, paragraphStarts: [0], sentenceEnds: [], place: 'reset' },
     { type: 'SET_LAYOUT', lines: rows(0, 10, 12) },
     { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false },
   )
@@ -42,7 +42,7 @@ describe('the gap below a line', () => {
   const timeOnFirstLine = (stretch: number, words: number) => {
     let state = run(
       initialPlayback,
-      { type: 'SET_SCRIPT', wordCount: words + 10, paragraphStarts: [0, words], place: 'reset' },
+      { type: 'SET_SCRIPT', wordCount: words + 10, paragraphStarts: [0, words], sentenceEnds: [], place: 'reset' },
       { type: 'SET_LAYOUT', lines: [{ start: 0, stretch }, { start: words, stretch: 1 }] },
       { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: false },
     )
@@ -177,17 +177,17 @@ describe('playback', () => {
 
   it('replace resets position, append keeps it', () => {
     const mid = run(loaded, { type: 'SCRUB', cursor: 50, keepPlaying: false })
-    const appended = run(mid, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0, 40, 70, 100], place: keepPlace })
+    const appended = run(mid, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0, 40, 70, 100], sentenceEnds: [], place: keepPlace })
     expect(appended.cursor).toBe(50)
     expect(appended.wordCount).toBe(150)
-    const replaced = run(mid, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], place: 'reset' })
+    const replaced = run(mid, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], sentenceEnds: [], place: 'reset' })
     expect(replaced.cursor).toBe(0)
     expect(replaced.mode.kind).toBe('paused')
   })
 
   it('an Edit moves the position without pausing or re-arming the countdown', () => {
     const playing = run(loaded, { type: 'SCRUB', cursor: 50, keepPlaying: false }, { type: 'PLAY', countdownSec: 0, countdownAtStartOnly: true })
-    const edited = run(playing, { type: 'SET_SCRIPT', wordCount: 103, paragraphStarts: [0], place: (cursor) => cursor + 3 })
+    const edited = run(playing, { type: 'SET_SCRIPT', wordCount: 103, paragraphStarts: [0], sentenceEnds: [], place: (cursor) => cursor + 3 })
     expect(edited.cursor).toBe(53)
     expect(edited.mode.kind).toBe('playing')
     expect(edited.countdownArmed).toBe(false)
@@ -195,7 +195,7 @@ describe('playback', () => {
 
   it('clamps a placed position to the new Script', () => {
     const mid = run(loaded, { type: 'SCRUB', cursor: 50, keepPlaying: false })
-    expect(run(mid, { type: 'SET_SCRIPT', wordCount: 10, paragraphStarts: [0], place: keepPlace }).cursor).toBe(10)
+    expect(run(mid, { type: 'SET_SCRIPT', wordCount: 10, paragraphStarts: [0], sentenceEnds: [], place: keepPlace }).cursor).toBe(10)
   })
 
   describe('countdown only at start', () => {
@@ -225,9 +225,9 @@ describe('playback', () => {
 
     it('counts down again after a replace but not an append', () => {
       const started = run(countdownThenPlay(loaded), { type: 'PAUSE' })
-      const appended = run(started, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0], place: keepPlace })
+      const appended = run(started, { type: 'SET_SCRIPT', wordCount: 150, paragraphStarts: [0], sentenceEnds: [], place: keepPlace })
       expect(play(appended).mode.kind).toBe('playing')
-      const replaced = run(started, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], place: 'reset' })
+      const replaced = run(started, { type: 'SET_SCRIPT', wordCount: 20, paragraphStarts: [0], sentenceEnds: [], place: 'reset' })
       expect(play(replaced).mode.kind).toBe('countdown')
     })
 
@@ -344,5 +344,49 @@ describe('moving by hand in Auto', () => {
   it('pauses otherwise', () => {
     expect(run(playing, { type: 'SCRUB', cursor: 30, keepPlaying: false })).toMatchObject({ cursor: 30, mode: { kind: 'paused' } })
     expect(run(playing, { type: 'STEP_LINE', delta: 1, keepPlaying: false }).mode.kind).toBe('paused')
+  })
+})
+
+describe('Follow at the end of a sentence', () => {
+  const script = run(
+    initialPlayback,
+    { type: 'SET_SCRIPT', wordCount: 40, paragraphStarts: [0, 30], sentenceEnds: [12, 20], place: 'reset' },
+    { type: 'FOLLOW' },
+  )
+  const heardAt = (matched: number, position = matched, pace = 3 / 1000): PlaybackEvent => ({ type: 'HEARD', matched, position, pace })
+  const settle = (state: PlaybackState) => run(state, ...Array.from({ length: 60 }, () => ({ type: 'TICK', dtMs: 100, wpm: 100 }) as const))
+
+  it('coasts no further than the end of the sentence the reader was heard in', () => {
+    expect(settle(run(script, heardAt(10))).cursor).toBe(12)
+  })
+
+  it('allows for the time the match took only up to the end of the sentence', () => {
+    expect(settle(run(script, heardAt(11, 14, 0))).cursor).toBe(12)
+  })
+
+  it('carries on into the next sentence once the reader is heard in it', () => {
+    expect(settle(run(script, heardAt(10), heardAt(13))).cursor).toBe(20)
+  })
+
+  it('goes on past the end of a sentence once the reader pauses there and starts again', () => {
+    const atEnd = settle(run(script, heardAt(10)))
+    expect(atEnd.cursor).toBe(12)
+    const readOn = settle(run(atEnd, { type: 'VOICE', speaking: true }))
+    expect(readOn.cursor).toBe(20)
+  })
+
+  it('waits for Whisper when the reader is still finishing the sentence as the cursor gets there', () => {
+    const finishing = run(script, { type: 'VOICE', speaking: true }, heardAt(10))
+    expect(settle(finishing).cursor).toBe(12)
+  })
+
+  it('keeps waiting at the end of a sentence through a pause, and through a breath too short to be reading on', () => {
+    const atEnd = settle(run(script, heardAt(10)))
+    const breath = run(atEnd, { type: 'VOICE', speaking: true }, { type: 'TICK', dtMs: 100, wpm: 100 }, { type: 'VOICE', speaking: false })
+    expect(settle(breath).cursor).toBe(12)
+  })
+
+  it('stops at the end of a paragraph too', () => {
+    expect(settle(run(script, heardAt(25))).cursor).toBe(30)
   })
 })

@@ -8,6 +8,8 @@ const SPEECH_RMS = 0.01
 const RECENT_MS = 1500
 /** The reader has stopped once this long has been silent: longer than a breath between phrases. */
 export const QUIET_MS = 700
+/** Short enough to notice the pause at the end of a sentence. */
+const VOICED_MS = 200
 
 const CAPTURE_WORKLET = `
 registerProcessor('tp-capture', class extends AudioWorkletProcessor {
@@ -21,6 +23,8 @@ registerProcessor('tp-capture', class extends AudioWorkletProcessor {
 export interface Microphone {
   /** False once the last QUIET_MS has been silent. */
   speaking(): boolean
+  /** True while there is speech right now, in the last VOICED_MS. */
+  voiced(): boolean
   /** The last CLIP_MS of audio as a WAV file, or null when the reader has been silent lately. */
   clip(): Blob | null
   stop(): void
@@ -61,6 +65,7 @@ export async function openMicrophone(): Promise<Microphone> {
 
   return {
     speaking: () => loud(lastMs(recent(), QUIET_MS), rate),
+    voiced: () => loud(lastMs(recent(), VOICED_MS), rate),
     clip() {
       const samples = recent()
       if (!loud(lastMs(samples, RECENT_MS), rate)) return null

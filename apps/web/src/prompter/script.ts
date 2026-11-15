@@ -12,6 +12,8 @@ export interface TokenizedScript {
   paragraphStarts: readonly number[]
   /** Paragraphs shown with a Section marker before them. */
   sectionStarts: readonly number[]
+  /** Index just past each word that ends a sentence, where a reader usually pauses. */
+  sentenceEnds: readonly number[]
 }
 
 /** A paragraph as the Prompter shows it, before it is split into words. */
@@ -21,7 +23,10 @@ export interface Block {
   sectionStart: boolean
 }
 
-export const EMPTY_TOKENS: TokenizedScript = { words: [], paragraphStarts: [], sectionStarts: [] }
+export const EMPTY_TOKENS: TokenizedScript = { words: [], paragraphStarts: [], sectionStarts: [], sentenceEnds: [] }
+
+/** A full stop, question or exclamation mark, or ellipsis, then any closing quotes or brackets. */
+const SENTENCE_END = /[.!?…]["'”’)\]]*$/
 
 const PARAGRAPH_SEPARATOR = /\n[ \t]*\n\s*/
 
@@ -51,5 +56,6 @@ export function tokenize(script: Pick<Script, 'text' | 'format'>, spokenOnly: bo
       ),
     )
   }
-  return { words, paragraphStarts, sectionStarts }
+  const sentenceEnds = words.flatMap((word, index) => (SENTENCE_END.test(word.text) ? [index + 1] : []))
+  return { words, paragraphStarts, sectionStarts, sentenceEnds }
 }

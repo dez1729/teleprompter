@@ -73,6 +73,7 @@ export function usePrompter(ui: UiBridge) {
       type: 'SET_SCRIPT',
       wordCount: initial.words.length,
       paragraphStarts: initial.paragraphStarts,
+      sentenceEnds: initial.sentenceEnds,
       place: 'reset',
     }),
   )
@@ -118,7 +119,7 @@ export function usePrompter(ui: UiBridge) {
     const { current, tokens: before } = live.current
     const after = tokenize(current, next.spokenOnly)
     live.current = { current, tokens: after }
-    dispatch({ type: 'SET_SCRIPT', wordCount: after.words.length, paragraphStarts: after.paragraphStarts, place: placementFor('edit', before, after) })
+    dispatch({ type: 'SET_SCRIPT', wordCount: after.words.length, paragraphStarts: after.paragraphStarts, sentenceEnds: after.sentenceEnds, place: placementFor('edit', before, after) })
   }, [])
 
   const updateSetting = useCallback(
@@ -143,7 +144,7 @@ export function usePrompter(ui: UiBridge) {
 
     live.current = { current: incoming, tokens: nextTokens }
     setCurrent(incoming)
-    dispatch({ type: 'SET_SCRIPT', wordCount: nextTokens.words.length, paragraphStarts: nextTokens.paragraphStarts, place })
+    dispatch({ type: 'SET_SCRIPT', wordCount: nextTokens.words.length, paragraphStarts: nextTokens.paragraphStarts, sentenceEnds: nextTokens.sentenceEnds, place })
     setReplaced(replaceNotice(message, restoring.current))
     if (kind === 'replace') restoring.current = false
   }, [])
