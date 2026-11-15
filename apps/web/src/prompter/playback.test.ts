@@ -317,6 +317,7 @@ describe("Follow", () => {
 
   it("trails the reader again from the first match after a jump", () => {
     // The jump lands on where the reader is by now; a second later they have read three words further.
+    // At this pace the reader moves on more than the trail during the glide; a much slower reader would not.
     const heardFar = { type: "HEARD", matched: 30, position: 32, pace: 3 / 1000 } as const;
     const jumped = run(following, heardFar, ...Array.from({ length: 10 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) as const));
     const next = run(jumped, { type: "HEARD", matched: 33, position: 35, pace: 3 / 1000 });
