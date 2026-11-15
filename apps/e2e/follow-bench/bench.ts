@@ -6,10 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import type { PushRequest } from "@teleprompter/protocol";
+import { normalizeWord, type PushRequest } from "@teleprompter/protocol";
 import { optionsFromEnv, startServer } from "@teleprompter/server";
 import { isNil } from "es-toolkit";
-import { normalize } from "../../web/src/prompter/follow/align.ts";
 
 // Each word is one Whisper word ("streetlights" would come back as two), so word timestamps line up with the Script.
 const PARAGRAPH =
@@ -74,7 +73,7 @@ const timeWords = async (audio: ArrayBuffer, scriptWords: readonly string[]): Pr
   const response = await fetch(new URL("/v1/audio/transcriptions", WHISPER_URL), { method: "POST", body: form });
   if (!response.ok) throw new Error(`Whisper at ${WHISPER_URL} answered ${response.status}: ${await response.text()}`);
   const { words } = (await response.json()) as { words: { word: string; start: number; end: number }[] };
-  const heard = words.filter((w) => normalize(w.word) !== "");
+  const heard = words.filter((w) => normalizeWord(w.word) !== "");
   if (heard.length !== scriptWords.length) {
     throw new Error(`Whisper heard ${heard.length} words in a Script of ${scriptWords.length}; reword the paragraph`);
   }
@@ -184,11 +183,14 @@ const score = (points: readonly Point[], sentenceEnds: readonly number[], wordCo
   };
 };
 
-interface RunOptions {
+interface FollowOptions {
   from: number;
-  clipPath: string;
   timing: readonly TimedWord[];
   trace: boolean;
+}
+
+interface RunOptions extends FollowOptions {
+  clipPath: string;
 }
 
 const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<RunResult> => {
@@ -215,11 +217,12 @@ const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<R
   }
 };
 
-interface FollowOptions {
-  from: number;
-  timing: readonly TimedWord[];
-  trace: boolean;
-}
+// Runs in the page: "open" once the microphone has opened, or the reason Follow stopped, shown in its status line.
+const micState = () => {
+  const stopped = document.querySelector('[data-follow-status="error"]')?.textContent;
+  if (stopped !== undefined && stopped !== null) return stopped;
+  return (window as unknown as { micOpenedAt?: number }).micOpenedAt === undefined ? null : "open";
+};
 
 const follow = async (url: string, browser: Browser, { from, timing, trace }: FollowOptions): Promise<RunResult> => {
   const pushed = await fetch(`${url}/api/script`, {
@@ -236,10 +239,13 @@ const follow = async (url: string, browser: Browser, { from, timing, trace }: Fo
   await page.keyboard.press("f");
   await page.keyboard.press(" ");
   // Timed from when the microphone opened, so a slow start cannot end the run before the speech does.
-  await page.waitForFunction(() => (window as unknown as { micOpenedAt?: number }).micOpenedAt !== undefined);
+  const opened = await (await page.waitForFunction(micState)).jsonValue();
+  if (opened !== "open") throw new Error(`Follow stopped: ${opened}`);
   const cutSec = cutBefore(timing, from);
   const speechSec = timing.at(-1)!.end - cutSec;
   await page.waitForTimeout((LEAD_IN_SEC + speechSec + TAIL_SEC - 0.5) * 1000);
+  const ended = await page.evaluate(micState);
+  if (ended !== "open") throw new Error(`Follow stopped: ${ended}`);
 
   const began = timing.at(from)!.start;
   const points = (await readSamples(page)).map(([ms, cursor]): Point => {
@@ -267,14 +273,13 @@ const { values } = parseArgs({
     trace: { type: "boolean", default: false },
   },
 });
-const wholeNumber = (option: string, value: string, below: number) => {
+const wholeNumber = (option: string, value: string, min: number, max: number) => {
   const n = Number(value);
-  if (!Number.isInteger(n) || n < 0 || n >= below) throw new Error(`${option} must be a whole number from 0 to ${below - 1}, not ${value}`);
+  if (!Number.isInteger(n) || n < min || n > max) throw new Error(`${option} must be a whole number from ${min} to ${max}, not ${value}`);
   return n;
 };
-const starts = values.from.map((value) => wholeNumber("--from", value, SCRIPT_WORDS.length));
-const runs = wholeNumber("--runs", values.runs, 1000);
-if (runs === 0) throw new Error("--runs must be at least 1");
+const starts = values.from.map((value) => wholeNumber("--from", value, 0, SCRIPT_WORDS.length - 1));
+const runs = wholeNumber("--runs", values.runs, 1, 999);
 
 const recording = await speak(PARAGRAPH);
 const timing = await timeWords(recording, SCRIPT_WORDS);

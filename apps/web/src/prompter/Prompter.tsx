@@ -307,6 +307,7 @@ const FollowStatusLine = ({ status }: FollowStatusLineProps) => {
   return (
     <p
       role="status"
+      data-follow-status={status.kind}
       className="pointer-events-none absolute top-3 right-3 max-w-md text-right text-xs opacity-60"
     >
       {text}
