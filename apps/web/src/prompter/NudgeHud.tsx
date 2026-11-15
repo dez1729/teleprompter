@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
-import { isNil } from 'es-toolkit'
 import { cn } from '@/lib/utils'
 import type { NudgeReadout } from './usePrompter'
+import { useShownFor } from './useShownFor'
 
 const HUD_VISIBLE_MS = 1200
 
@@ -10,15 +9,7 @@ interface NudgeHudProps {
 }
 
 export const NudgeHud = ({ readout }: NudgeHudProps) => {
-  // Each readout shows until its own timer runs out; a new one shows at once.
-  const [expired, setExpired] = useState<NudgeReadout | null>(null)
-  const visible = !isNil(readout) && readout !== expired
-
-  useEffect(() => {
-    if (isNil(readout)) return
-    const timer = setTimeout(() => setExpired(readout), HUD_VISIBLE_MS)
-    return () => clearTimeout(timer)
-  }, [readout])
+  const visible = useShownFor(readout, HUD_VISIBLE_MS)
 
   return (
     <div

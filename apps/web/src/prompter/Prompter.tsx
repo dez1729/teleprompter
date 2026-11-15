@@ -97,8 +97,10 @@ export const Prompter = () => {
     return () => observer.disconnect()
   }, [remeasure, script])
 
-  // A web font that finishes loading after the first measure moves every word.
-  useEffect(() => {
+  // A web font that finishes loading after the first measure moves every word. Listening from a layout effect,
+  // in the same commit as that measure, leaves no gap for a load to finish unheard.
+  useLayoutEffect(() => {
+    if (!('fonts' in document)) return
     document.fonts.addEventListener('loadingdone', remeasure)
     return () => document.fonts.removeEventListener('loadingdone', remeasure)
   }, [remeasure])

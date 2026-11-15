@@ -60,10 +60,8 @@ interface ScriptStreamHandlers {
   onConnection: (connected: boolean) => void
 }
 
-/**
- * The server's event stream, from start() to stop(). EventSource reconnects on its own and the
- * server sends the current Script again each time, which arrives as a snapshot.
- */
+// The server's event stream, from start() to stop(). EventSource reconnects on its own and the
+// server sends the current Script again each time, which arrives as a snapshot.
 export class ScriptStream {
   readonly #handlers: ScriptStreamHandlers
   #source: EventSource | null = null
@@ -73,6 +71,8 @@ export class ScriptStream {
   }
 
   start(): void {
+    // Starting again replaces the connection rather than adding a second one.
+    this.stop()
     const source = new EventSource('/api/events')
     source.onopen = () => this.#handlers.onConnection(true)
     source.onerror = () => this.#handlers.onConnection(false)

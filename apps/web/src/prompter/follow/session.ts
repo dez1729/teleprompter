@@ -21,14 +21,14 @@ interface Match {
   at: number
 }
 
-/** Where Follow listens: the Spoken-only words, normalized, and the place it expects the reader to be. */
+// Where Follow listens: the Spoken-only words, normalized, and the place it expects the reader to be.
 export interface FollowPlace {
   script: readonly string[]
   target: number
 }
 
 export interface FollowHost {
-  /** Read at each clip, so an Edit or a move by hand is seen at once. */
+  // Read at each clip, so an Edit or a move by hand is seen at once.
   place: () => FollowPlace
   dispatch: (event: PlaybackEvent) => void
   onStatus: (status: FollowStatus) => void
@@ -52,14 +52,12 @@ const micError = (error: unknown): string => {
   return `Follow could not open the microphone: ${String(error)}`
 }
 
-/**
- * One stretch of Follow, from start() to stop(): listens to the reader and reports where they are with HEARD.
- * Stops with an error status, and pauses, when the microphone or the Transcriber fails.
- */
+// One stretch of Follow, from start() to stop(): listens to the reader and reports where they are with HEARD.
+// Stops with an error status, and pauses, when the microphone or the Transcriber fails.
 export class FollowSession {
   readonly #host: FollowHost
   #recent: Match[] = []
-  /** Words per ms, starting from the expected pace until the reader's own is measured. */
+  // Words per ms, starting from the expected pace until the reader's own is measured.
   #pace: number
   #stopped = false
   #opening: Promise<Microphone> | null = null
@@ -80,6 +78,8 @@ export class FollowSession {
   }
 
   stop(): void {
+    // A failure stops the session, and the pause it causes stops it again.
+    if (this.#stopped) return
     this.#stopped = true
     clearInterval(this.#quietCheck)
     void this.#opening?.then(
@@ -119,7 +119,7 @@ export class FollowSession {
     }
   }
 
-  /** `started` is when the clip ended: the reader has kept reading since. */
+  // `started` is when the clip ended: the reader has kept reading since.
   #heard(text: string, started: number): void {
     const { script, target } = this.#host.place()
     const matched = align(script, heardWords(text), target)

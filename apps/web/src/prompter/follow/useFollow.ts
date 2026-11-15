@@ -6,10 +6,8 @@ import { FollowSession, type FollowPlace, type FollowStatus } from './session'
 
 const OFF: FollowStatus = { kind: 'off' }
 
-/**
- * Runs a FollowSession while the mode is following. `expectedWpm`, the Auto Speed, is the reader's pace until
- * their own is measured. An error stays shown after Follow stops, until it starts again.
- */
+// Runs a FollowSession while the mode is following. `expectedWpm`, the Auto Speed, is the reader's pace until
+// their own is measured. An error stays shown after Follow stops, until it starts again.
 export const useFollow = (
   mode: PlaybackMode,
   words: readonly Word[],
@@ -18,6 +16,12 @@ export const useFollow = (
 ): FollowStatus => {
   const following = mode.kind === 'following'
   const [status, setStatus] = useState<FollowStatus>(OFF)
+  // Turning Follow on starts from "starting", not from whatever the last session ended on.
+  const [wasFollowing, setWasFollowing] = useState(following)
+  if (wasFollowing !== following) {
+    setWasFollowing(following)
+    if (following) setStatus({ kind: 'starting' })
+  }
   const script = useMemo(() => words.map((word) => normalize(word.text)), [words])
   const place = useRef<FollowPlace>({ script, target: 0 })
   place.current = { script, target: mode.kind === 'following' ? mode.target : 0 }

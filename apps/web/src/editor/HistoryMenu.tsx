@@ -1,5 +1,5 @@
 import { History } from 'lucide-react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { VersionSummary } from '@teleprompter/protocol'
 import { isNil } from 'es-toolkit'
@@ -21,7 +21,8 @@ interface HistoryMenuProps {
 /** `revision` is the Script's, so the list reloads when the Script changes while the menu is open. */
 export const HistoryMenu = ({ revision }: HistoryMenuProps) => {
   const [open, setOpen] = useState(false)
-  const history = useQuery({ queryKey: ['history', revision], queryFn: fetchHistory, enabled: open })
+  // A new revision keeps the old list on screen until the new one arrives.
+  const history = useQuery({ queryKey: ['history', revision], queryFn: fetchHistory, enabled: open, placeholderData: keepPreviousData })
   const restore = useMutation({ mutationFn: restoreVersion, onSuccess: () => setOpen(false) })
   const failed = history.isError || restore.isError
   const changeOpen = (next: boolean) => {

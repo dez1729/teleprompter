@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
-import { isNil } from 'es-toolkit'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ReplaceNotice } from './usePrompter'
+import { useShownFor } from './useShownFor'
 
 const TOAST_VISIBLE_MS = 10_000
 
@@ -12,15 +11,7 @@ interface UndoToastProps {
 }
 
 export const UndoToast = ({ notice, onUndo }: UndoToastProps) => {
-  // Each notice shows until its own timer runs out; a new one shows at once.
-  const [expired, setExpired] = useState<ReplaceNotice | null>(null)
-  const visible = !isNil(notice) && notice !== expired
-
-  useEffect(() => {
-    if (isNil(notice)) return
-    const timer = setTimeout(() => setExpired(notice), TOAST_VISIBLE_MS)
-    return () => clearTimeout(timer)
-  }, [notice])
+  const visible = useShownFor(notice, TOAST_VISIBLE_MS)
 
   return (
     <div

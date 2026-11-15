@@ -22,13 +22,13 @@ const write = (key: string, value: unknown): void => {
   }
 }
 
-/** The Script this browser stored before the server owned it, for the one-time move to the server. */
-/** A Script saved in this browser by an earlier version. */
+// A Script saved in this browser by an earlier version.
 interface LegacyScript {
   text: string
   format?: 'markdown' | 'text'
 }
 
+/** The Script this browser stored before the server owned it, for the one-time move to the server. */
 export const loadLegacyScript = (): LegacyScript | null => {
   const raw = read(LEGACY_SCRIPT_KEY)
   if (!isPlainObject(raw)) return null
