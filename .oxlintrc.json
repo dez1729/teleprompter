@@ -1,0 +1,70 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "style": "off"
+  },
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "react"],
+  "options": {
+    "typeAware": true
+  },
+  "settings": {
+    "react": {
+      "version": "19.3.1"
+    }
+  },
+  "ignorePatterns": [],
+  "jsPlugins": [{ "name": "eslint-js", "specifier": "oxlint-plugin-eslint" }, "eslint-plugin-react-you-might-not-need-an-effect"],
+  "rules": {
+    "eslint/no-eval": "off",
+    "eslint/no-useless-escape": "off",
+    "eslint/no-unused-expressions": "off",
+    "eslint/no-unused-vars": "warn",
+    "eslint/no-useless-assignment": "warn",
+    "eslint/prefer-const": "warn",
+    "eslint/prefer-destructuring": ["warn", { "object": true, "array": false }],
+    "eslint-js/no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "CallExpression[callee.name='requestAnimationFrame'] CallExpression[callee.name='requestAnimationFrame']",
+        "message": "Nested requestAnimationFrame calls (\"double rAF\") to defer past a paint are disallowed - they're a timing guess, not a fix. Find the actual synchronization point (e.g. observe the real DOM/ready-state) instead, or get explicit approval before using this pattern."
+      },
+      {
+        "selector": "ImportNamespaceSpecifier",
+        "message": "Use named imports (import { x } from \"y\") instead of a namespace import (import * as X from \"y\")."
+      }
+    ],
+
+    "typescript/no-non-null-asserted-optional-chain": "off",
+    "typescript/no-floating-promises": "warn",
+    "typescript/no-extra-non-null-assertion": "warn",
+    "typescript/no-empty-object-type": "warn",
+    "typescript/no-unsafe-function-type": "warn",
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-require-imports": "error",
+
+    "react/no-direct-mutation-state": "off",
+    "react/exhaustive-deps": "warn",
+    "react/set-state-in-effect": "warn",
+    "react/preserve-manual-memoization": "warn",
+    "react/refs": "off",
+    "react/incompatible-library": "off",
+    "react/error-boundaries": "error",
+    "react/globals": "error",
+    "react/immutability": "error",
+    "react/purity": "error",
+    "react/set-state-in-render": "error",
+    "react/static-components": "error",
+    "react/use-memo": "error",
+    "react/unsupported-syntax": "error",
+
+    "react-you-might-not-need-an-effect/no-derived-state": "warn",
+    "react-you-might-not-need-an-effect/no-chain-state-updates": "warn",
+    "react-you-might-not-need-an-effect/no-event-handler": "warn",
+    "react-you-might-not-need-an-effect/no-adjust-state-on-prop-change": "warn",
+    "react-you-might-not-need-an-effect/no-reset-all-state-on-prop-change": "warn",
+    "react-you-might-not-need-an-effect/no-pass-live-state-to-parent": "warn",
+    "react-you-might-not-need-an-effect/no-pass-data-to-parent": "warn",
+    "react-you-might-not-need-an-effect/no-initialize-state": "warn"
+  }
+}
