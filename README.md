@@ -203,7 +203,7 @@ If two Editor windows are typing at the same moment, the last one to send wins. 
 - `packages/cli` is the `tp` command.
 - `plugins/teleprompter` is the Claude Code plugin.
 - `apps/obsidian` is the Obsidian plugin.
-- `apps/e2e` holds the Playwright smoke test.
+- `apps/e2e` holds the Playwright smoke test and the Follow benchmark.
 - [GLOSSARY.md](./GLOSSARY.md) defines the project's terms, such as Script, Reading window, and Push.
 - [docs/adr](./docs/adr) records design decisions.
 
@@ -216,6 +216,8 @@ pnpm test:e2e
 ```
 
 `pnpm test:e2e` builds the app and drives it in Chromium. Install the browser once with `pnpm --filter @teleprompter/e2e exec playwright install chromium`. The test starts its own server on a free port with a temporary data directory.
+
+`pnpm bench:follow` measures how closely Follow keeps up with a voice. It needs a Whisper server and a Kokoro text-to-speech server running locally, at `http://127.0.0.1:2022` and `http://127.0.0.1:8880` unless `TELEPROMPTER_WHISPER_URL` or `KOKORO_URL` say otherwise. Kokoro speaks a 77-word paragraph, and the recording plays as Chromium's microphone, starting at word 62, 30 and 0 by default. For each run it prints how many seconds Follow takes to come within three words of the voice, how far it trails the voice while reading, and how far it ever gets ahead of the voice or past a sentence end. Choose the starting words and the number of runs with `pnpm bench:follow --from 62 --runs 3`, and add `--trace` to print every cursor sample.
 
 ## Roadmap
 

@@ -12,7 +12,8 @@
     "test:e2e": "pnpm build && pnpm --filter @teleprompter/e2e test:e2e",
     "lint": "oxlint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "bench:follow": "pnpm build && pnpm --filter @teleprompter/e2e bench:follow"
   },
   "engines": {
     "node": ">=22.18"
