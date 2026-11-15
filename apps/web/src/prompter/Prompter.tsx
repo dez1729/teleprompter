@@ -14,6 +14,7 @@ import { UndoToast } from './UndoToast'
 import { FONT_STACKS, GAP_PACES } from './settings'
 import type { FollowStatus } from './follow/useFollow'
 import { usePrompter } from './usePrompter'
+import { isNil } from 'es-toolkit'
 
 const BAR_HIDE_DELAY_MS = 2000
 const DRAG_THRESHOLD_PX = 3
@@ -21,7 +22,7 @@ const WHEEL_LINE_PX = 16
 
 const openEditor = () => openNamedWindow('/editor', EDITOR_WINDOW)
 
-export function Prompter() {
+export const Prompter = () => {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const { script, connected, tokens, settings, playback, follow, readout, replaced, undoReplace, dispatch, updateSetting, run } = usePrompter({
@@ -71,7 +72,7 @@ export function Prompter() {
   useReadWords(textRef, tokens, settings.readWords ? readCount(playback.cursor, tokens.words.length) : 0)
 
   const remeasure = useCallback(() => {
-    if (!textRef.current) return
+    if (isNil(textRef.current)) return
     const next = measureLayout(textRef.current, GAP_PACES[settings.paragraphPause])
     setLayout(next)
     dispatch({ type: 'SET_LAYOUT', lines: pacedLines(next) })
@@ -128,7 +129,7 @@ export function Prompter() {
   const onPointerMove = (event: PointerEvent) => {
     showBar()
     const current = drag.current
-    if (!current) return
+    if (isNil(current)) return
     const dy = event.clientY - current.startY
     if (!current.moved && Math.abs(dy) < DRAG_THRESHOLD_PX) return
     current.moved = true
@@ -206,7 +207,7 @@ export function Prompter() {
           </div>
         )}
 
-        {!script && (
+        {isNil(script) && (
           <div className="absolute inset-0 flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()}>
             <Empty>
               <EmptyHeader>
@@ -251,7 +252,7 @@ export function Prompter() {
   )
 }
 
-function FollowStatusLine({ status }: { status: FollowStatus }) {
+const FollowStatusLine = ({ status }: { status: FollowStatus }) => {
   if (status.kind === 'off') return null
   const text = status.kind === 'error' ? status.message : status.kind === 'starting' ? 'Opening the microphone…' : 'Following your voice'
   return (

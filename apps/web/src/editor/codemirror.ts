@@ -49,12 +49,12 @@ export interface ScriptEditor {
   destroy: () => void
 }
 
-export function createScriptEditor(options: {
+export const createScriptEditor = (options: {
   parent: HTMLElement
   text: string
   format: ScriptFormat
   onChange: (text: string) => void
-}): ScriptEditor {
+}): ScriptEditor => {
   const language = new Compartment()
   const view = new EditorView({
     parent: options.parent,

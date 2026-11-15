@@ -5,7 +5,7 @@ interface Schema<T> {
 }
 
 /** Reads a JSON file. A missing file gives the fallback; an unreadable one is moved aside first. */
-export function readJsonFile<T>(file: string, schema: Schema<T>, fallback: T): T {
+export const readJsonFile = <T>(file: string, schema: Schema<T>, fallback: T): T => {
   let raw: string
   try {
     raw = readFileSync(file, 'utf8')
@@ -22,13 +22,13 @@ export function readJsonFile<T>(file: string, schema: Schema<T>, fallback: T): T
 }
 
 /** Temp file and rename, so a crash never leaves a half-written file. */
-export function writeJsonFile(file: string, value: unknown): void {
+export const writeJsonFile = (file: string, value: unknown): void => {
   const temp = `${file}.${process.pid}.tmp`
   writeFileSync(temp, JSON.stringify(value))
   renameSync(temp, file)
 }
 
-function safeJson(raw: string): unknown {
+const safeJson = (raw: string): unknown => {
   try {
     return JSON.parse(raw)
   } catch {

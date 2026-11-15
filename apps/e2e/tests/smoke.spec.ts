@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test'
 
 const TP = join(import.meta.dirname, '../../../packages/cli/bin/tp.js')
 
-function freePort(): Promise<number> {
+const freePort = (): Promise<number> => {
   return new Promise((resolve, reject) => {
     const probe = createServer()
     probe.once('error', reject)
@@ -42,7 +42,7 @@ test.afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true })
 })
 
-function tp(args: string[], input: string) {
+const tp = (args: string[], input: string) => {
   const result = spawnSync('node', [TP, ...args], {
     input,
     encoding: 'utf8',

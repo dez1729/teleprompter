@@ -12,8 +12,9 @@ import {
 } from '@teleprompter/protocol'
 import { ScriptHistory } from './history.ts'
 import { readJsonFile, writeJsonFile } from './jsonFile.ts'
+import { isNil } from 'es-toolkit'
 
-export function nextScript(current: Script, request: PushRequest): Script {
+export const nextScript = (current: Script, request: PushRequest): Script => {
   const revision = current.revision + 1
   if (request.kind === 'append') {
     const text = appendText(current.text, request.text)
@@ -76,7 +77,7 @@ export class ScriptStore {
   /** Makes a Version the Script again, as a Replace, so the restore is itself undoable. */
   restore(id: string): ScriptChange | undefined {
     const version = this.#history.get(id)
-    if (!version) return undefined
+    if (isNil(version)) return undefined
     const { text, format, source } = version
     return this.change({ kind: 'replace', text, format, ...(source === null ? {} : { source }) })
   }

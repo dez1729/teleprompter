@@ -8,14 +8,14 @@ const LOOPBACK_NAMES = ['localhost', '127.0.0.1']
 /** Obsidian desktop. A web page cannot send an app:// origin, so this opens nothing to browsers. */
 const OBSIDIAN_ORIGIN = 'app://obsidian.md'
 
-function allowed(ports: readonly number[]) {
+const allowed = (ports: readonly number[]) => {
   const hosts = new Set<string>()
   for (const name of LOOPBACK_NAMES) for (const port of ports) hosts.add(`${name}:${port}`)
   return hosts
 }
 
 /** Rejects a Host that is not loopback with our port, which stops DNS rebinding. */
-export function hostGuard(ports: () => readonly number[]): MiddlewareHandler {
+export const hostGuard = (ports: () => readonly number[]): MiddlewareHandler => {
   return async (c, next) => {
     const host = c.req.header('host')?.toLowerCase()
     if (!host || !allowed(ports()).has(host)) return c.json({ error: 'Forbidden host' }, 403)
@@ -28,7 +28,7 @@ export function hostGuard(ports: () => readonly number[]): MiddlewareHandler {
  * allowed: browsers always send one on cross-site writes, while the CLI sends
  * none. Obsidian's requestUrl may send none or Obsidian's own origin.
  */
-export function originGuard(ports: () => readonly number[]): MiddlewareHandler {
+export const originGuard = (ports: () => readonly number[]): MiddlewareHandler => {
   return async (c, next) => {
     const origin = c.req.header('origin')
     if (origin !== undefined && !SAFE_METHODS.has(c.req.method)) {

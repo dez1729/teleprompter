@@ -14,7 +14,7 @@ import { readJsonFile, writeJsonFile } from './jsonFile.ts'
 export const EDIT_IDLE_MS = 30_000
 const PREVIEW_CHARS = 80
 
-export function summarize({ text, format: _format, ...rest }: Version): VersionSummary {
+export const summarize = ({ text, format: _format, ...rest }: Version): VersionSummary => {
   const flat = text.trim().replace(/\s+/g, ' ')
   return {
     ...rest,

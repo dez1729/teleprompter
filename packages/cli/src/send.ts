@@ -11,14 +11,14 @@ export interface SendOptions {
 
 export const defaultUrl = `http://127.0.0.1:${DEFAULT_PORT}`
 
-export function buildRequest({ kind, text, markdown, source }: SendOptions): PushRequest {
+export const buildRequest = ({ kind, text, markdown, source }: SendOptions): PushRequest => {
   return { kind, text, ...(markdown ? { format: 'markdown' } : {}), ...(source ? { source } : {}) }
 }
 
-export async function send(
+export const send = async (
   options: SendOptions,
   { url, fetch: doFetch = fetch }: { url: string; fetch?: typeof fetch },
-): Promise<Script> {
+): Promise<Script> => {
   const endpoint = new URL('/api/script', url)
   let response: Response
   try {

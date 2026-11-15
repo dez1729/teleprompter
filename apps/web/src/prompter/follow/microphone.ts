@@ -30,7 +30,7 @@ export interface Microphone {
   stop(): void
 }
 
-export async function openMicrophone(): Promise<Microphone> {
+export const openMicrophone = async (): Promise<Microphone> => {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
   })
@@ -54,10 +54,13 @@ export async function openMicrophone(): Promise<Microphone> {
   }
   source.connect(node)
 
+  // Copied in two blocks, oldest first; reading it sample by sample is many times slower.
   const recent = (): Float32Array => {
-    const length = Math.min(written, ring.length)
-    const out = new Float32Array(length)
-    for (let i = 0; i < length; i++) out[i] = ring[(written - length + i) % ring.length]!
+    if (written < ring.length) return ring.slice(0, written)
+    const split = written % ring.length
+    const out = new Float32Array(ring.length)
+    out.set(ring.subarray(split))
+    out.set(ring.subarray(0, split), ring.length - split)
     return out
   }
 
@@ -80,18 +83,18 @@ export async function openMicrophone(): Promise<Microphone> {
   }
 }
 
-function loud(samples: Float32Array, rate: number): boolean {
+const loud = (samples: Float32Array, rate: number): boolean => {
   const window = Math.round(rate / 10)
   for (let start = 0; start + window <= samples.length; start += window) {
     let sum = 0
-    for (let i = start; i < start + window; i++) sum += samples[i]! ** 2
+    for (const sample of samples.subarray(start, start + window)) sum += sample ** 2
     if (Math.sqrt(sum / window) >= SPEECH_RMS) return true
   }
   return false
 }
 
 /** Averages each output sample's span of input samples, which also filters out what the lower rate cannot hold. */
-export function resample(samples: Float32Array, from: number, to: number): Float32Array {
+export const resample = (samples: Float32Array, from: number, to: number): Float32Array => {
   if (from === to) return samples
   const ratio = from / to
   const out = new Float32Array(Math.floor(samples.length / ratio))
@@ -99,14 +102,14 @@ export function resample(samples: Float32Array, from: number, to: number): Float
     const start = Math.floor(i * ratio)
     const end = Math.max(start + 1, Math.floor((i + 1) * ratio))
     let sum = 0
-    for (let j = start; j < end; j++) sum += samples[j]!
+    for (const sample of samples.subarray(start, end)) sum += sample
     out[i] = sum / (end - start)
   }
   return out
 }
 
 /** 16-bit mono PCM in a WAV container. */
-export function wav(samples: Float32Array, rate: number): Blob {
+export const wav = (samples: Float32Array, rate: number): Blob => {
   const view = new DataView(new ArrayBuffer(44 + samples.length * 2))
   const text = (offset: number, value: string) => [...value].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)))
   text(0, 'RIFF')

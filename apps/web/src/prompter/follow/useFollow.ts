@@ -4,6 +4,7 @@ import type { PlaybackEvent, PlaybackMode } from '../playback'
 import type { Word } from '../script'
 import { align, heardWords, normalize } from './align'
 import { openMicrophone, QUIET_MS } from './microphone'
+import { isNil } from 'es-toolkit'
 
 /** The least time between clips, so Whisper is not asked about the same half second over and over. */
 const INTERVAL_MS = 600
@@ -23,17 +24,17 @@ interface Match {
 }
 
 /** Words per ms across the recent matches, or `fallback` when they span too little time, such as after a pause. */
-function paceOver(matches: readonly Match[], fallback: number): number {
-  const first = matches[0]
-  const last = matches[matches.length - 1]
-  if (!first || !last || last.at - first.at < PACE_WINDOW_MS / 3) return fallback
+const paceOver = (matches: readonly Match[], fallback: number): number => {
+  const first = matches.at(0)
+  const last = matches.at(matches.length - 1)
+  if (isNil(first) || isNil(last) || last.at - first.at < PACE_WINDOW_MS / 3) return fallback
   const pace = (last.position - first.position) / (last.at - first.at)
   return pace >= 0 && pace <= MAX_PACE ? pace : fallback
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-function micError(error: unknown): string {
+const micError = (error: unknown): string => {
   const name = error instanceof DOMException ? error.name : ''
   if (name === 'NotAllowedError') return 'Follow needs the microphone. Allow it in the browser and press F again.'
   if (name === 'NotFoundError') return 'Follow found no microphone.'
@@ -45,12 +46,12 @@ function micError(error: unknown): string {
  * Stops with an error status, and pauses, when the microphone or the Transcriber fails.
  */
 /** `expectedWpm` is the pace assumed until the reader's own is measured: the Auto Speed. */
-export function useFollow(
+export const useFollow = (
   mode: PlaybackMode,
   words: readonly Word[],
   expectedWpm: number,
   dispatch: Dispatch<PlaybackEvent>,
-): FollowStatus {
+): FollowStatus => {
   const following = mode.kind === 'following'
   const [status, setStatus] = useState<FollowStatus>({ kind: 'off' })
   const script = useMemo(() => words.map((word) => normalize(word.text)), [words])
@@ -96,7 +97,7 @@ export function useFollow(
             const { recent } = matches.current
             if (!stopped && matched !== null) {
               // Going back starts the pace over; the matches before it say nothing about it.
-              const wentBack = matched < (recent[recent.length - 1]?.position ?? 0)
+              const wentBack = matched < (recent.at(recent.length - 1)?.position ?? 0)
               const kept = wentBack ? [] : recent.filter((match) => match.at > started - PACE_WINDOW_MS)
               kept.push({ position: matched, at: started })
               const pace = paceOver(kept, matches.current.pace)

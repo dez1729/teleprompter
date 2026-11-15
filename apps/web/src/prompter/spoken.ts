@@ -30,7 +30,7 @@ const CALLOUT = /^\s*>\s*\[!/
 const keepLineBreaks = (match: string) => match.replace(/[^\n]/g, '')
 
 /** Obsidian syntax that CommonMark does not know: frontmatter, %% comments, footnotes, embeds and wikilinks. */
-function rewriteObsidian(source: string): string {
+const rewriteObsidian = (source: string): string => {
   return source
     .replace(/^---\n[\s\S]*?\n---[ \t]*(?=\n|$)/, keepLineBreaks)
     .replace(/%%[\s\S]*?%%/g, keepLineBreaks)
@@ -41,7 +41,7 @@ function rewriteObsidian(source: string): string {
     .replace(/\[\[([^\]#\n]*)[^\]\n]*\]\]/g, '$1')
 }
 
-function inlineText(text: string, node: Node): string {
+const inlineText = (text: string, node: Node): string => {
   let out = ''
   let pos = node.from
   for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -56,7 +56,7 @@ function inlineText(text: string, node: Node): string {
 
 const linesOf = (text: string, paragraph: Node) => inlineText(text, paragraph).split('\n')
 
-function listLines(text: string, list: Node, lines: string[]): string[] {
+const listLines = (text: string, list: Node, lines: string[]): string[] => {
   for (let child = list.firstChild; child; child = child.nextSibling) {
     if (child.name === 'Paragraph' || child.name === 'Task') lines.push(...linesOf(text, child))
     else if (LIST.test(child.name)) listLines(text, child, lines)
@@ -69,7 +69,7 @@ function listLines(text: string, list: Node, lines: string[]): string[] {
  * Headings and horizontal rules become section starts. Code, tables, HTML, comments, callouts
  * and italics are left out. A list reads as one paragraph, one line per item.
  */
-export function spokenBlocks(source: string): Block[] {
+export const spokenBlocks = (source: string): Block[] => {
   const text = rewriteObsidian(source)
   const blocks: Block[] = []
   let sectionStart = false

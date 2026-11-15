@@ -7,18 +7,19 @@ import {
   type ScriptChange,
   type VersionSummary,
 } from '@teleprompter/protocol'
+import { isString } from 'es-toolkit'
 
 /** Chrome refuses a keepalive request whose body is over 64 KiB. */
 const KEEPALIVE_MAX_CHARS = 20_000
 
-async function request(path: string, init?: RequestInit): Promise<unknown> {
+const request = async (path: string, init?: RequestInit): Promise<unknown> => {
   const response = await fetch(path, init)
   if (!response.ok) throw new Error(`The server answered ${response.status}.`)
   return response.json()
 }
 
 /** Sends a change to the Script and resolves with the Script the server made of it. */
-export async function sendScript(change: PushRequest): Promise<Script> {
+export const sendScript = async (change: PushRequest): Promise<Script> => {
   const body = JSON.stringify(change)
   return ScriptSchema.parse(
     await request('/api/script', {
@@ -31,17 +32,17 @@ export async function sendScript(change: PushRequest): Promise<Script> {
   )
 }
 
-export async function fetchHistory(): Promise<VersionSummary[]> {
+export const fetchHistory = async (): Promise<VersionSummary[]> => {
   return VersionSummarySchema.array().parse(await request('/api/history'))
 }
 
-export async function restoreVersion(id: string): Promise<Script> {
+export const restoreVersion = async (id: string): Promise<Script> => {
   return ScriptSchema.parse(await request(`/api/history/${encodeURIComponent(id)}/restore`, { method: 'POST' }))
 }
 
 export type ScriptMessage = { type: 'snapshot'; script: Script } | ({ type: 'change' } & ScriptChange)
 
-function parse<T>(schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false } }, data: string) {
+const parse = <T>(schema: { safeParse: (value: unknown) => { success: true; data: T } | { success: false } }, data: string) => {
   try {
     const result = schema.safeParse(JSON.parse(data))
     return result.success ? result.data : null
@@ -54,10 +55,10 @@ function parse<T>(schema: { safeParse: (value: unknown) => { success: true; data
  * Opens the server's event stream. EventSource reconnects on its own and the
  * server sends the current Script again each time, which arrives as a snapshot.
  */
-export function openScriptStream(handlers: {
+export const openScriptStream = (handlers: {
   onMessage: (message: ScriptMessage) => void
   onConnection: (connected: boolean) => void
-}): () => void {
+}): () => void => {
   const source = new EventSource('/api/events')
   source.onopen = () => handlers.onConnection(true)
   source.onerror = () => handlers.onConnection(false)
@@ -74,9 +75,9 @@ export function openScriptStream(handlers: {
 
 
 /** What the Transcriber heard in a clip of the reader's speech. Rejects with the server's reason. */
-export async function transcribe(clip: Blob): Promise<string> {
+export const transcribe = async (clip: Blob): Promise<string> => {
   const response = await fetch('/api/transcribe', { method: 'POST', headers: { 'content-type': clip.type }, body: clip })
   const body = (await response.json().catch(() => null)) as { text?: string; error?: string } | null
-  if (!response.ok || typeof body?.text !== 'string') throw new Error(body?.error ?? `The server answered ${response.status}.`)
+  if (!response.ok || !isString(body?.text)) throw new Error(body?.error ?? `The server answered ${response.status}.`)
   return body.text
 }

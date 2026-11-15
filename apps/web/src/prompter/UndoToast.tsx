@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { ReplaceNotice } from './usePrompter'
+import { isNil } from 'es-toolkit'
 
 const TOAST_VISIBLE_MS = 10_000
 
-export function UndoToast({ notice, onUndo }: { notice: ReplaceNotice | null; onUndo: (notice: ReplaceNotice) => void }) {
+export const UndoToast = ({ notice, onUndo }: { notice: ReplaceNotice | null; onUndo: (notice: ReplaceNotice) => void }) => {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
     setVisible(notice !== null)
-    if (!notice) return
+    if (isNil(notice)) return
     const timer = setTimeout(() => setVisible(false), TOAST_VISIBLE_MS)
     return () => clearTimeout(timer)
   }, [notice])

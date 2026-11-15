@@ -26,7 +26,7 @@ const SEND_OPTIONS = {
   source: { type: 'string' },
 } as const
 
-export async function run(argv: string[], io: Io): Promise<number> {
+export const run = async (argv: string[], io: Io): Promise<number> => {
   const [command, ...rest] = argv
   try {
     switch (command) {
@@ -51,7 +51,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
   }
 }
 
-async function runSend(args: string[], io: Io): Promise<number> {
+const runSend = async (args: string[], io: Io): Promise<number> => {
   let parsed
   try {
     parsed = parseArgs({ args, options: SEND_OPTIONS, allowPositionals: true })

@@ -12,7 +12,7 @@ export interface Note {
 }
 
 /** A Push of the selection, or of the whole note when nothing is selected. Null when there is no text. */
-export function pushFor(kind: PushKind, selection: string, note: Note): PushRequest | null {
+export const pushFor = (kind: PushKind, selection: string, note: Note): PushRequest | null => {
   const text = selection.trim() !== '' ? selection : note.text
   if (text.trim() === '') return null
   return { kind, text, format: 'markdown', source: note.basename }
@@ -30,7 +30,7 @@ export type Http = (request: HttpRequest) => Promise<{ status: number; text: str
 
 export class PushError extends Error {}
 
-export async function sendPush(request: PushRequest, serverUrl: string, http: Http): Promise<void> {
+export const sendPush = async (request: PushRequest, serverUrl: string, http: Http): Promise<void> => {
   let endpoint: string
   try {
     endpoint = new URL('/api/script', serverUrl).href

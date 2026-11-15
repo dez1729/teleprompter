@@ -129,13 +129,13 @@ export const initialPlayback: PlaybackState = {
   lines: [],
 }
 
-export function needsTick(state: PlaybackState): boolean {
+export const needsTick = (state: PlaybackState): boolean => {
   return state.mode.kind !== 'paused' || state.animTarget !== null
 }
 
 const clampCursor = (state: PlaybackState, cursor: number) => Math.min(state.wordCount, Math.max(0, cursor))
 
-function play(state: PlaybackState, countdownSec: number, atStartOnly: boolean): PlaybackState {
+const play = (state: PlaybackState, countdownSec: number, atStartOnly: boolean): PlaybackState => {
   if (state.wordCount === 0 || state.mode.kind !== 'paused') return state
   const rewound = state.cursor >= state.wordCount
   const cursor = rewound ? 0 : state.cursor
@@ -145,7 +145,7 @@ function play(state: PlaybackState, countdownSec: number, atStartOnly: boolean):
   return { ...state, cursor, mode, countdownArmed: false }
 }
 
-function follow(state: PlaybackState): PlaybackState {
+const follow = (state: PlaybackState): PlaybackState => {
   if (state.wordCount === 0 || state.mode.kind === 'following') return state
   const cursor = state.cursor >= state.wordCount ? 0 : state.cursor
   return { ...state, cursor, mode: listeningAt(cursor), countdownArmed: false }
@@ -165,13 +165,13 @@ const listeningAt = (target: number): PlaybackMode => ({
 })
 
 /** The reader moved by hand while following: Follow listens from there, keeping their pace. */
-function movedTo(mode: PlaybackMode, position: number): PlaybackMode {
+const movedTo = (mode: PlaybackMode, position: number): PlaybackMode => {
   return mode.kind === 'following'
     ? { ...mode, target: position, heard: position, coastFrom: position, pausedAtEnd: false, heldMs: 0, coastMs: FOLLOW_COAST_MS, speed: 0 }
     : mode
 }
 
-function heard(state: PlaybackState, matched: number, position: number, pace: number): PlaybackState {
+const heard = (state: PlaybackState, matched: number, position: number, pace: number): PlaybackState => {
   if (state.mode.kind !== 'following') return state
   const { target, heard: last } = state.mode
   const reread = matched < last - FOLLOW_REREAD_WORDS
@@ -200,35 +200,35 @@ function heard(state: PlaybackState, matched: number, position: number, pace: nu
 }
 
 /** Takes back the coasting since the reader stopped, without moving the cursor back. */
-function quiet(state: PlaybackState, forMs: number): PlaybackState {
+const quiet = (state: PlaybackState, forMs: number): PlaybackState => {
   if (state.mode.kind !== 'following' || state.mode.coastMs >= FOLLOW_COAST_MS) return state
   const { target, pace } = state.mode
   const stoppedAt = Math.max(state.cursor, target - pace * Math.min(forMs, state.mode.coastMs))
   return { ...state, mode: { ...state.mode, target: stoppedAt, coastMs: FOLLOW_COAST_MS } }
 }
 
-function pause(state: PlaybackState): PlaybackState {
+const pause = (state: PlaybackState): PlaybackState => {
   return state.mode.kind === 'paused' ? state : { ...state, mode: { kind: 'paused' } }
 }
 
 /** Moves to the next start in `starts`; going back from mid-line first returns to that line's start. */
-function stepTarget(starts: readonly number[], from: number, delta: 1 | -1): number | null {
+const stepTarget = (starts: readonly number[], from: number, delta: 1 | -1): number | null => {
   if (starts.length === 0) return null
   let index = 0
-  for (let i = 0; i < starts.length; i++) if (starts[i]! <= from + START_EPSILON) index = i
-  const atStart = Math.abs(starts[index]! - from) <= START_EPSILON
+  for (let i = 0; i < starts.length; i++) if (starts.at(i)! <= from + START_EPSILON) index = i
+  const atStart = Math.abs(starts.at(index)! - from) <= START_EPSILON
   const target = delta < 0 && !atStart ? index : index + delta
-  return starts[Math.min(starts.length - 1, Math.max(0, target))]!
+  return starts.at(Math.min(starts.length - 1, Math.max(0, target)))!
 }
 
-function step(state: PlaybackState, starts: readonly number[], delta: 1 | -1, keepPlaying: boolean): PlaybackState {
+const step = (state: PlaybackState, starts: readonly number[], delta: 1 | -1, keepPlaying: boolean): PlaybackState => {
   const target = stepTarget(starts, state.animTarget ?? state.cursor, delta)
   if (target === null) return state
   return { ...state, animTarget: target, mode: afterMove(state.mode, target, keepPlaying) }
 }
 
 /** Where scrolling stands after the reader moved to `position` by hand. */
-function afterMove(mode: PlaybackMode, position: number, keepPlaying: boolean): PlaybackMode {
+const afterMove = (mode: PlaybackMode, position: number, keepPlaying: boolean): PlaybackMode => {
   if (!keepPlaying) return { kind: 'paused' }
   return movedTo(mode, position)
 }
@@ -237,20 +237,20 @@ function afterMove(mode: PlaybackMode, position: number, keepPlaying: boolean): 
  * Reading pace on the Current line: Speed, slowed so a short line stays up at least `minLineMs`,
  * then slowed by the line's stretch to leave time for the gap below it.
  */
-function wordsPerMs(state: PlaybackState, wpm: number, minLineMs: number): number {
+const wordsPerMs = (state: PlaybackState, wpm: number, minLineMs: number): number => {
   const base = wpm / 60000
   const { lines, cursor } = state
   let index = -1
-  for (let i = 0; i < lines.length && lines[i]!.start <= cursor; i++) index = i
+  for (let i = 0; i < lines.length && lines.at(i)!.start <= cursor; i++) index = i
   if (index < 0) return base
-  const line = lines[index]!
-  const words = (lines[index + 1]?.start ?? state.wordCount) - line.start
+  const line = lines.at(index)!
+  const words = (lines.at(index + 1)?.start ?? state.wordCount) - line.start
   const reading = words > 0 ? Math.min(base, words / minLineMs) : base
   return reading / line.stretch
 }
 
 /** The first place after `position` where a reader usually pauses, or the end of the Script. */
-function nextPausePoint(state: PlaybackState, position: number): number {
+const nextPausePoint = (state: PlaybackState, position: number): number => {
   return state.pausePoints.find((point) => point > position + SNAP_DISTANCE) ?? state.wordCount
 }
 
@@ -258,7 +258,7 @@ function nextPausePoint(state: PlaybackState, position: number): number {
  * Moves the cursor toward the target at the reader's pace, changing speed gradually. Coasting waits at the end of
  * each sentence until the reader is heard past it, or the microphone hears them read on.
  */
-function followTick(state: PlaybackState, mode: Extract<PlaybackMode, { kind: 'following' }>, dtMs: number): PlaybackState {
+const followTick = (state: PlaybackState, mode: Extract<PlaybackMode, { kind: 'following' }>, dtMs: number): PlaybackState => {
   const limit = nextPausePoint(state, mode.coastFrom)
   const coastable = Math.max(0, Math.min(dtMs, FOLLOW_COAST_MS - mode.coastMs))
   const held = mode.target + mode.pace * coastable >= limit - SNAP_DISTANCE
@@ -292,7 +292,7 @@ function followTick(state: PlaybackState, mode: Extract<PlaybackMode, { kind: 'f
   return { ...state, cursor, mode: { ...mode, target, coastMs, speed, pausedAtEnd, heldMs } }
 }
 
-function tick(state: PlaybackState, dtMs: number, wpm: number, minLineMs: number): PlaybackState {
+const tick = (state: PlaybackState, dtMs: number, wpm: number, minLineMs: number): PlaybackState => {
   if (state.animTarget !== null) {
     const distance = state.animTarget - state.cursor
     if (Math.abs(distance) <= SNAP_DISTANCE) return { ...state, cursor: state.animTarget, animTarget: null }
@@ -317,7 +317,7 @@ function tick(state: PlaybackState, dtMs: number, wpm: number, minLineMs: number
   }
 }
 
-export function playbackReducer(state: PlaybackState, event: PlaybackEvent): PlaybackState {
+export const playbackReducer = (state: PlaybackState, event: PlaybackEvent): PlaybackState => {
   switch (event.type) {
     case 'PLAY':
       return play(state, event.countdownSec, event.countdownAtStartOnly)

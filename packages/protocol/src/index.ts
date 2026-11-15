@@ -73,11 +73,11 @@ export type VersionSummary = z.infer<typeof VersionSummarySchema>
 
 const MARKDOWN_HINT = /^(#{1,6}\s|\s*[-*+]\s|>\s|```|---\s*$)|\*\*|\[[^\]]+\]\([^)]+\)/m
 
-export function guessFormat(text: string): ScriptFormat {
+export const guessFormat = (text: string): ScriptFormat => {
   return MARKDOWN_HINT.test(text) ? 'markdown' : 'text'
 }
 
 /** Joins with a blank line. */
-export function appendText(text: string, addition: string): string {
+export const appendText = (text: string, addition: string): string => {
   return text.trim() === '' ? addition : `${text.replace(/\s+$/, '')}\n\n${addition}`
 }

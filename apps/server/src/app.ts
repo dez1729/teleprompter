@@ -8,6 +8,7 @@ import { DEV_PORT, hostGuard, originGuard } from './guards.ts'
 import { summarize } from './history.ts'
 import type { ScriptStore } from './store.ts'
 import { TranscriberError, type Transcriber } from './transcriber.ts'
+import { isNil } from 'es-toolkit'
 
 export const MAX_BODY_BYTES = 2 * 1024 * 1024
 const HEARTBEAT_MS = 15_000
@@ -23,7 +24,7 @@ export interface AppOptions {
   transcriber?: Transcriber
 }
 
-export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, transcriber }: AppOptions): Hono {
+export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, transcriber }: AppOptions): Hono => {
   const ports = () => [port(), DEV_PORT]
   const app = new Hono()
 
@@ -56,7 +57,7 @@ export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
       onError: (c) => c.json({ error: 'Request body too large' }, 413),
     }),
     async (c) => {
-      if (!transcriber) return c.json({ error: 'No Transcriber is set up.' }, 503)
+      if (isNil(transcriber)) return c.json({ error: 'No Transcriber is set up.' }, 503)
       const audio = await c.req.blob()
       if (audio.size === 0) return c.json({ error: 'The audio is empty.' }, 400)
       try {

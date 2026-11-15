@@ -10,6 +10,7 @@ import { normalizeLineBreaks } from './changes'
 import { createScriptEditor, type ScriptEditor } from './codemirror'
 import { HistoryMenu } from './HistoryMenu'
 import { ScriptSync, type SyncStatus } from './scriptSync'
+import { isNil } from 'es-toolkit'
 
 /** The markdown renderer is loaded when the preview is first opened. */
 const Preview = lazy(() => import('./Preview').then((module) => ({ default: module.Preview })))
@@ -20,7 +21,7 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
   failed: 'Could not save. Retrying…',
 }
 
-export function Editor() {
+export const Editor = () => {
   const parent = useRef<HTMLDivElement>(null)
   const session = useRef<{ editor: ScriptEditor; sync: ScriptSync } | null>(null)
   const [script, setScript] = useState<Script | null>(null)
@@ -105,9 +106,9 @@ export function Editor() {
           variant="outline"
           size="sm"
           spacing={0}
-          disabled={!script}
+          disabled={isNil(script)}
           value={format ? [format] : []}
-          onValueChange={(next) => next[0] !== undefined && chooseFormat(next[0] as ScriptFormat)}
+          onValueChange={(next) => next.at(0) !== undefined && chooseFormat(next.at(0) as ScriptFormat)}
         >
           <ToggleGroupItem value="markdown">Markdown</ToggleGroupItem>
           <ToggleGroupItem value="text">Text</ToggleGroupItem>

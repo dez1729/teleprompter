@@ -22,14 +22,14 @@ export interface RunningServer {
   close: () => Promise<void>
 }
 
-export function defaultDataDir(env: NodeJS.ProcessEnv = process.env): string {
+export const defaultDataDir = (env: NodeJS.ProcessEnv = process.env): string => {
   if (env.TELEPROMPTER_DATA_DIR) return env.TELEPROMPTER_DATA_DIR
   return join(env.XDG_DATA_HOME || join(homedir(), '.local', 'share'), 'teleprompter')
 }
 
 const BUILT_WEB_DIR = fileURLToPath(new URL('../../web/dist', import.meta.url))
 
-export function optionsFromEnv(env: NodeJS.ProcessEnv = process.env): ServerOptions {
+export const optionsFromEnv = (env: NodeJS.ProcessEnv = process.env): ServerOptions => {
   return {
     host: env.HOST || '127.0.0.1',
     port: env.PORT ? Number(env.PORT) : DEFAULT_PORT,
@@ -38,7 +38,7 @@ export function optionsFromEnv(env: NodeJS.ProcessEnv = process.env): ServerOpti
   }
 }
 
-export function startServer(options: ServerOptions = {}): Promise<RunningServer> {
+export const startServer = (options: ServerOptions = {}): Promise<RunningServer> => {
   const {
     host = '127.0.0.1',
     port = DEFAULT_PORT,

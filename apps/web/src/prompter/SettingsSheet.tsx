@@ -26,7 +26,7 @@ interface FieldProps {
   set: (key: SettingKey, value: unknown) => void
 }
 
-function SettingField({ setting, def, value, set }: FieldProps) {
+const SettingField = ({ setting, def, value, set }: FieldProps) => {
   const id = `setting-${setting}`
   const description = <FieldDescription id={`${id}-description`}>{def.description}</FieldDescription>
   const describedBy = `${id}-description`
@@ -49,7 +49,7 @@ function SettingField({ setting, def, value, set }: FieldProps) {
             max={def.max}
             step={def.step}
             value={[value as number]}
-            onValueChange={(next) => set(setting, Array.isArray(next) ? next[0] : next)}
+            onValueChange={(next) => set(setting, Array.isArray(next) ? next.at(0) : next)}
           />
         </Field>
       )
@@ -64,7 +64,7 @@ function SettingField({ setting, def, value, set }: FieldProps) {
             variant="outline"
             spacing={0}
             value={[value as string]}
-            onValueChange={(next) => next[0] !== undefined && set(setting, next[0])}
+            onValueChange={(next) => next.at(0) !== undefined && set(setting, next.at(0))}
           >
             {def.options.map((option) => (
               <ToggleGroupItem key={option.value} value={option.value}>
@@ -105,7 +105,7 @@ function SettingField({ setting, def, value, set }: FieldProps) {
 }
 
 /** The main page holds the everyday settings; Advanced settings replaces it in the same panel, with Back to return. */
-export function SettingsSheet({ open, onOpenChange, settings, onChange }: Props) {
+export const SettingsSheet = ({ open, onOpenChange, settings, onChange }: Props) => {
   const [page, setPage] = useState<Page>('main')
   const set = (key: SettingKey, value: unknown) => onChange(key, value as never)
   const advanced = page === 'advanced'

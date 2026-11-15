@@ -10,6 +10,7 @@ import {
   Setting,
 } from 'obsidian'
 import { DEFAULT_SERVER_URL, PushError, pushFor, sendPush, type Http, type PushKind } from './push.ts'
+import { isNil } from 'es-toolkit'
 
 interface Settings {
   serverUrl: string
@@ -66,7 +67,7 @@ export default class TeleprompterPlugin extends Plugin {
   async push(kind: PushKind, editor: Editor, context: MarkdownView | MarkdownFileInfo) {
     const note = { basename: context.file?.basename ?? 'Obsidian', text: editor.getValue() }
     const request = pushFor(kind, editor.getSelection(), note)
-    if (!request) {
+    if (isNil(request)) {
       new Notice('Nothing to send: the note is empty.')
       return
     }

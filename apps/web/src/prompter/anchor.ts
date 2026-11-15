@@ -2,6 +2,7 @@ import { diffArrays } from 'diff'
 import type { ChangeKind } from '@teleprompter/protocol'
 import { keepPlace, type Placement } from './playback'
 import type { TokenizedScript } from './script'
+import { isNil } from 'es-toolkit'
 
 /**
  * Past this many inserted plus deleted words the two texts are treated as unrelated
@@ -16,10 +17,10 @@ interface Segment {
   kept: boolean
 }
 
-function segments(oldWords: readonly string[], newWords: readonly string[]): Segment[] {
+const segments = (oldWords: readonly string[], newWords: readonly string[]): Segment[] => {
   const shortest = Math.min(oldWords.length, newWords.length)
   let prefix = 0
-  while (prefix < shortest && oldWords[prefix] === newWords[prefix]) prefix++
+  while (prefix < shortest && oldWords.at(prefix) === newWords.at(prefix)) prefix++
   let suffix = 0
   while (suffix < shortest - prefix && oldWords.at(-1 - suffix) === newWords.at(-1 - suffix)) suffix++
 
@@ -36,7 +37,7 @@ function segments(oldWords: readonly string[], newWords: readonly string[]): Seg
       last.newLength += newLength
     }
   }
-  if (!parts) change(oldMiddle.length, newMiddle.length)
+  if (isNil(parts)) change(oldMiddle.length, newMiddle.length)
   else {
     for (const part of parts) {
       if (part.removed) change(part.count, 0)
@@ -55,7 +56,7 @@ function segments(oldWords: readonly string[], newWords: readonly string[]): Seg
  * word sends the reader to the next surviving word, or the end. Inside a span that was
  * rewritten the reader lands the same share of the way through the words that replaced it.
  */
-export function mapCursor(oldWords: readonly string[], newWords: readonly string[], cursor: number): number {
+export const mapCursor = (oldWords: readonly string[], newWords: readonly string[], cursor: number): number => {
   const position = Math.min(Math.max(cursor, 0), oldWords.length)
   let oldStart = 0
   let newStart = 0
@@ -75,7 +76,7 @@ export function mapCursor(oldWords: readonly string[], newWords: readonly string
 const wordTexts = (tokens: TokenizedScript) => tokens.words.map((word) => word.text)
 
 /** Where each kind of change puts the reader. A first Script starts at the top like a Replace. */
-export function placementFor(kind: ChangeKind, before: TokenizedScript, after: TokenizedScript): Placement {
+export const placementFor = (kind: ChangeKind, before: TokenizedScript, after: TokenizedScript): Placement => {
   if (kind === 'replace' || before.words.length === 0) return 'reset'
   if (kind === 'append') return keepPlace
   const oldWords = wordTexts(before)

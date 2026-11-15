@@ -1,3 +1,5 @@
+import { isString } from 'es-toolkit'
+
 export const DEFAULT_WHISPER_URL = 'http://127.0.0.1:2022'
 export const DEFAULT_WHISPER_MODEL = 'Systran/faster-whisper-small'
 
@@ -13,11 +15,11 @@ export interface WhisperOptions {
 }
 
 /** A Whisper server with the OpenAI transcription API, such as Speaches or whisper.cpp's server. */
-export function whisperTranscriber({
+export const whisperTranscriber = ({
   url = DEFAULT_WHISPER_URL,
   model = DEFAULT_WHISPER_MODEL,
   fetch: send = fetch,
-}: WhisperOptions = {}): Transcriber {
+}: WhisperOptions = {}): Transcriber => {
   const endpoint = new URL('/v1/audio/transcriptions', url).href
   return async (audio) => {
     const form = new FormData()
@@ -37,7 +39,7 @@ export function whisperTranscriber({
       throw new TranscriberError(`The Whisper server at ${url} answered ${response.status}. ${detail}`.trim())
     }
     const body = (await response.json().catch(() => null)) as { text?: unknown } | null
-    if (typeof body?.text !== 'string') throw new TranscriberError(`The Whisper server at ${url} sent no text.`)
+    if (!isString(body?.text)) throw new TranscriberError(`The Whisper server at ${url} sent no text.`)
     return body.text
   }
 }
