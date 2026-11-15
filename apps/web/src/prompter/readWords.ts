@@ -14,7 +14,7 @@ export const useReadWords = (textRef: RefObject<HTMLElement | null>, words: unkn
   const marked = useRef<{ words: unknown; spans: HTMLElement[]; count: number }>({ words: null, spans: [], count: 0 });
 
   useLayoutEffect(() => {
-    const { current: text } = textRef;
+    const text = textRef.current;
     if (isNil(text)) return;
     let { current } = marked;
     if (current.words !== words) {

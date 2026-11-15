@@ -1,12 +1,15 @@
 import { History } from "lucide-react";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { VersionSummary } from "@teleprompter/protocol";
 import { isNil } from "es-toolkit";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { fetchHistory, restoreVersion } from "@/lib/scriptApi";
 import { relativeTime } from "./relativeTime";
+
+// The ages are shown to the minute.
+const AGE_REFRESH_MS = 30_000;
 
 const REASON_LABELS: Record<VersionSummary["reason"], string> = {
   replace: "Before a Replace",
@@ -21,17 +24,24 @@ interface HistoryMenuProps {
 /** `revision` is the Script's, so the list reloads when the Script changes while the menu is open. */
 export const HistoryMenu = ({ revision }: HistoryMenuProps) => {
   const [open, setOpen] = useState(false);
-  // "5 minutes ago" is measured from when the menu opened, so rendering stays pure.
-  const [openedAt, setOpenedAt] = useState(0);
+  // "5 minutes ago" is measured from a time kept in state, so rendering stays pure: set when the menu
+  // opens, refreshed while it stays open, and never older than the list itself.
+  const [now, setNow] = useState(0);
   // A new revision keeps the old list on screen until the new one arrives.
   const history = useQuery({ queryKey: ["history", revision], queryFn: fetchHistory, enabled: open, placeholderData: keepPreviousData });
   const restore = useMutation({ mutationFn: restoreVersion, onSuccess: () => setOpen(false) });
   const failed = history.isError || restore.isError;
+  useEffect(() => {
+    if (!open) return;
+    const timer = setInterval(() => setNow(Date.now()), AGE_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [open]);
+
   const changeOpen = (next: boolean) => {
     // A failed Restore is forgotten when the menu opens again, like a failed listing.
     if (next) {
       restore.reset();
-      setOpenedAt(Date.now());
+      setNow(Date.now());
     }
     setOpen(next);
   };
@@ -86,7 +96,7 @@ export const HistoryMenu = ({ revision }: HistoryMenuProps) => {
                       dateTime={version.savedAt}
                       title={new Date(version.savedAt).toLocaleString()}
                     >
-                      {relativeTime(version.savedAt, openedAt)}
+                      {relativeTime(version.savedAt, Math.max(now, history.dataUpdatedAt))}
                     </time>
                     {` · ${REASON_LABELS[version.reason]} · ${version.wordCount} ${version.wordCount === 1 ? "word" : "words"}`}
                     {version.source && ` · ${version.source}`}

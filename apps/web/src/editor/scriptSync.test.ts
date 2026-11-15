@@ -26,7 +26,7 @@ const setup = (initial: Script) => {
       doc: () => state.doc.toString(),
       applyRemote: (changes) => {
         remoteChanges.push(changes);
-        ({ state } = state.update({ changes }));
+        state = state.update({ changes }).state;
       },
       send: (text, format) =>
         new Promise<Script>((resolve, reject) => {
@@ -53,7 +53,7 @@ const setup = (initial: Script) => {
     doc: () => state.doc.toString(),
     status: () => statuses.at(-1),
     type: (insert: string, from = state.doc.length) => {
-      ({ state } = state.update({ changes: { from, insert } }));
+      state = state.update({ changes: { from, insert } }).state;
       sync.documentChanged();
     },
     /** Another writer changed the Script on the server. */
