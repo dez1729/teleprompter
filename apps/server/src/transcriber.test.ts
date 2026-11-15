@@ -14,7 +14,7 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
 const speech = new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/wav' })
 
-function transcribe(transcriber: Transcriber | undefined, body: Blob = speech) {
+const transcribe = (transcriber: Transcriber | undefined, body: Blob = speech) => {
   const app = createApp({ store: new ScriptStore(dir), port: () => 4747, transcriber })
   return app.request('/api/transcribe', { method: 'POST', headers: { host: 'localhost:4747', 'content-type': 'audio/wav' }, body })
 }
@@ -52,6 +52,7 @@ describe('whisperTranscriber', () => {
         return Response.json({ text: ' Hello there.' })
       },
     })
+
     expect(await transcriber(speech)).toBe(' Hello there.')
     expect(sent!.url).toBe('http://127.0.0.1:2022/v1/audio/transcriptions')
     expect(sent!.form.get('model')).toBe('tiny')

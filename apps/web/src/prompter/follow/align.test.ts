@@ -8,8 +8,9 @@ const script = heardWords(
 const at = (phrase: string) => {
   const words = heardWords(phrase)
   for (let i = 0; i + words.length <= script.length; i++) {
-    if (words.every((word, k) => script[i + k] === word)) return i + words.length
+    if (words.every((word, k) => script.at(i + k) === word)) return i + words.length
   }
+
   throw new Error(`"${phrase}" is not in the Script`)
 }
 

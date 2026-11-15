@@ -4,6 +4,7 @@ import { streamSSE } from 'hono/streaming'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { relative } from 'node:path'
 import { PushRequestSchema, type ScriptChange } from '@teleprompter/protocol'
+import { isNil } from 'es-toolkit'
 import { DEV_PORT, hostGuard, originGuard } from './guards.ts'
 import { summarize } from './history.ts'
 import type { ScriptStore } from './store.ts'
@@ -23,7 +24,7 @@ export interface AppOptions {
   transcriber?: Transcriber
 }
 
-export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, transcriber }: AppOptions): Hono {
+export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, transcriber }: AppOptions): Hono => {
   const ports = () => [port(), DEV_PORT]
   const app = new Hono()
 
@@ -45,6 +46,7 @@ export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
         const issues = parsed.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message }))
         return c.json({ error: 'Invalid request', issues }, 400)
       }
+
       return c.json(store.change(parsed.data).script)
     },
   )
@@ -56,7 +58,7 @@ export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
       onError: (c) => c.json({ error: 'Request body too large' }, 413),
     }),
     async (c) => {
-      if (!transcriber) return c.json({ error: 'No Transcriber is set up.' }, 503)
+      if (isNil(transcriber)) return c.json({ error: 'No Transcriber is set up.' }, 503)
       const audio = await c.req.blob()
       if (audio.size === 0) return c.json({ error: 'The audio is empty.' }, 400)
       try {
@@ -84,6 +86,7 @@ export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
     streamSSE(c, async (stream) => {
       const send = (event: string, value: unknown) =>
         stream.writeSSE({ event, data: JSON.stringify(value) }).catch(() => {})
+
       // Subscribe in the same tick as the snapshot so no change falls between them.
       const unsubscribe = store.subscribe((change: ScriptChange) => void send('change', change))
       const heartbeat = setInterval(() => void stream.write(': keep-alive\n\n').catch(() => {}), heartbeatMs)

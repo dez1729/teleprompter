@@ -1,10 +1,11 @@
 import { Eye, MonitorPlay } from 'lucide-react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import type { Script, ScriptFormat } from '@teleprompter/protocol'
+import type { PushRequest, Script, ScriptFormat } from '@teleprompter/protocol'
+import { isNil } from 'es-toolkit'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { openScriptStream, sendScript } from '@/lib/scriptApi'
+import { ScriptStream, sendScript } from '@/lib/scriptApi'
 import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { normalizeLineBreaks } from './changes'
 import { createScriptEditor, type ScriptEditor } from './codemirror'
@@ -20,7 +21,7 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
   failed: 'Could not save. Retrying…',
 }
 
-export function Editor() {
+export const Editor = () => {
   const parent = useRef<HTMLDivElement>(null)
   const session = useRef<{ editor: ScriptEditor; sync: ScriptSync } | null>(null)
   const [script, setScript] = useState<Script | null>(null)
@@ -39,10 +40,12 @@ export function Editor() {
         {
           doc: () => editor.text(),
           applyRemote: (changes) => editor.applyRemote(changes),
-          send: (text, format) => sendScript({ kind: 'edit', text, ...(format && { format }) }),
+          send: (text, format) => sendScript({ kind: 'edit', text, ...(format && { format }) } satisfies PushRequest as PushRequest),
           onState: (state) => {
             setStatus(state.status)
             setScript(state.script)
+            // The editor is created with the Script's format; this keeps its highlighting in step afterwards.
+            session.current?.editor.setFormat(state.script.format)
           },
         },
         initial,
@@ -56,25 +59,28 @@ export function Editor() {
           sync.documentChanged()
         },
       })
+
       setScript(initial)
       setText(editor.text())
       editor.focus()
       return { editor, sync }
     }
 
-    const closeStream = openScriptStream({
+    const stream = new ScriptStream({
       onConnection: setConnected,
       onMessage: (message) => {
         if (session.current) session.current.sync.receive(message.script, message.type === 'snapshot')
         else session.current = start(message.script)
       },
     })
+    stream.start()
+
     const flush = () => session.current?.sync.flush()
     window.addEventListener('pagehide', flush)
 
     return () => {
       window.removeEventListener('pagehide', flush)
-      closeStream()
+      stream.stop()
       session.current?.sync.dispose()
       session.current?.editor.destroy()
       session.current = null
@@ -82,9 +88,6 @@ export function Editor() {
   }, [])
 
   const format = script?.format
-  useEffect(() => {
-    if (format) session.current?.editor.setFormat(format)
-  }, [format])
 
   const chooseFormat = (next: ScriptFormat) => {
     if (next !== format) session.current?.sync.setFormat(next)
@@ -105,9 +108,9 @@ export function Editor() {
           variant="outline"
           size="sm"
           spacing={0}
-          disabled={!script}
+          disabled={isNil(script)}
           value={format ? [format] : []}
-          onValueChange={(next) => next[0] !== undefined && chooseFormat(next[0] as ScriptFormat)}
+          onValueChange={(next) => next.at(0) !== undefined && chooseFormat(next.at(0) as ScriptFormat)}
         >
           <ToggleGroupItem value="markdown">Markdown</ToggleGroupItem>
           <ToggleGroupItem value="text">Text</ToggleGroupItem>

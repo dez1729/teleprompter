@@ -51,6 +51,7 @@ describe('the gap below a line', () => {
       state = run(state, { type: 'TICK', dtMs: 10, wpm: 300, minLineMs: 1500 })
       ms += 10
     }
+
     return ms
   }
 

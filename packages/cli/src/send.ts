@@ -11,14 +11,19 @@ export interface SendOptions {
 
 export const defaultUrl = `http://127.0.0.1:${DEFAULT_PORT}`
 
-export function buildRequest({ kind, text, markdown, source }: SendOptions): PushRequest {
-  return { kind, text, ...(markdown ? { format: 'markdown' } : {}), ...(source ? { source } : {}) }
+export const buildRequest = ({ kind, text, markdown, source }: SendOptions): PushRequest => {
+  return { kind, text, ...(markdown ? { format: 'markdown' } : {}), ...(source ? { source } : {}) } satisfies PushRequest as PushRequest
 }
 
-export async function send(
+interface SendTarget {
+  url: string
+  fetch?: typeof fetch
+}
+
+export const send = async (
   options: SendOptions,
-  { url, fetch: doFetch = fetch }: { url: string; fetch?: typeof fetch },
-): Promise<Script> {
+  { url, fetch: doFetch = fetch }: SendTarget,
+): Promise<Script> => {
   const endpoint = new URL('/api/script', url)
   let response: Response
   try {
@@ -30,9 +35,11 @@ export async function send(
   } catch {
     throw new CliError(`Cannot reach the Teleprompter server at ${url}. Start it with "tp serve".`)
   }
+
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
     throw new CliError(`The server rejected the Push (${response.status}). ${detail}`.trim())
   }
+
   return ScriptSchema.parse(await response.json())
 }

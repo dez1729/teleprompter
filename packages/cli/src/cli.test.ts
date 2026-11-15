@@ -3,7 +3,7 @@ import { run, type Io } from './cli.ts'
 
 const script = { text: 'hi', format: 'text', source: null, revision: 4 }
 
-function setup(overrides: Partial<Io> = {}) {
+const setup = (overrides: Partial<Io> = {}) => {
   const out: string[] = []
   const err: string[] = []
   const fetchMock = vi.fn<typeof fetch>(async () => Response.json(script))
@@ -17,7 +17,8 @@ function setup(overrides: Partial<Io> = {}) {
     serve: async () => {},
     ...overrides,
   }
-  const body = () => JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
+
+  const body = () => JSON.parse(String(fetchMock.mock.calls.at(0)?.[1]?.body))
   return { io, out, err, fetchMock, body }
 }
 
@@ -25,7 +26,7 @@ describe('tp send', () => {
   it('posts a Replace with the text argument to the default server', async () => {
     const { io, out, fetchMock, body } = setup()
     expect(await run(['send', '--replace', 'hello', 'world'], io)).toBe(0)
-    const [url, init] = fetchMock.mock.calls[0]!
+    const [url, init] = fetchMock.mock.calls.at(0)!
     expect(String(url)).toBe('http://127.0.0.1:4747/api/script')
     expect(init?.method).toBe('POST')
     expect(body()).toEqual({ kind: 'replace', text: 'hello world' })
@@ -47,7 +48,7 @@ describe('tp send', () => {
   it('uses TELEPROMPTER_URL', async () => {
     const { io, fetchMock } = setup({ env: { TELEPROMPTER_URL: 'http://127.0.0.1:9000' } })
     await run(['send', '--replace', 'x'], io)
-    expect(String(fetchMock.mock.calls[0]![0])).toBe('http://127.0.0.1:9000/api/script')
+    expect(String(fetchMock.mock.calls.at(0)!.at(0)!)).toBe('http://127.0.0.1:9000/api/script')
   })
 
   it('exits non-zero with a hint to run tp serve when the server is down', async () => {
@@ -92,6 +93,6 @@ describe('tp', () => {
   it('rejects an unknown command', async () => {
     const { io, err } = setup()
     expect(await run(['bogus'], io)).toBe(1)
-    expect(err[0]).toContain('Unknown command')
+    expect(err.at(0)).toContain('Unknown command')
   })
 })

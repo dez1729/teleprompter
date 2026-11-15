@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test'
 
 const TP = join(import.meta.dirname, '../../../packages/cli/bin/tp.js')
 
-function freePort(): Promise<number> {
+const freePort = (): Promise<number> => {
   return new Promise((resolve, reject) => {
     const probe = createServer()
     probe.once('error', reject)
@@ -30,10 +30,12 @@ test.beforeEach(async () => {
     env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', TELEPROMPTER_DATA_DIR: dataDir },
     stdio: 'inherit',
   })
+
   for (let attempt = 0; attempt < 100; attempt++) {
     if (await fetch(`${url}/api/script`).then((r) => r.ok, () => false)) return
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
+
   throw new Error('The server did not start')
 })
 
@@ -42,12 +44,13 @@ test.afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true })
 })
 
-function tp(args: string[], input: string) {
+const tp = (args: string[], input: string) => {
   const result = spawnSync('node', [TP, ...args], {
     input,
     encoding: 'utf8',
     env: { ...process.env, TELEPROMPTER_URL: url },
   })
+
   expect(result.status, result.stderr).toBe(0)
 }
 

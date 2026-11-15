@@ -29,17 +29,19 @@ beforeEach(() => {
   nowMs = Date.parse('2026-01-01T00:00:00Z')
 })
 
-function setup(heartbeatMs?: number) {
+const setup = (heartbeatMs?: number) => {
   const store = new ScriptStore(dir, { now: () => nowMs })
   const app = createApp({ store, port: () => PORT, heartbeatMs })
   const request = (path: string, init: RequestInit & { headers?: Record<string, string> } = {}) =>
     app.request(path, { ...init, headers: { host: HOST, ...init.headers } })
+
   const push = (body: unknown, headers: Record<string, string> = {}) =>
     request('/api/script', {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...headers },
       body: JSON.stringify(body),
     })
+
   return { store, app, request, push }
 }
 
@@ -134,6 +136,7 @@ describe('validation', () => {
       headers: { 'content-type': 'application/json', 'content-length': String(big.length) },
       body: big,
     })
+
     expect(res.status).toBe(413)
   })
 
@@ -164,6 +167,7 @@ describe('Host and Origin guards', () => {
     for (const origin of ['https://evil.example', 'http://localhost:9999', 'null']) {
       expect((await push({ kind: 'replace', text: 'a' }, { origin })).status, origin).toBe(403)
     }
+
     expect(store.get().revision).toBe(0)
   })
 
@@ -172,6 +176,7 @@ describe('Host and Origin guards', () => {
     for (const origin of ['http://localhost:4747', 'http://localhost:4748', 'http://127.0.0.1:4747', 'http://127.0.0.1:4748', 'app://obsidian.md']) {
       expect((await push({ kind: 'replace', text: 'a' }, { origin })).status, origin).toBe(200)
     }
+
     expect((await push({ kind: 'replace', text: 'a' })).status).toBe(200)
   })
 
@@ -199,9 +204,10 @@ describe('persistence', () => {
 })
 
 describe('Script history', () => {
-  async function history(request: ReturnType<typeof setup>['request']) {
+  const history = async (request: ReturnType<typeof setup>['request']) => {
     return VersionSummarySchema.array().parse(await (await request('/api/history')).json())
   }
+
   const restore = (request: ReturnType<typeof setup>['request'], id: string, headers: Record<string, string> = {}) =>
     request(`/api/history/${id}/restore`, { method: 'POST', headers })
 
@@ -216,8 +222,8 @@ describe('Script history', () => {
       { reason: 'replace', source: 'Note', preview: 'one two', wordCount: 2, revision: 2 },
       { reason: 'append', source: 'Note', preview: 'one', wordCount: 1, revision: 1 },
     ])
-    expect(versions[0]).not.toHaveProperty('text')
-    expect(versions[0]!.savedAt).toBe('2026-01-01T00:00:00.000Z')
+    expect(versions.at(0)).not.toHaveProperty('text')
+    expect(versions.at(0)!.savedAt).toBe('2026-01-01T00:00:00.000Z')
   })
 
   it('does not save an empty Script', async () => {
@@ -262,7 +268,7 @@ describe('Script history', () => {
     for (let i = 0; i <= HISTORY_LIMIT + 2; i++) await push({ kind: 'replace', text: `script ${i}` })
     const versions = await history(request)
     expect(versions).toHaveLength(HISTORY_LIMIT)
-    expect(versions[0]!.preview).toBe(`script ${HISTORY_LIMIT + 1}`)
+    expect(versions.at(0)!.preview).toBe(`script ${HISTORY_LIMIT + 1}`)
     expect(versions.at(-1)!.preview).toBe('script 2')
   })
 
@@ -304,10 +310,10 @@ describe('Script history', () => {
       ['replace', 'two'],
       ['replace', '# one'],
     ])
-    expect(changes).toEqual([{ kind: 'replace', script: store.get(), previousVersionId: after[0]!.id }])
+    expect(changes).toEqual([{ kind: 'replace', script: store.get(), previousVersionId: after.at(0)!.id }])
 
     // Restoring the Version the restore saved undoes the restore.
-    await restore(request, after[0]!.id)
+    await restore(request, after.at(0)!.id)
     expect(store.get().text).toBe('two')
   })
 
@@ -334,8 +340,8 @@ describe('Script history', () => {
     const { store } = setup()
     expect(store.change({ kind: 'replace', text: 'one' }).previousVersionId).toBeNull()
     const change = store.change({ kind: 'replace', text: 'two' })
-    expect(change.previousVersionId).toBe(store.versions()[0]!.id)
-    expect(store.change({ kind: 'edit', text: 'two!' }).previousVersionId).toBe(store.versions()[0]!.id)
+    expect(change.previousVersionId).toBe(store.versions().at(0)!.id)
+    expect(store.change({ kind: 'edit', text: 'two!' }).previousVersionId).toBe(store.versions().at(0)!.id)
     expect(store.change({ kind: 'edit', text: 'two!!' }).previousVersionId).toBeNull()
   })
 
@@ -353,7 +359,7 @@ describe('Script history', () => {
   })
 })
 
-async function readUntil(reader: ReadableStreamDefaultReader<Uint8Array>, needle: string, seen = ''): Promise<string> {
+const readUntil = async (reader: ReadableStreamDefaultReader<Uint8Array>, needle: string, seen = ''): Promise<string> => {
   const decoder = new TextDecoder()
   let text = seen
   while (!text.includes(needle)) {
@@ -361,10 +367,11 @@ async function readUntil(reader: ReadableStreamDefaultReader<Uint8Array>, needle
     if (done) throw new Error(`stream ended before ${JSON.stringify(needle)}: ${text}`)
     text += decoder.decode(value)
   }
+
   return text
 }
 
-function parseEvents(text: string) {
+const parseEvents = (text: string) => {
   return text
     .split('\n\n')
     .filter((block) => block.includes('event:'))
@@ -390,9 +397,9 @@ describe('GET /api/events', () => {
     await reader.cancel()
 
     const events = parseEvents(text)
-    expect(events[0]).toMatchObject({ event: 'script', data: { text: 'first', revision: 1 } })
-    expect(events[1]?.event).toBe('change')
-    const change = ScriptChangeSchema.parse(events[1]?.data)
+    expect(events.at(0)).toMatchObject({ event: 'script', data: { text: 'first', revision: 1 } })
+    expect(events.at(1)?.event).toBe('change')
+    const change = ScriptChangeSchema.parse(events.at(1)?.data)
     expect(change).toMatchObject({ kind: 'append', script: { text: 'first\n\nsecond', revision: 2 } })
   })
 

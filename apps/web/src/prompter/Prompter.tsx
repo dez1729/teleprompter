@@ -1,5 +1,6 @@
 import { SquarePen } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type WheelEvent } from 'react'
+import { isNil } from 'es-toolkit'
 import { Button } from '@/components/ui/button'
 import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
@@ -12,7 +13,7 @@ import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
 import { UndoToast } from './UndoToast'
 import { FONT_STACKS, GAP_PACES } from './settings'
-import type { FollowStatus } from './follow/useFollow'
+import type { FollowStatus } from './follow/session'
 import { usePrompter } from './usePrompter'
 
 const BAR_HIDE_DELAY_MS = 2000
@@ -21,7 +22,7 @@ const WHEEL_LINE_PX = 16
 
 const openEditor = () => openNamedWindow('/editor', EDITOR_WINDOW)
 
-export function Prompter() {
+export const Prompter = () => {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const { script, connected, tokens, settings, playback, follow, readout, replaced, undoReplace, dispatch, updateSetting, run } = usePrompter({
@@ -37,6 +38,7 @@ export function Prompter() {
       }
     },
   })
+
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT)
   const [recentMouse, setRecentMouse] = useState(true)
 
@@ -71,7 +73,7 @@ export function Prompter() {
   useReadWords(textRef, tokens, settings.readWords ? readCount(playback.cursor, tokens.words.length) : 0)
 
   const remeasure = useCallback(() => {
-    if (!textRef.current) return
+    if (isNil(textRef.current)) return
     const next = measureLayout(textRef.current, GAP_PACES[settings.paragraphPause])
     setLayout(next)
     dispatch({ type: 'SET_LAYOUT', lines: pacedLines(next) })
@@ -95,12 +97,21 @@ export function Prompter() {
     return () => observer.disconnect()
   }, [remeasure, script])
 
-  useEffect(() => {
-    void document.fonts?.ready.then(remeasure)
-  }, [remeasure, settings.fontFamily])
+  // A web font that finishes loading after the first measure moves every word. Listening from a layout effect,
+  // in the same commit as that measure, leaves no gap for a load to finish unheard.
+  useLayoutEffect(() => {
+    if (!('fonts' in document)) return
+    document.fonts.addEventListener('loadingdone', remeasure)
+    return () => document.fonts.removeEventListener('loadingdone', remeasure)
+  }, [remeasure])
 
   const playing = playback.mode.kind === 'playing' || playback.mode.kind === 'following'
-  useEffect(() => setRecentMouse(true), [playing])
+  // Starting or stopping shows the bar again, as a mouse move does.
+  const [barShownFor, setBarShownFor] = useState(playing)
+  if (barShownFor !== playing) {
+    setBarShownFor(playing)
+    setRecentMouse(true)
+  }
 
   const showBar = () => setRecentMouse(true)
   useEffect(() => {
@@ -125,15 +136,17 @@ export function Prompter() {
     drag.current = { startY: event.clientY, startCursor: playback.cursor, moved: false }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
+
   const onPointerMove = (event: PointerEvent) => {
     showBar()
     const current = drag.current
-    if (!current) return
+    if (isNil(current)) return
     const dy = event.clientY - current.startY
     if (!current.moved && Math.abs(dy) < DRAG_THRESHOLD_PX) return
     current.moved = true
     scrubBy(current.startCursor, -dy)
   }
+
   const onPointerUp = () => {
     drag.current = null
   }
@@ -206,7 +219,7 @@ export function Prompter() {
           </div>
         )}
 
-        {!script && (
+        {isNil(script) && (
           <div className="absolute inset-0 flex items-center justify-center" onPointerDown={(e) => e.stopPropagation()}>
             <Empty>
               <EmptyHeader>
@@ -251,7 +264,11 @@ export function Prompter() {
   )
 }
 
-function FollowStatusLine({ status }: { status: FollowStatus }) {
+interface FollowStatusLineProps {
+  status: FollowStatus
+}
+
+const FollowStatusLine = ({ status }: FollowStatusLineProps) => {
   if (status.kind === 'off') return null
   const text = status.kind === 'error' ? status.message : status.kind === 'starting' ? 'Opening the microphone…' : 'Following your voice'
   return (

@@ -12,10 +12,10 @@ export interface Note {
 }
 
 /** A Push of the selection, or of the whole note when nothing is selected. Null when there is no text. */
-export function pushFor(kind: PushKind, selection: string, note: Note): PushRequest | null {
+export const pushFor = (kind: PushKind, selection: string, note: Note): PushRequest | null => {
   const text = selection.trim() !== '' ? selection : note.text
   if (text.trim() === '') return null
-  return { kind, text, format: 'markdown', source: note.basename }
+  return { kind, text, format: 'markdown', source: note.basename } satisfies PushRequest as PushRequest
 }
 
 export interface HttpRequest {
@@ -30,19 +30,21 @@ export type Http = (request: HttpRequest) => Promise<{ status: number; text: str
 
 export class PushError extends Error {}
 
-export async function sendPush(request: PushRequest, serverUrl: string, http: Http): Promise<void> {
+export const sendPush = async (request: PushRequest, serverUrl: string, http: Http): Promise<void> => {
   let endpoint: string
   try {
     endpoint = new URL('/api/script', serverUrl).href
   } catch {
     throw new PushError(`The Teleprompter server address "${serverUrl}" is not a URL. Fix it in the plugin settings.`)
   }
+
   let response: Awaited<ReturnType<Http>>
   try {
-    response = await http({ url: endpoint, method: 'POST', contentType: 'application/json', body: JSON.stringify(request) })
+    response = await http({ url: endpoint, method: 'POST', contentType: 'application/json', body: JSON.stringify(request) } satisfies HttpRequest as HttpRequest)
   } catch {
     throw new PushError(`Cannot reach the Teleprompter server at ${serverUrl}. Start it with "tp serve".`)
   }
+
   if (response.status < 200 || response.status >= 300) {
     throw new PushError(`The Teleprompter server rejected the text (${response.status}). ${response.text}`.trim())
   }

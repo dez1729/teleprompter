@@ -15,7 +15,12 @@ const SCROLL_MODE_ITEM = 'aria-pressed:bg-primary aria-pressed:text-primary-fore
 /** The bar fades out while playing; a tooltip must not outlive it. */
 const BarVisible = createContext(true)
 
-function Hint({ command, children }: { command: Command; children: ReactElement }) {
+interface HintProps {
+  command: Command
+  children: ReactElement
+}
+
+const Hint = ({ command, children }: HintProps) => {
   const barVisible = useContext(BarVisible)
   const [open, setOpen] = useState(false)
   return (
@@ -37,7 +42,7 @@ interface Props {
   onCommand: (command: Command) => void
 }
 
-export function ControlBar({
+export const ControlBar = ({
   visible,
   playing,
   scrollMode,
@@ -45,7 +50,7 @@ export function ControlBar({
   fontSize,
   hasScript,
   onCommand,
-}: Props) {
+}: Props) => {
   const toggle: Command = { type: 'toggle' }
   const switchScrollMode: Command = { type: 'switchScrollMode' }
   const follows = scrollMode === 'follow'
@@ -81,7 +86,7 @@ export function ControlBar({
                 aria-label="Scroll mode"
                 value={[scrollMode]}
                 onValueChange={(next) => {
-                  if (next[0] !== undefined && next[0] !== scrollMode) onCommand(switchScrollMode)
+                  if (next.at(0) !== undefined && next.at(0) !== scrollMode) onCommand(switchScrollMode)
                   // The switch would keep the arrow keys for itself; the Prompter needs them to step through lines.
                   if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
                 }}
@@ -125,20 +130,22 @@ export function ControlBar({
   )
 }
 
-function Stepper({
-  label,
-  value,
-  setting,
-  disabled = false,
-  onCommand,
-}: {
+interface StepperProps {
   label: string
   value: string
   setting: 'speedWpm' | 'fontSize'
   /** Shown but inactive, as Speed is while Follow sets the pace. */
   disabled?: boolean
   onCommand: (command: Command) => void
-}) {
+}
+
+const Stepper = ({
+  label,
+  value,
+  setting,
+  disabled = false,
+  onCommand,
+}: StepperProps) => {
   const down: Command = { type: 'nudge', setting, direction: -1 }
   const up: Command = { type: 'nudge', setting, direction: 1 }
   return (

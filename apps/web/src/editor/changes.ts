@@ -1,5 +1,6 @@
 import { ChangeSet, type ChangeSpec } from '@codemirror/state'
 import { diffArrays } from 'diff'
+import { isNil } from 'es-toolkit'
 
 /** Past this many changed words the middle of the text is swapped as one piece. */
 const MAX_EDIT_WORDS = 500
@@ -14,7 +15,7 @@ export const normalizeLineBreaks = (text: string) => text.replace(/\r\n?/g, '\n'
 const pieces = (text: string) => text.match(/\S+\s*|\s+/g) ?? []
 
 /** The changes that turn `from` into `to`, as fine-grained as a word-level diff allows. */
-export function changesBetween(from: string, to: string): ChangeSet {
+export const changesBetween = (from: string, to: string): ChangeSet => {
   const shortest = Math.min(from.length, to.length)
   let prefix = 0
   while (prefix < shortest && from[prefix] === to[prefix]) prefix++
@@ -28,7 +29,8 @@ export function changesBetween(from: string, to: string): ChangeSet {
     fromMiddle === '' || toMiddle === ''
       ? undefined
       : diffArrays(pieces(fromMiddle), pieces(toMiddle), { maxEditLength: MAX_EDIT_WORDS })
-  if (!parts) return ChangeSet.of({ from: prefix, to: prefix + fromMiddle.length, insert: toMiddle }, from.length)
+
+  if (isNil(parts)) return ChangeSet.of({ from: prefix, to: prefix + fromMiddle.length, insert: toMiddle }, from.length)
 
   const specs: ChangeSpec[] = []
   let position = prefix
@@ -40,6 +42,7 @@ export function changesBetween(from: string, to: string): ChangeSet {
       position += text.length
     }
   }
+
   return ChangeSet.of(specs, from.length)
 }
 
@@ -48,6 +51,6 @@ export function changesBetween(from: string, to: string): ChangeSet {
  * `base` is the last text the Editor and server agreed on, `local` is the Editor's
  * document, and `remote` is the server's new text. The result applies to `local`.
  */
-export function rebaseRemote(base: string, local: string, remote: string): ChangeSet {
+export const rebaseRemote = (base: string, local: string, remote: string): ChangeSet => {
   return changesBetween(base, remote).map(changesBetween(base, local))
 }

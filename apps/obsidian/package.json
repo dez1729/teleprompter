@@ -10,7 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@teleprompter/protocol": "workspace:*"
+    "@teleprompter/protocol": "workspace:*",
+    "es-toolkit": "1.53.2"
   },
   "devDependencies": {
     "@teleprompter/server": "workspace:*",

@@ -3,7 +3,7 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
 /** How long ago a Version was saved, in the fewest words that tell Versions apart. */
-export function relativeTime(savedAt: string, nowMs: number): string {
+export const relativeTime = (savedAt: string, nowMs: number): string => {
   const then = Date.parse(savedAt)
   const elapsed = nowMs - then
   if (elapsed < MINUTE) return 'just now'

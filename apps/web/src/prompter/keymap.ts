@@ -49,7 +49,12 @@ export const KEYMAP: readonly Binding[] = [
   { key: '?', label: '?', shift: true, command: { type: 'toggleHelp' }, description: 'Keyboard shortcuts', group: 'Panels' },
 ]
 
-export function commandForKey(event: { key: string; shiftKey: boolean }): Command | null {
+interface KeyPress {
+  key: string
+  shiftKey: boolean
+}
+
+export const commandForKey = (event: KeyPress): Command | null => {
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
   const binding = KEYMAP.find((b) => b.key === key && (b.shift === undefined || b.shift === event.shiftKey))
   return binding?.command ?? null
@@ -58,13 +63,13 @@ export function commandForKey(event: { key: string; shiftKey: boolean }): Comman
 const sameCommand = (a: Command, b: Command) => JSON.stringify(a) === JSON.stringify(b)
 
 /** The keys bound to a command, as one display string such as "+ / =". */
-export function shortcutFor(command: Command): string | null {
+export const shortcutFor = (command: Command): string | null => {
   const labels = KEYMAP.filter((b) => sameCommand(b.command, command)).map((b) => b.label)
   return labels.length > 0 ? labels.join(' / ') : null
 }
 
 /** Tooltip text for a control that runs a command, e.g. "Play / pause (Space)". */
-export function tooltipFor(command: Command): string {
+export const tooltipFor = (command: Command): string => {
   const description = KEYMAP.find((b) => sameCommand(b.command, command))?.description ?? ''
   const shortcut = shortcutFor(command)
   return shortcut ? `${description} (${shortcut})` : description
@@ -76,7 +81,7 @@ export interface HelpRow {
 }
 
 /** The help overlay's content: one row per command, in KEYMAP order, within each group. */
-export function helpRows(): { group: HelpGroup; rows: HelpRow[] }[] {
+export const helpRows = (): { group: HelpGroup; rows: HelpRow[] }[] => {
   const byCommand = new Map<string, HelpRow & { group: HelpGroup }>()
   for (const binding of KEYMAP) {
     const id = JSON.stringify(binding.command)
@@ -84,6 +89,7 @@ export function helpRows(): { group: HelpGroup; rows: HelpRow[] }[] {
     if (existing) existing.keys += ` / ${binding.label}`
     else byCommand.set(id, { keys: binding.label, description: binding.description, group: binding.group })
   }
+
   return HELP_GROUPS.map((group) => ({
     group,
     rows: [...byCommand.values()].filter((row) => row.group === group).map(({ keys, description }) => ({ keys, description })),

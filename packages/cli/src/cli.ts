@@ -26,7 +26,7 @@ const SEND_OPTIONS = {
   source: { type: 'string' },
 } as const
 
-export async function run(argv: string[], io: Io): Promise<number> {
+export const run = async (argv: string[], io: Io): Promise<number> => {
   const [command, ...rest] = argv
   try {
     switch (command) {
@@ -51,13 +51,14 @@ export async function run(argv: string[], io: Io): Promise<number> {
   }
 }
 
-async function runSend(args: string[], io: Io): Promise<number> {
+const runSend = async (args: string[], io: Io): Promise<number> => {
   let parsed
   try {
     parsed = parseArgs({ args, options: SEND_OPTIONS, allowPositionals: true })
   } catch (error) {
     throw new CliError(`${(error as Error).message}\n${USAGE}`)
   }
+
   const { values, positionals } = parsed
   if (values.replace === values.append) throw new CliError('Pass exactly one of --replace or --append.')
 
@@ -66,6 +67,7 @@ async function runSend(args: string[], io: Io): Promise<number> {
     if (io.stdinIsTty) throw new CliError('No text given. Pass it as an argument or pipe it in.')
     text = await io.readStdin()
   }
+
   if (text.trim() === '') throw new CliError('The text is empty.')
 
   const kind = values.replace ? 'replace' : 'append'

@@ -1,3 +1,5 @@
+import { isBoolean, isNumber, isPlainObject, isString } from 'es-toolkit'
+
 export interface NumberField {
   kind: 'number'
   label: string
@@ -163,26 +165,26 @@ export const DEFAULT_SETTINGS = Object.fromEntries(
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
-function snap(value: number, def: NumberField): number {
+const snap = (value: number, def: NumberField): number => {
   const snapped = def.min + Math.round((value - def.min) / def.step) * def.step
   return Number(clamp(snapped, def.min, def.max).toFixed(6))
 }
 
-function parseField(def: Field, raw: unknown): unknown {
+const parseField = (def: Field, raw: unknown): unknown => {
   switch (def.kind) {
     case 'number':
-      return typeof raw === 'number' && Number.isFinite(raw) ? snap(raw, def) : def.default
+      return isNumber(raw) && Number.isFinite(raw) ? snap(raw, def) : def.default
     case 'choice':
       return def.options.some((o) => o.value === raw) ? raw : def.default
     case 'color':
-      return typeof raw === 'string' && /^#[0-9a-f]{6}$/i.test(raw) ? raw : def.default
+      return isString(raw) && /^#[0-9a-f]{6}$/i.test(raw) ? raw : def.default
     case 'bool':
-      return typeof raw === 'boolean' ? raw : def.default
+      return isBoolean(raw) ? raw : def.default
   }
 }
 
 /** Settings saved before the Countdown choice turned it off with a 0 s countdown and chose Every play with a switch. */
-function migrateCountdown(record: Record<string, unknown>): Record<string, unknown> {
+const migrateCountdown = (record: Record<string, unknown>): Record<string, unknown> => {
   if ('countdown' in record) return record
   const { countdownSec, countdownAtStartOnly, ...rest } = record
   if (countdownSec === 0) return { ...rest, countdown: 'off' }
@@ -190,19 +192,19 @@ function migrateCountdown(record: Record<string, unknown>): Record<string, unkno
 }
 
 /** Validates untrusted persisted values: bad fields fall back to defaults, numbers are clamped. */
-export function parseSettings(raw: unknown): DisplaySettings {
-  const record = migrateCountdown(typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {})
+export const parseSettings = (raw: unknown): DisplaySettings => {
+  const record = migrateCountdown(isPlainObject(raw) ? raw : {})
   return Object.fromEntries(
     Object.entries(SETTING_DEFS).map(([key, def]) => [key, parseField(def, record[key])]),
   ) as DisplaySettings
 }
 
-export function nudgeSetting(settings: DisplaySettings, key: NumberSettingKey, direction: 1 | -1): DisplaySettings {
+export const nudgeSetting = (settings: DisplaySettings, key: NumberSettingKey, direction: 1 | -1): DisplaySettings => {
   const def: NumberField = SETTING_DEFS[key]
   return { ...settings, [key]: snap(settings[key] + direction * def.step, def) }
 }
 
-export function formatSettingValue(key: NumberSettingKey, value: number): string {
+export const formatSettingValue = (key: NumberSettingKey, value: number): string => {
   const def: NumberField = SETTING_DEFS[key]
   return def.unit ? `${value} ${def.unit}` : `${value}`
 }

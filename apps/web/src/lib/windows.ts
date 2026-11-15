@@ -1,3 +1,5 @@
+import { isNil } from 'es-toolkit'
+
 export const PROMPTER_WINDOW = 'teleprompter-prompter'
 export const EDITOR_WINDOW = 'teleprompter-editor'
 
@@ -6,9 +8,9 @@ export const EDITOR_WINDOW = 'teleprompter-editor'
  * Opening a URL in a named window reloads it, which would cost an open Editor its undo
  * history and an open Prompter its place, so a window that is already there is left as it is.
  */
-export function openNamedWindow(path: string, name: string): void {
+export const openNamedWindow = (path: string, name: string): void => {
   const target = window.open('', name)
-  if (!target) return
+  if (isNil(target)) return
   let isNew: boolean
   try {
     isNew = target.location.href === 'about:blank'
@@ -16,6 +18,7 @@ export function openNamedWindow(path: string, name: string): void {
     // The window has gone to another site, so it is ours to take back.
     isNew = true
   }
+
   if (isNew) target.location.replace(path)
   target.focus()
 }

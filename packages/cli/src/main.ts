@@ -20,6 +20,7 @@ const code = await run(process.argv.slice(2), {
       if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
         throw new CliError('That port is already in use. Set PORT to use another.')
       }
+
       throw error
     }
   },

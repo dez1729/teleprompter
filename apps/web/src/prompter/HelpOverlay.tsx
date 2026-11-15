@@ -8,7 +8,7 @@ interface Props {
   onOpenChange: (open: boolean) => void
 }
 
-export function HelpOverlay({ open, onOpenChange }: Props) {
+export const HelpOverlay = ({ open, onOpenChange }: Props) => {
   const groups = [...helpRows(), { group: 'Mouse', rows: MOUSE_ROWS }]
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

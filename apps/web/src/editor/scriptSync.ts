@@ -9,6 +9,11 @@ const RETRY_DELAY_MS = 2000
 /** saved: the server has the document. pending: an Edit is waiting or on its way. failed: the last send failed and will be retried. */
 export type SyncStatus = 'saved' | 'pending' | 'failed'
 
+interface SyncState {
+  status: SyncStatus
+  script: Script
+}
+
 export interface SyncHost {
   /** The Editor's document as it stands. */
   doc: () => string
@@ -17,7 +22,7 @@ export interface SyncHost {
   /** Sends the whole text as an Edit and resolves with the Script the server made of it. */
   send: (text: string, format: ScriptFormat | undefined) => Promise<Script>
   /** Called whenever the status or the Script the server holds may have changed. */
-  onState: (state: { status: SyncStatus; script: Script }) => void
+  onState: (state: SyncState) => void
 }
 
 /**

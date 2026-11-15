@@ -14,7 +14,7 @@ const script = (text: string, revision: number, format: ScriptFormat = 'text'): 
 })
 
 /** An Editor with no DOM, and a server that answers only when the test says so. */
-function setup(initial: Script) {
+const setup = (initial: Script) => {
   let state = EditorState.create({ doc: initial.text })
   let serverRevision = initial.revision
   const sent: { text: string; format: ScriptFormat | undefined; reply: () => Script; fail: () => void }[] = []
@@ -75,7 +75,7 @@ describe('ScriptSync', () => {
 
     await vi.advanceTimersByTimeAsync(1)
     expect(editor.sent.map((s) => s.text)).toEqual(['one two three'])
-    editor.sent[0]!.reply()
+    editor.sent.at(0)!.reply()
     await editor.settle()
     expect(editor.status()).toBe('saved')
   })
@@ -94,7 +94,7 @@ describe('ScriptSync', () => {
       const editor = setup(script('one', 1))
       editor.type(' two')
       await editor.pause()
-      const send = editor.sent[0]!
+      const send = editor.sent.at(0)!
       if (eventFirst) editor.sync.receive(script('one two', 2))
       const made = send.reply()
       await editor.settle()
@@ -116,7 +116,7 @@ describe('ScriptSync', () => {
     await editor.pause()
     expect(editor.sent).toHaveLength(1)
 
-    editor.sent[0]!.reply()
+    editor.sent.at(0)!.reply()
     await editor.pause()
     expect(editor.sent.map((s) => s.text)).toEqual(['one two', 'one two three'])
     expect(editor.remoteChanges).toHaveLength(0)
@@ -147,7 +147,7 @@ describe('ScriptSync', () => {
     // The server takes the Push first, then the Edit, which overwrites it there.
     editor.push('one\n\npushed')
     expect(editor.doc()).toBe('one two\n\npushed')
-    editor.sent[0]!.reply()
+    editor.sent.at(0)!.reply()
     await editor.pause()
 
     expect(editor.doc()).toBe('one two\n\npushed')
@@ -180,13 +180,13 @@ describe('ScriptSync', () => {
     const editor = setup(script('one', 1))
     editor.type(' two')
     await editor.pause()
-    editor.sent[0]!.fail()
+    editor.sent.at(0)!.fail()
     await editor.settle()
     expect(editor.status()).toBe('failed')
 
     await vi.advanceTimersByTimeAsync(2000)
     expect(editor.sent).toHaveLength(2)
-    editor.sent[1]!.reply()
+    editor.sent.at(1)!.reply()
     await editor.settle()
     expect(editor.status()).toBe('saved')
   })

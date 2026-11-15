@@ -49,13 +49,16 @@ export interface ScriptEditor {
   destroy: () => void
 }
 
-export function createScriptEditor(options: {
+interface ScriptEditorOptions {
   parent: HTMLElement
   text: string
   format: ScriptFormat
   onChange: (text: string) => void
-}): ScriptEditor {
+}
+
+export const createScriptEditor = (options: ScriptEditorOptions): ScriptEditor => {
   const language = new Compartment()
+  let format = options.format
   const view = new EditorView({
     parent: options.parent,
     state: EditorState.create({
@@ -76,11 +79,16 @@ export function createScriptEditor(options: {
       ],
     }),
   })
+
   return {
     text: () => view.state.doc.toString(),
     applyRemote: (changes) =>
       view.dispatch({ changes, annotations: [isolateHistory.of('full'), Transaction.remote.of(true)] }),
-    setFormat: (format) => view.dispatch({ effects: language.reconfigure(languageFor(format)) }),
+    setFormat: (next) => {
+      if (next === format) return
+      format = next
+      view.dispatch({ effects: language.reconfigure(languageFor(next)) })
+    },
     focus: () => view.focus(),
     destroy: () => view.destroy(),
   }

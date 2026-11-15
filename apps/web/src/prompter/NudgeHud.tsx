@@ -1,18 +1,15 @@
-import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { NudgeReadout } from './usePrompter'
+import { useShownFor } from './useShownFor'
 
 const HUD_VISIBLE_MS = 1200
 
-export function NudgeHud({ readout }: { readout: NudgeReadout | null }) {
-  const [visible, setVisible] = useState(false)
+interface NudgeHudProps {
+  readout: NudgeReadout | null
+}
 
-  useEffect(() => {
-    if (!readout) return
-    setVisible(true)
-    const timer = setTimeout(() => setVisible(false), HUD_VISIBLE_MS)
-    return () => clearTimeout(timer)
-  }, [readout])
+export const NudgeHud = ({ readout }: NudgeHudProps) => {
+  const visible = useShownFor(readout, HUD_VISIBLE_MS)
 
   return (
     <div

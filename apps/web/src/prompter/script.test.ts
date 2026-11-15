@@ -2,13 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { placementFor } from './anchor'
 import { tokenize } from './script'
 
+interface ShownOptions {
+  format?: 'markdown' | 'text'
+  spokenOnly?: boolean
+}
+
 /** What the Prompter shows: one string per paragraph, lines joined by " / ", "——" for a Section marker. */
-function shown(text: string, { format = 'markdown', spokenOnly = true }: { format?: 'markdown' | 'text'; spokenOnly?: boolean } = {}) {
+const shown = (text: string, { format = 'markdown', spokenOnly = true }: ShownOptions = {}) => {
   const tokens = tokenize({ text, format }, spokenOnly)
   const out: string[] = []
   tokens.paragraphStarts.forEach((start, paragraph) => {
     if (tokens.sectionStarts.includes(paragraph)) out.push('——')
-    const end = tokens.paragraphStarts[paragraph + 1] ?? tokens.words.length
+    const end = tokens.paragraphStarts.at(paragraph + 1) ?? tokens.words.length
     out.push(
       tokens.words
         .slice(start, end)
@@ -16,6 +21,7 @@ function shown(text: string, { format = 'markdown', spokenOnly = true }: { forma
         .join(' '),
     )
   })
+
   return out
 }
 
@@ -95,7 +101,7 @@ describe('turning Spoken-only on or off', () => {
   const text = '# Scene one\n\nWelcome *(smile)* to the show.\n\nToday we talk about `code`.'
   const on = tokenize({ text, format: 'markdown' }, true)
   const off = tokenize({ text, format: 'markdown' }, false)
-  const wordAt = (tokens: typeof on, cursor: number) => tokens.words[Math.floor(cursor)]!.text
+  const wordAt = (tokens: typeof on, cursor: number) => tokens.words.at(Math.floor(cursor))!.text
 
   it('keeps the reader on the same word', () => {
     const toOn = placementFor('edit', off, on)

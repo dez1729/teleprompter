@@ -30,11 +30,11 @@ const SENTENCE_END = /[.!?…]["'”’)\]]*$/
 
 const PARAGRAPH_SEPARATOR = /\n[ \t]*\n\s*/
 
-function plainBlocks(text: string): Block[] {
+const plainBlocks = (text: string): Block[] => {
   return text.split(PARAGRAPH_SEPARATOR).map((paragraph) => ({ lines: paragraph.trim().split('\n'), sectionStart: false }))
 }
 
-export function tokenize(script: Pick<Script, 'text' | 'format'>, spokenOnly: boolean): TokenizedScript {
+export const tokenize = (script: Pick<Script, 'text' | 'format'>, spokenOnly: boolean): TokenizedScript => {
   const text = script.text.replace(/\r\n?/g, '\n')
   const blocks = spokenOnly && script.format === 'markdown' ? spokenBlocks(text) : plainBlocks(text)
   const words: Word[] = []
@@ -56,6 +56,7 @@ export function tokenize(script: Pick<Script, 'text' | 'format'>, spokenOnly: bo
       ),
     )
   }
+
   const sentenceEnds = words.flatMap((word, index) => (SENTENCE_END.test(word.text) ? [index + 1] : []))
   return { words, paragraphStarts, sectionStarts, sentenceEnds }
 }
