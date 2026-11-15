@@ -1,5 +1,5 @@
 import { SquarePen } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type WheelEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { EDITOR_WINDOW, openNamedWindow, PROMPTER_WINDOW } from '@/lib/windows'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
@@ -7,10 +7,12 @@ import { ControlBar } from './ControlBar'
 import { NudgeHud } from './NudgeHud'
 import { cursorToY, EMPTY_LAYOUT, measureLayout, pacedLines, readingOffset, yToCursor, type Layout } from './layout'
 import { HelpOverlay } from './HelpOverlay'
+import { readCount, useReadWords } from './readWords'
 import { ScriptText } from './ScriptText'
 import { SettingsSheet } from './SettingsSheet'
 import { UndoToast } from './UndoToast'
 import { FONT_STACKS, GAP_PACES } from './settings'
+import type { FollowStatus } from './follow/useFollow'
 import { usePrompter } from './usePrompter'
 
 const BAR_HIDE_DELAY_MS = 2000
@@ -22,7 +24,7 @@ const openEditor = () => openNamedWindow('/editor', EDITOR_WINDOW)
 export function Prompter() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const { script, connected, tokens, settings, playback, readout, replaced, undoReplace, dispatch, updateSetting, run } = usePrompter({
+  const { script, connected, tokens, settings, playback, follow, readout, replaced, undoReplace, dispatch, updateSetting, run } = usePrompter({
     helpOpen,
     onUiCommand: (command) => {
       switch (command.type) {
@@ -47,19 +49,26 @@ export function Prompter() {
   const textRef = useRef<HTMLDivElement>(null)
 
   const lineHeightPx = settings.fontSize * settings.lineHeight
-  const textStyle = {
-    position: 'relative',
-    margin: '0 auto',
-    width:
-      settings.columnMode === 'column'
-        ? `min(${settings.columnWidthCh}ch, calc(100% - ${2 * settings.marginX}px))`
-        : `calc(100% - ${2 * settings.marginX}px)`,
-    fontFamily: FONT_STACKS[settings.fontFamily],
-    fontSize: settings.fontSize,
-    lineHeight: settings.lineHeight,
-    textAlign: 'left',
-    overflowWrap: 'break-word',
-  } as const
+  // Memoized so ScriptText, which only takes new words or a new style, skips the per-frame renders.
+  const textStyle = useMemo(
+    () =>
+      ({
+        position: 'relative',
+        margin: '0 auto',
+        width:
+          settings.columnMode === 'column'
+            ? `min(${settings.columnWidthCh}ch, calc(100% - ${2 * settings.marginX}px))`
+            : `calc(100% - ${2 * settings.marginX}px)`,
+        fontFamily: FONT_STACKS[settings.fontFamily],
+        fontSize: settings.fontSize,
+        lineHeight: settings.lineHeight,
+        textAlign: 'left',
+        overflowWrap: 'break-word',
+        '--read-color': settings.readWordsColor,
+      }) as CSSProperties,
+    [settings.columnMode, settings.columnWidthCh, settings.marginX, settings.fontFamily, settings.fontSize, settings.lineHeight, settings.readWordsColor],
+  )
+  useReadWords(textRef, tokens, settings.readWords ? readCount(playback.cursor, tokens.words.length) : 0)
 
   const remeasure = useCallback(() => {
     if (!textRef.current) return
@@ -90,7 +99,7 @@ export function Prompter() {
     void document.fonts?.ready.then(remeasure)
   }, [remeasure, settings.fontFamily])
 
-  const playing = playback.mode.kind === 'playing'
+  const playing = playback.mode.kind === 'playing' || playback.mode.kind === 'following'
   useEffect(() => setRecentMouse(true), [playing])
 
   const showBar = () => setRecentMouse(true)
@@ -102,7 +111,7 @@ export function Prompter() {
 
   const scrubBy = (startCursor: number, dy: number) => {
     const y = cursorToY(layout, startCursor) + dy
-    dispatch({ type: 'SCRUB', cursor: yToCursor(layout, y) })
+    dispatch({ type: 'SCRUB', cursor: yToCursor(layout, y), keepPlaying: settings.keepPlayingOnMove })
   }
 
   const onWheel = (event: WheelEvent) => {
@@ -214,6 +223,8 @@ export function Prompter() {
           </div>
         )}
 
+        <FollowStatusLine status={follow} />
+
         {connected === false && (
           <p role="status" className="pointer-events-none absolute left-3 top-3 text-xs opacity-60">
             Not connected to server
@@ -224,6 +235,7 @@ export function Prompter() {
           <ControlBar
             visible={!playing || recentMouse}
             playing={playing || playback.mode.kind === 'countdown'}
+            scrollMode={settings.scrollMode}
             speedWpm={settings.speedWpm}
             fontSize={settings.fontSize}
             hasScript={script !== null}
@@ -236,5 +248,15 @@ export function Prompter() {
       <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} settings={settings} onChange={updateSetting} />
       <UndoToast notice={replaced} onUndo={undoReplace} />
     </>
+  )
+}
+
+function FollowStatusLine({ status }: { status: FollowStatus }) {
+  if (status.kind === 'off') return null
+  const text = status.kind === 'error' ? status.message : status.kind === 'starting' ? 'Opening the microphone…' : 'Following your voice'
+  return (
+    <p role="status" className="pointer-events-none absolute right-3 top-3 max-w-md text-right text-xs opacity-60">
+      {text}
+    </p>
   )
 }

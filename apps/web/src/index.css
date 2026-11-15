@@ -174,3 +174,8 @@
 .script-preview hr {
   @apply my-6;
 }
+
+/* Read words: the Prompter marks them as the reader passes them and sets --read-color on the text. */
+[data-read] {
+  color: var(--read-color);
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import { EMPTY_SCRIPT, type Script } from '@teleprompter/protocol'
 import { placementFor } from './anchor'
 import { commandForKey, type Command, type UiCommand } from './keymap'
+import { useFollow } from './follow/useFollow'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
 import { openScriptStream, restoreVersion, sendScript, type ScriptMessage } from '@/lib/scriptApi'
 import { EMPTY_TOKENS, tokenize } from './script'
@@ -72,9 +73,14 @@ export function usePrompter(ui: UiBridge) {
       type: 'SET_SCRIPT',
       wordCount: initial.words.length,
       paragraphStarts: initial.paragraphStarts,
+      sentenceEnds: initial.sentenceEnds,
       place: 'reset',
     }),
   )
+
+  const playbackRef = useRef(playback)
+  playbackRef.current = playback
+  const follow = useFollow(playback.mode, tokens.words, settings.speedWpm, dispatch)
 
   const [readout, setReadout] = useState<NudgeReadout | null>(null)
   const [replaced, setReplaced] = useState<ReplaceNotice | null>(null)
@@ -113,7 +119,7 @@ export function usePrompter(ui: UiBridge) {
     const { current, tokens: before } = live.current
     const after = tokenize(current, next.spokenOnly)
     live.current = { current, tokens: after }
-    dispatch({ type: 'SET_SCRIPT', wordCount: after.words.length, paragraphStarts: after.paragraphStarts, place: placementFor('edit', before, after) })
+    dispatch({ type: 'SET_SCRIPT', wordCount: after.words.length, paragraphStarts: after.paragraphStarts, sentenceEnds: after.sentenceEnds, place: placementFor('edit', before, after) })
   }, [])
 
   const updateSetting = useCallback(
@@ -138,7 +144,7 @@ export function usePrompter(ui: UiBridge) {
 
     live.current = { current: incoming, tokens: nextTokens }
     setCurrent(incoming)
-    dispatch({ type: 'SET_SCRIPT', wordCount: nextTokens.words.length, paragraphStarts: nextTokens.paragraphStarts, place })
+    dispatch({ type: 'SET_SCRIPT', wordCount: nextTokens.words.length, paragraphStarts: nextTokens.paragraphStarts, sentenceEnds: nextTokens.sentenceEnds, place })
     setReplaced(replaceNotice(message, restoring.current))
     if (kind === 'replace') restoring.current = false
   }, [])
@@ -163,6 +169,7 @@ export function usePrompter(ui: UiBridge) {
     const countdownAtStartOnly = countdown === 'start'
     switch (command.type) {
       case 'toggle':
+        if (playbackRef.current.mode.kind === 'paused' && settingsRef.current.scrollMode === 'follow') return dispatch({ type: 'FOLLOW' })
         return dispatch({ type: 'TOGGLE', countdownSec, countdownAtStartOnly })
       case 'restart':
         return dispatch({ type: 'RESTART' })
@@ -177,15 +184,24 @@ export function usePrompter(ui: UiBridge) {
         return showReadout(`${SETTING_DEFS[command.setting].label}: ${on ? 'on' : 'off'}`)
       }
       case 'stepLine':
-        return dispatch({ type: 'STEP_LINE', delta: command.delta })
+        return dispatch({ type: 'STEP_LINE', delta: command.delta, keepPlaying: settingsRef.current.keepPlayingOnMove })
       case 'stepParagraph':
-        return dispatch({ type: 'STEP_PARAGRAPH', delta: command.delta })
+        return dispatch({ type: 'STEP_PARAGRAPH', delta: command.delta, keepPlaying: settingsRef.current.keepPlayingOnMove })
       case 'openSettings':
       case 'openEditor':
       case 'toggleHelp':
         return uiRef.current.onUiCommand(command)
-      case 'follow':
-        return
+      case 'switchScrollMode': {
+        const scrollMode = settingsRef.current.scrollMode === 'auto' ? 'follow' : 'auto'
+        changeSettings({ ...settingsRef.current, scrollMode })
+        // Switching while scrolling carries on in the other mode, from the same place.
+        const { mode } = playbackRef.current
+        if (mode.kind !== 'paused') {
+          dispatch({ type: 'PAUSE' })
+          dispatch(scrollMode === 'follow' ? { type: 'FOLLOW' } : { type: 'PLAY', countdownSec: 0, countdownAtStartOnly })
+        }
+        return showReadout(`Scroll mode: ${scrollMode === 'follow' ? 'Follow' : 'Auto'}`)
+      }
     }
   }, [changeSettings, showReadout])
 
@@ -220,6 +236,7 @@ export function usePrompter(ui: UiBridge) {
     tokens,
     settings,
     playback,
+    follow,
     readout,
     replaced,
     undoReplace,

@@ -7,7 +7,7 @@ export type PlaybackCommand =
   | { type: 'flip'; setting: BoolSettingKey }
   | { type: 'stepLine'; delta: 1 | -1 }
   | { type: 'stepParagraph'; delta: 1 | -1 }
-  | { type: 'follow' }
+  | { type: 'switchScrollMode' }
 
 /** Opens or closes UI. The Prompter owns that state, so these never reach the playback reducer. */
 export type UiCommand = { type: 'openSettings' } | { type: 'openEditor' } | { type: 'toggleHelp' }
@@ -26,8 +26,6 @@ interface Binding {
   command: Command
   description: string
   group: HelpGroup
-  /** Left out of the help overlay. */
-  hidden?: boolean
 }
 
 export const KEYMAP: readonly Binding[] = [
@@ -45,7 +43,7 @@ export const KEYMAP: readonly Binding[] = [
   { key: ']', label: ']', command: { type: 'nudge', setting: 'windowHeightLines', direction: 1 }, description: 'Taller Reading window', group: 'Display' },
   { key: '[', label: '[', command: { type: 'nudge', setting: 'windowHeightLines', direction: -1 }, description: 'Shorter Reading window', group: 'Display' },
   { key: 's', label: 'S', command: { type: 'flip', setting: 'spokenOnly' }, description: 'Spoken-only on / off', group: 'Display' },
-  { key: 'f', label: 'F', command: { type: 'follow' }, description: 'Follow', group: 'Playback', hidden: true },
+  { key: 'f', label: 'F', command: { type: 'switchScrollMode' }, description: 'Switch between Auto and Follow', group: 'Playback' },
   { key: ',', label: ',', command: { type: 'openSettings' }, description: 'Display settings', group: 'Panels' },
   { key: 'p', label: 'P', command: { type: 'openEditor' }, description: 'Open the Editor', group: 'Panels' },
   { key: '?', label: '?', shift: true, command: { type: 'toggleHelp' }, description: 'Keyboard shortcuts', group: 'Panels' },
@@ -81,7 +79,6 @@ export interface HelpRow {
 export function helpRows(): { group: HelpGroup; rows: HelpRow[] }[] {
   const byCommand = new Map<string, HelpRow & { group: HelpGroup }>()
   for (const binding of KEYMAP) {
-    if (binding.hidden) continue
     const id = JSON.stringify(binding.command)
     const existing = byCommand.get(id)
     if (existing) existing.keys += ` / ${binding.label}`

@@ -70,6 +70,22 @@ test('a Pushed Script appears, plays and pauses', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^play/i })).toBeVisible()
 })
 
+test('the words before the reader are colored as read, unless Read words is off', async ({ page }) => {
+  await page.goto(url)
+  tp(['send', '--replace'], 'alpha bravo\n\ncharlie delta')
+  await expect(page.getByText('charlie')).toBeVisible()
+  const read = page.locator('[data-read]')
+  await expect(read).toHaveCount(0)
+
+  await page.keyboard.press('Shift+ArrowRight')
+  await expect(read).toHaveText(['alpha', 'bravo'])
+  await expect(read.first()).toHaveCSS('color', 'rgb(250, 204, 21)')
+
+  await page.keyboard.press(',')
+  await page.getByRole('dialog').getByRole('switch', { name: 'Read words' }).click()
+  await expect(read).toHaveCount(0)
+})
+
 test('the old browser-stored Script moves to the server once', async ({ page }) => {
   // Stored before the app's first load, as an earlier version left it.
   await page.addInitScript(() =>
@@ -186,16 +202,16 @@ test('Advanced settings open in place of the display settings and Back returns',
   await page.keyboard.press(',')
   const panel = page.getByRole('dialog')
   await expect(panel.getByText('Display settings')).toBeVisible()
-  await expect(panel.getByText('Speed')).toBeVisible()
+  await expect(panel.getByText('Speed', { exact: true })).toBeVisible()
   await expect(panel.getByText('Minimum time per line')).toHaveCount(0)
 
   await panel.getByRole('button', { name: 'Advanced settings' }).click()
   await expect(panel.getByText('Minimum time per line')).toBeVisible()
   await expect(panel.getByText('Paragraph pause')).toBeVisible()
-  await expect(panel.getByText('Speed')).toHaveCount(0)
+  await expect(panel.getByText('Speed', { exact: true })).toHaveCount(0)
 
   await panel.getByRole('button', { name: 'Back' }).click()
-  await expect(panel.getByText('Speed')).toBeVisible()
+  await expect(panel.getByText('Speed', { exact: true })).toBeVisible()
 
   await page.keyboard.press('Escape')
   await page.keyboard.press(',')

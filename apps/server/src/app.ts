@@ -7,6 +7,7 @@ import { PushRequestSchema, type ScriptChange } from '@teleprompter/protocol'
 import { DEV_PORT, hostGuard, originGuard } from './guards.ts'
 import { summarize } from './history.ts'
 import type { ScriptStore } from './store.ts'
+import { TranscriberError, type Transcriber } from './transcriber.ts'
 
 export const MAX_BODY_BYTES = 2 * 1024 * 1024
 const HEARTBEAT_MS = 15_000
@@ -18,9 +19,11 @@ export interface AppOptions {
   /** Built web app to serve. Without it only the API is served. */
   webDir?: string
   heartbeatMs?: number
+  /** Where Follow sends the reader's speech. Without it, /api/transcribe answers 503. */
+  transcriber?: Transcriber
 }
 
-export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS }: AppOptions): Hono {
+export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, transcriber }: AppOptions): Hono {
   const ports = () => [port(), DEV_PORT]
   const app = new Hono()
 
@@ -43,6 +46,25 @@ export function createApp({ store, port, webDir, heartbeatMs = HEARTBEAT_MS }: A
         return c.json({ error: 'Invalid request', issues }, 400)
       }
       return c.json(store.change(parsed.data).script)
+    },
+  )
+
+  api.post(
+    '/transcribe',
+    bodyLimit({
+      maxSize: MAX_BODY_BYTES,
+      onError: (c) => c.json({ error: 'Request body too large' }, 413),
+    }),
+    async (c) => {
+      if (!transcriber) return c.json({ error: 'No Transcriber is set up.' }, 503)
+      const audio = await c.req.blob()
+      if (audio.size === 0) return c.json({ error: 'The audio is empty.' }, 400)
+      try {
+        return c.json({ text: await transcriber(audio) })
+      } catch (error) {
+        if (error instanceof TranscriberError) return c.json({ error: error.message }, 502)
+        throw error
+      }
     },
   )
 
