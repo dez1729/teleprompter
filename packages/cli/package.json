@@ -3,9 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "bin": {
-    "tp": "./bin/tp.js"
-  },
+  "bin": { "tp": "./bin/tp.js" },
   "scripts": {
     "typecheck": "tsc -p .",
     "test": "vitest run"
@@ -14,10 +12,5 @@
     "@teleprompter/protocol": "workspace:*",
     "@teleprompter/server": "workspace:*"
   },
-  "devDependencies": {
-    "@types/node": "^26.6.6",
-    "es-toolkit": "1.53.2",
-    "typescript": "^7.0.2",
-    "vitest": "^5.1.0"
-  }
+  "devDependencies": { "@types/node": "^26.6.6", "typescript": "^7.0.2", "vitest": "^5.1.0" }
 }

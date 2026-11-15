@@ -1,79 +1,81 @@
-import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, GAP_PACES, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from "./settings";
-import { commandForKey } from "./keymap";
+import { describe, expect, it } from 'vitest'
+import { DEFAULT_SETTINGS, GAP_PACES, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from './settings'
+import { commandForKey } from './keymap'
 
-describe("settings", () => {
-  it("uses defaults for missing or malformed input", () => {
-    expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
-    expect(parseSettings({ fontSize: "big", textColor: "red", mirror: 1, fontFamily: "comic" })).toEqual(DEFAULT_SETTINGS);
-  });
+describe('settings', () => {
+  it('uses defaults for missing or malformed input', () => {
+    expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS)
+    expect(parseSettings({ fontSize: 'big', textColor: 'red', mirror: 1, fontFamily: 'comic' })).toEqual(
+      DEFAULT_SETTINGS,
+    )
+  })
 
-  it("clamps numbers into range and keeps valid values", () => {
+  it('clamps numbers into range and keeps valid values', () => {
     const parsed = parseSettings({
       speedWpm: 9999,
       fontSize: -4,
       mirror: true,
-      textColor: "#abcdef",
+      textColor: '#abcdef',
       windowHeightLines: 5,
-    });
+    })
 
-    expect(parsed.speedWpm).toBe(SETTING_DEFS.speedWpm.max);
-    expect(parsed.fontSize).toBe(SETTING_DEFS.fontSize.min);
-    expect(parsed.mirror).toBe(true);
-    expect(parsed.textColor).toBe("#abcdef");
-    expect(parsed.windowHeightLines).toBe(5);
-  });
+    expect(parsed.speedWpm).toBe(SETTING_DEFS.speedWpm.max)
+    expect(parsed.fontSize).toBe(SETTING_DEFS.fontSize.min)
+    expect(parsed.mirror).toBe(true)
+    expect(parsed.textColor).toBe('#abcdef')
+    expect(parsed.windowHeightLines).toBe(5)
+  })
 
-  it("nudges by the field step and stops at the range ends", () => {
-    expect(nudgeSetting(DEFAULT_SETTINGS, "speedWpm", 1).speedWpm).toBe(145);
-    const max = { ...DEFAULT_SETTINGS, speedWpm: SETTING_DEFS.speedWpm.max };
-    expect(nudgeSetting(max, "speedWpm", 1).speedWpm).toBe(SETTING_DEFS.speedWpm.max);
-  });
-});
+  it('nudges by the field step and stops at the range ends', () => {
+    expect(nudgeSetting(DEFAULT_SETTINGS, 'speedWpm', 1).speedWpm).toBe(145)
+    const max = { ...DEFAULT_SETTINGS, speedWpm: SETTING_DEFS.speedWpm.max }
+    expect(nudgeSetting(max, 'speedWpm', 1).speedWpm).toBe(SETTING_DEFS.speedWpm.max)
+  })
+})
 
-describe("formatSettingValue", () => {
-  it("appends the registry unit when there is one", () => {
-    expect(formatSettingValue("fontSize", 58)).toBe("58 px");
-    expect(formatSettingValue("windowHeightLines", 4)).toBe("4");
-  });
-});
+describe('formatSettingValue', () => {
+  it('appends the registry unit when there is one', () => {
+    expect(formatSettingValue('fontSize', 58)).toBe('58 px')
+    expect(formatSettingValue('windowHeightLines', 4)).toBe('4')
+  })
+})
 
-describe("keymap", () => {
-  it("distinguishes line and paragraph steps by Shift", () => {
-    expect(commandForKey({ key: "ArrowLeft", shiftKey: false })).toEqual({ type: "stepLine", delta: -1 });
-    expect(commandForKey({ key: "ArrowRight", shiftKey: true })).toEqual({ type: "stepParagraph", delta: 1 });
-  });
+describe('keymap', () => {
+  it('distinguishes line and paragraph steps by Shift', () => {
+    expect(commandForKey({ key: 'ArrowLeft', shiftKey: false })).toEqual({ type: 'stepLine', delta: -1 })
+    expect(commandForKey({ key: 'ArrowRight', shiftKey: true })).toEqual({ type: 'stepParagraph', delta: 1 })
+  })
 
-  it("ignores unbound keys", () => {
-    expect(commandForKey({ key: "q", shiftKey: false })).toBeNull();
-  });
-});
+  it('ignores unbound keys', () => {
+    expect(commandForKey({ key: 'q', shiftKey: false })).toBeNull()
+  })
+})
 
-describe("Paragraph pause", () => {
-  it("defaults to Normal and falls back to it for an unknown value", () => {
-    expect(DEFAULT_SETTINGS.paragraphPause).toBe("normal");
-    expect(parseSettings({ paragraphPause: "forever" }).paragraphPause).toBe("normal");
-    expect(parseSettings({ paragraphPause: "long" }).paragraphPause).toBe("long");
-  });
+describe('Paragraph pause', () => {
+  it('defaults to Normal and falls back to it for an unknown value', () => {
+    expect(DEFAULT_SETTINGS.paragraphPause).toBe('normal')
+    expect(parseSettings({ paragraphPause: 'forever' }).paragraphPause).toBe('normal')
+    expect(parseSettings({ paragraphPause: 'long' }).paragraphPause).toBe('long')
+  })
 
-  it("crosses gaps more slowly for a longer pause", () => {
-    expect(GAP_PACES.short).toBeGreaterThan(GAP_PACES.normal);
-    expect(GAP_PACES.normal).toBeGreaterThan(GAP_PACES.long);
-  });
-});
+  it('crosses gaps more slowly for a longer pause', () => {
+    expect(GAP_PACES.short).toBeGreaterThan(GAP_PACES.normal)
+    expect(GAP_PACES.normal).toBeGreaterThan(GAP_PACES.long)
+  })
+})
 
-describe("Countdown", () => {
-  it("defaults to At start", () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({ countdown: "start", countdownSec: 3 });
-  });
+describe('Countdown', () => {
+  it('defaults to At start', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ countdown: 'start', countdownSec: 3 })
+  })
 
-  it("carries over settings saved before the Countdown choice", () => {
-    expect(parseSettings({ countdownSec: 0, countdownAtStartOnly: true })).toMatchObject({ countdown: "off", countdownSec: 3 });
-    expect(parseSettings({ countdownSec: 5, countdownAtStartOnly: false })).toMatchObject({ countdown: "every", countdownSec: 5 });
-    expect(parseSettings({ countdownSec: 5, countdownAtStartOnly: true })).toMatchObject({ countdown: "start", countdownSec: 5 });
-  });
+  it('carries over settings saved before the Countdown choice', () => {
+    expect(parseSettings({ countdownSec: 0, countdownAtStartOnly: true })).toMatchObject({ countdown: 'off', countdownSec: 3 })
+    expect(parseSettings({ countdownSec: 5, countdownAtStartOnly: false })).toMatchObject({ countdown: 'every', countdownSec: 5 })
+    expect(parseSettings({ countdownSec: 5, countdownAtStartOnly: true })).toMatchObject({ countdown: 'start', countdownSec: 5 })
+  })
 
-  it("keeps a saved Countdown choice", () => {
-    expect(parseSettings({ countdown: "off", countdownSec: 4 })).toMatchObject({ countdown: "off", countdownSec: 4 });
-  });
-});
+  it('keeps a saved Countdown choice', () => {
+    expect(parseSettings({ countdown: 'off', countdownSec: 4 })).toMatchObject({ countdown: 'off', countdownSec: 4 })
+  })
+})

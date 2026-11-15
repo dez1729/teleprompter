@@ -1,5 +1,0 @@
-# Formatting-only commits. GitHub's blame skips them; locally run:
-#   git config blame.ignoreRevsFile .git-blame-ignore-revs
-# These SHAs exist on main only if their PR is merged with a merge commit. Squash and rebase merges create new SHAs.
-# style: format the repo with Prettier
-cad7e9c9c7c0b2d7d2ebbca98bd8b0bd97cc9f2b
