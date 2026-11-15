@@ -72,10 +72,11 @@ const bestEnd = (
   if (said.length === 0 || hi <= lo) return null;
   // previous[j] and current[j] score the best match ending at the current heard word and Script word lo + j - 1.
   const width = hi - lo + 1;
-  let previous = new Array<number>(width).fill(0);
+  // Two rows, swapped after each heard word: each pass rewrites every entry but the first, which stays 0.
+  let previous = Array.from({ length: width }, () => 0);
+  let current = Array.from({ length: width }, () => 0);
   let best: { score: number; end: number } | null = null;
   for (const word of said) {
-    const current = new Array<number>(width).fill(0);
     for (let j = 1; j < width; j++) {
       const diagonal = previous.at(j - 1)! + (similar(word, script.at(lo + j - 1)!) ? MATCH : MISMATCH);
       current[j] = Math.max(0, diagonal, previous.at(j)! + GAP, current.at(j - 1)! + GAP);
@@ -86,7 +87,7 @@ const bestEnd = (
       if (current.at(j)! >= needed(end) && (best === null || score > best.score)) best = { score, end };
     }
 
-    previous = current;
+    [previous, current] = [current, previous];
   }
 
   return best?.end ?? null;

@@ -58,7 +58,7 @@ interface ScriptEditorOptions {
 
 export const createScriptEditor = (options: ScriptEditorOptions): ScriptEditor => {
   const language = new Compartment();
-  let format = options.format;
+  let { format } = options;
   const view = new EditorView({
     parent: options.parent,
     state: EditorState.create({

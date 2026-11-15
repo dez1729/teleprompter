@@ -48,7 +48,7 @@ describe("whisperTranscriber", () => {
       url: "http://127.0.0.1:2022",
       model: "tiny",
       fetch: async (url, init) => {
-        sent = { url: String(url), form: init!.body as FormData };
+        sent = { url: new Request(url).url, form: init!.body as FormData };
         return Response.json({ text: " Hello there." });
       },
     });

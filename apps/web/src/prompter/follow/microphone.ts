@@ -117,7 +117,9 @@ export const resample = (samples: Float32Array, from: number, to: number): Float
 /** 16-bit mono PCM in a WAV container. */
 export const wav = (samples: Float32Array, rate: number): Blob => {
   const view = new DataView(new ArrayBuffer(44 + samples.length * 2));
-  const text = (offset: number, value: string) => [...value].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
+  const text = (offset: number, value: string) => {
+    for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
+  };
   text(0, "RIFF");
   view.setUint32(4, 36 + samples.length * 2, true);
   text(8, "WAVE");

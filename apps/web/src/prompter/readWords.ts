@@ -14,9 +14,9 @@ export const useReadWords = (textRef: RefObject<HTMLElement | null>, words: unkn
   const marked = useRef<{ words: unknown; spans: HTMLElement[]; count: number }>({ words: null, spans: [], count: 0 });
 
   useLayoutEffect(() => {
-    const text = textRef.current;
+    const { current: text } = textRef;
     if (isNil(text)) return;
-    let current = marked.current;
+    let { current } = marked;
     if (current.words !== words) {
       // New words are new elements, none of them marked yet.
       current = { words, spans: [...text.querySelectorAll<HTMLElement>("[data-word]")], count: 0 };

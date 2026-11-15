@@ -147,7 +147,7 @@ export const Prompter = () => {
 
   const onPointerMove = (event: PointerEvent) => {
     showBar();
-    const current = drag.current;
+    const { current } = drag;
     if (isNil(current)) return;
     const dy = event.clientY - current.startY;
     if (!current.moved && Math.abs(dy) < DRAG_THRESHOLD_PX) return;

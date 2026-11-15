@@ -32,7 +32,7 @@ beforeEach(() => {
 const setup = (heartbeatMs?: number) => {
   const store = new ScriptStore(dir, { now: () => nowMs });
   const app = createApp({ store, port: () => PORT, heartbeatMs });
-  const request = (path: string, init: RequestInit & { headers?: Record<string, string> } = {}) =>
+  const request = (path: string, init: Omit<RequestInit, "headers"> & { headers?: Record<string, string> } = {}) =>
     app.request(path, { ...init, headers: { host: HOST, ...init.headers } });
 
   const push = (body: unknown, headers: Record<string, string> = {}) =>

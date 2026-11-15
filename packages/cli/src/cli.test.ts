@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { isString } from "es-toolkit";
 import { run, type Io } from "./cli.ts";
 
 const script = { text: "hi", format: "text", source: null, revision: 4 };
@@ -18,7 +19,11 @@ const setup = (overrides: Partial<Io> = {}) => {
     ...overrides,
   };
 
-  const body = () => JSON.parse(String(fetchMock.mock.calls.at(0)?.[1]?.body));
+  const body = () => {
+    const sent = fetchMock.mock.calls.at(0)?.[1]?.body;
+    if (!isString(sent)) throw new Error("tp sent no JSON body");
+    return JSON.parse(sent);
+  };
   return { io, out, err, fetchMock, body };
 };
 
@@ -27,7 +32,7 @@ describe("tp send", () => {
     const { io, out, fetchMock, body } = setup();
     expect(await run(["send", "--replace", "hello", "world"], io)).toBe(0);
     const [url, init] = fetchMock.mock.calls.at(0)!;
-    expect(String(url)).toBe("http://127.0.0.1:4747/api/script");
+    expect(new Request(url).url).toBe("http://127.0.0.1:4747/api/script");
     expect(init?.method).toBe("POST");
     expect(body()).toEqual({ kind: "replace", text: "hello world" });
     expect(out).toEqual(["Replaced the Script (revision 4)."]);
@@ -48,7 +53,8 @@ describe("tp send", () => {
   it("uses TELEPROMPTER_URL", async () => {
     const { io, fetchMock } = setup({ env: { TELEPROMPTER_URL: "http://127.0.0.1:9000" } });
     await run(["send", "--replace", "x"], io);
-    expect(String(fetchMock.mock.calls.at(0)!.at(0)!)).toBe("http://127.0.0.1:9000/api/script");
+    const [url] = fetchMock.mock.calls.at(0)!;
+    expect(new Request(url).url).toBe("http://127.0.0.1:9000/api/script");
   });
 
   it("exits non-zero with a hint to run tp serve when the server is down", async () => {

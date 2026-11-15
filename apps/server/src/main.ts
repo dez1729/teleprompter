@@ -5,7 +5,7 @@ try {
   console.log(`Teleprompter listening on ${server.url}`);
 }
 catch (error) {
-  const code = (error as NodeJS.ErrnoException).code;
+  const { code } = error as NodeJS.ErrnoException;
   console.error(code === "EADDRINUSE" ? "That port is already in use. Set PORT to use another." : String(error));
   process.exit(1);
 }
