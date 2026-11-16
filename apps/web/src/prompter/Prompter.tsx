@@ -282,7 +282,7 @@ export const Prompter = () => {
         <div className="pointer-events-none absolute top-3 right-4 flex max-w-md flex-col items-end gap-1">
           {settings.showTimer && (
             <TimerReadout
-              elapsedMs={timer.elapsedMs}
+              timer={timer}
               targetMin={settings.timerTargetMin}
               mirror={settings.mirror}
             />
@@ -311,13 +311,9 @@ export const Prompter = () => {
             onTimerOpenChange={setTimerOpen}
             timerPanel={
               <TimerPanel
-                elapsedMs={timer.elapsedMs}
-                running={timer.running}
+                timer={timer}
                 remainingWords={!isNil(script) && playback.wordCount > 0 ? playback.wordCount - playback.cursor : null}
                 settings={settings}
-                onStart={timer.start}
-                onPause={timer.pause}
-                onReset={timer.reset}
                 onChange={updateSetting}
               />
             }

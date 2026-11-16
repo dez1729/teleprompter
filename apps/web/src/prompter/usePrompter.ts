@@ -171,7 +171,7 @@ export const usePrompter = (ui: UiBridge) => {
         place,
       });
 
-      if (place === "reset" && settingsRef.current.timerFollowsPlayback) rewind();
+      if (kind === "replace") rewind();
       setReplaced(replaceNotice(message, restoring.current));
       if (kind === "replace") restoring.current = false;
     },
@@ -210,7 +210,7 @@ export const usePrompter = (ui: UiBridge) => {
           return dispatch({ type: "TOGGLE", countdownSec, countdownAtStartOnly });
         case "restart":
           dispatch({ type: "RESTART" });
-          if (settingsRef.current.timerFollowsPlayback) rewind();
+          rewind();
           return;
         case "nudge": {
           const next = nudgeSetting(settingsRef.current, command.setting, command.direction);

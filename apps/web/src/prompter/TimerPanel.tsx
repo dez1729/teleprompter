@@ -6,37 +6,37 @@ import { PopoverDescription, PopoverHeader, PopoverTitle } from "@/components/ui
 import { SettingField } from "./SettingField";
 import { keysOnPage, type DisplaySettings, type SettingKey } from "./settings";
 import { formatDuration, remainingMs } from "./timer";
+import { useTimerReading, type Timer } from "./useTimer";
 
 const TIMER_KEYS = keysOnPage("timer");
 
 interface Props {
-  elapsedMs: number;
-  running: boolean;
+  timer: Timer;
   // Null when there is no Script to estimate.
   remainingWords: number | null;
   settings: DisplaySettings;
-  onStart: () => void;
-  onPause: () => void;
-  onReset: () => void;
   onChange: <K extends SettingKey>(key: K, value: DisplaySettings[K]) => void;
 }
 
-export const TimerPanel = ({ elapsedMs, running, remainingWords, settings, onStart, onPause, onReset, onChange }: Props) => {
+export const TimerPanel = ({ timer, remainingWords, settings, onChange }: Props) => {
+  const { elapsedMs, running } = useTimerReading(timer);
   return (
     <>
       <PopoverHeader>
         <PopoverTitle>Timer</PopoverTitle>
         <PopoverDescription>
-          {isNil(remainingWords)
-            ? "No Script to estimate."
-            : `About ${formatDuration(remainingMs(remainingWords, settings.speedWpm))} left at ${settings.speedWpm} wpm`}
+          {settings.scrollMode === "follow"
+            ? "Follow keeps your pace, so there is no estimate."
+            : isNil(remainingWords)
+              ? "No Script to estimate."
+              : `About ${formatDuration(remainingMs(remainingWords, settings.speedWpm))} left at ${settings.speedWpm} wpm`}
         </PopoverDescription>
       </PopoverHeader>
       <p className="text-center text-4xl font-semibold tabular-nums">{formatDuration(elapsedMs)}</p>
       <div className="flex gap-2">
         <Button
           className="flex-1"
-          onClick={running ? onPause : onStart}
+          onClick={running ? timer.pause : timer.start}
         >
           {running ? <Pause data-icon="inline-start" /> : <Play data-icon="inline-start" />}
           {running ? "Pause" : "Start"}
@@ -44,7 +44,7 @@ export const TimerPanel = ({ elapsedMs, running, remainingWords, settings, onSta
         <Button
           className="flex-1"
           variant="outline"
-          onClick={onReset}
+          onClick={timer.reset}
         >
           <RotateCcw data-icon="inline-start" />
           Reset

@@ -1,8 +1,6 @@
 import { isNil } from "es-toolkit";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { elapsedMs, pauseTimer, resetTimer, startTimer, STOPPED_TIMER, type TimerState } from "./timer";
-
-const REDRAW_MS = 250;
 
 interface Snapshot {
   timer: TimerState;
@@ -13,54 +11,73 @@ interface Snapshot {
 type Change = (state: TimerState, now: number) => TimerState;
 
 // The clock lives outside React, so playback changes can start and stop it without setting state from an effect.
+// It redraws on each whole second of elapsed time, and only while it runs and something shows it.
 const createTimerStore = () => {
   let snapshot: Snapshot = { timer: STOPPED_TIMER, now: performance.now() };
+  let followsPlayback = false;
+  let redraw: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<() => void>();
+
+  const schedule = () => {
+    clearTimeout(redraw);
+    redraw = undefined;
+    if (isNil(snapshot.timer.startedAt) || listeners.size === 0) return;
+
+    const untilNextSecond = 1000 - (elapsedMs(snapshot.timer, performance.now()) % 1000);
+    redraw = setTimeout(() => set({ ...snapshot, now: performance.now() }), untilNextSecond);
+  };
+
   const set = (next: Snapshot) => {
     snapshot = next;
+    schedule();
     listeners.forEach((listener) => listener());
   };
 
-  const store = {
-    subscribe: (listener: () => void) => {
-      listeners.add(listener);
-      return () => void listeners.delete(listener);
-    },
-    getSnapshot: () => snapshot,
-    apply: (change: Change) => {
-      const now = performance.now();
-      set({ timer: change(snapshot.timer, now), now });
-    },
-    // A timer that follows playback runs exactly while playback scrolls. One that does not is left to its own controls.
-    follow: (scrolling: boolean, followsPlayback: boolean) => {
-      if (followsPlayback) store.apply(scrolling ? startTimer : pauseTimer);
-    },
-    redraw: () => set({ ...snapshot, now: performance.now() }),
+  const apply = (change: Change) => {
+    const now = performance.now();
+    const timer = change(snapshot.timer, now);
+    if (timer !== snapshot.timer) set({ timer, now });
   };
 
-  return store;
+  return {
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      schedule();
+
+      return () => {
+        listeners.delete(listener);
+        schedule();
+      };
+    },
+    getSnapshot: () => snapshot,
+    // A timer that follows playback runs exactly while playback scrolls. One that does not is left to its own controls.
+    follow: (scrolling: boolean, follows: boolean) => {
+      followsPlayback = follows;
+      if (follows) apply(scrolling ? startTimer : pauseTimer);
+    },
+    start: () => apply(startTimer),
+    pause: () => apply(pauseTimer),
+    reset: () => apply(resetTimer),
+    // Playback went back to the top and stopped. A timer that follows it zeroes and stops too; one run by hand is left alone.
+    rewind: () => {
+      if (followsPlayback) apply((current, at) => pauseTimer(resetTimer(current, at), at));
+    },
+  };
 };
 
+export type Timer = ReturnType<typeof createTimerStore>;
+
 // With `followsPlayback` it runs while `scrolling` is true, so a countdown or a pause is not counted.
-// It redraws only while running; the elapsed time comes from the clock, not from counting redraws.
-export const useTimer = (scrolling: boolean, followsPlayback: boolean) => {
-  const [store] = useState(createTimerStore);
-  const { timer, now } = useSyncExternalStore(store.subscribe, store.getSnapshot);
-  const running = !isNil(timer.startedAt);
+export const useTimer = (scrolling: boolean, followsPlayback: boolean): Timer => {
+  const [timer] = useState(createTimerStore);
+  useEffect(() => timer.follow(scrolling, followsPlayback), [timer, scrolling, followsPlayback]);
 
-  useEffect(() => store.follow(scrolling, followsPlayback), [store, scrolling, followsPlayback]);
+  return timer;
+};
 
-  useEffect(() => {
-    if (!running) return;
-    const id = setInterval(store.redraw, REDRAW_MS);
-    return () => clearInterval(id);
-  }, [store, running]);
+// Only the parts that show the time subscribe, so a redraw re-renders them and not the whole Prompter.
+export const useTimerReading = (timer: Timer) => {
+  const { timer: state, now } = useSyncExternalStore(timer.subscribe, timer.getSnapshot);
 
-  const start = useCallback(() => store.apply(startTimer), [store]);
-  const pause = useCallback(() => store.apply(pauseTimer), [store]);
-  const reset = useCallback(() => store.apply(resetTimer), [store]);
-  // Playback went back to the top and stopped, so a timer that follows it zeroes and stops too.
-  const rewind = useCallback(() => store.apply((current, at) => pauseTimer(resetTimer(current, at), at)), [store]);
-
-  return { elapsedMs: elapsedMs(timer, now), running, start, pause, reset, rewind };
+  return { elapsedMs: elapsedMs(state, now), running: !isNil(state.startedAt) };
 };

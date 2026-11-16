@@ -143,7 +143,7 @@ export const Editor = () => {
           ref={mount}
           className="min-w-0 flex-1"
         />
-        {previewing && script && (
+        {previewing && !isNil(script) && (
           <div className="min-w-0 flex-1 border-l">
             <Suspense>
               <Preview

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SettingField } from "./SettingField";
-import { keysOnPage, type DisplaySettings, type SettingKey } from "./settings";
+import { keysOnPage, type DisplaySettings, type SettingKey, type SettingsPage } from "./settings";
 
 interface Props {
   open: boolean;
@@ -13,7 +13,7 @@ interface Props {
   onChange: <K extends SettingKey>(key: K, value: DisplaySettings[K]) => void;
 }
 
-type Page = "main" | "advanced";
+type Page = Exclude<SettingsPage, "timer">;
 
 /** The main page holds the everyday settings; Advanced settings replaces it in the same panel, with Back to return. */
 export const SettingsSheet = ({ open, onOpenChange, settings, onChange }: Props) => {
