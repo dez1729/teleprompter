@@ -54,6 +54,13 @@ interface RunResult {
   pastSentenceEnd: number;
 }
 
+// A run where Follow stopped partway, such as on a Whisper error, and why.
+interface StoppedRun {
+  stopped: string;
+}
+
+type RunOutcome = RunResult | StoppedRun;
+
 const speak = async (text: string): Promise<ArrayBuffer> => {
   const response = await fetch(new URL("/v1/audio/speech", KOKORO_URL), {
     method: "POST",
@@ -193,7 +200,7 @@ interface RunOptions extends FollowOptions {
   clipPath: string;
 }
 
-const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<RunResult> => {
+const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<RunOutcome> => {
   const dataDir = mkdtempSync(join(tmpdir(), "tp-follow-bench-"));
   try {
     const server = await startServer({ ...optionsFromEnv(), port: 0, dataDir, webDir: WEB_DIR });
@@ -224,7 +231,7 @@ const micState = () => {
   return (window as unknown as { micOpenedAt?: number }).micOpenedAt === undefined ? null : "open";
 };
 
-const follow = async (url: string, browser: Browser, { from, timing, trace }: FollowOptions): Promise<RunResult> => {
+const follow = async (url: string, browser: Browser, { from, timing, trace }: FollowOptions): Promise<RunOutcome> => {
   const pushed = await fetch(`${url}/api/script`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -245,7 +252,8 @@ const follow = async (url: string, browser: Browser, { from, timing, trace }: Fo
   const speechSec = timing.at(-1)!.end - cutSec;
   await page.waitForTimeout((LEAD_IN_SEC + speechSec + TAIL_SEC - 0.5) * 1000);
   const ended = await page.evaluate(micState);
-  if (ended !== "open") throw new Error(`Follow stopped: ${ended}`);
+  // Follow working at first and then stopping is one bad run, not a reason to give up on the rest.
+  if (ended !== "open") return { stopped: ended ?? "no reason shown" };
 
   const began = timing.at(from)!.start;
   const points = (await readSamples(page)).map(([ms, cursor]): Point => {
@@ -290,8 +298,15 @@ try {
     const clipPath = join(clipDir, `from-${from}.wav`);
     writeFileSync(clipPath, clipFrom(pcm, cutBefore(timing, from)));
     const results: RunResult[] = [];
+    let stopped = 0;
     for (let run = 1; run <= runs; run++) {
       const r = await runOnce({ from, clipPath, timing, trace: values.trace });
+      if ("stopped" in r) {
+        stopped++;
+        console.log(`from ${from} run ${run}: Follow stopped: ${r.stopped}`);
+        continue;
+      }
+
       results.push(r);
       console.log(
         `from ${from} run ${run}: catch-up ${show(r.catchUp)} s, median lag ${show(r.medianLag)} words, ` +
@@ -301,8 +316,9 @@ try {
 
     const caughtUp = results.map((r) => r.catchUp).filter(Number.isFinite);
     const mean = caughtUp.length === 0 ? NaN : caughtUp.reduce((sum, t) => sum + t, 0) / caughtUp.length;
-    const missed = runs - caughtUp.length;
-    console.log(`from ${from}: mean catch-up ${show(mean)} s over ${caughtUp.length} runs${missed > 0 ? `, ${missed} never caught up` : ""}\n`);
+    const missed = results.length - caughtUp.length;
+    const misses = [missed > 0 ? `${missed} never caught up` : "", stopped > 0 ? `${stopped} stopped` : ""].filter(Boolean);
+    console.log(`from ${from}: mean catch-up ${show(mean)} s over ${caughtUp.length} runs${misses.map((m) => `, ${m}`).join("")}\n`);
   }
 }
 finally {
