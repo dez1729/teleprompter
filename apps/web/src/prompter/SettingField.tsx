@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -10,7 +11,7 @@ interface Props {
   onChange: <K extends SettingKey>(key: K, value: DisplaySettings[K]) => void;
 }
 
-/** One setting as its control, label and description. The settings sheet and the Timer popover both render settings with it. */
+// One setting as its control, label and description.
 export const SettingField = ({ setting, settings, onChange }: Props) => {
   const def = SETTING_DEFS[setting];
   const value: unknown = settings[setting];
@@ -26,7 +27,7 @@ export const SettingField = ({ setting, settings, onChange }: Props) => {
             <FieldLabel htmlFor={id}>{def.label}</FieldLabel>
             <span className="text-sm text-muted-foreground tabular-nums">
               {value as number}
-              {def.unit ? ` ${def.unit}` : ""}
+              {isNil(def.unit) ? "" : ` ${def.unit}`}
             </span>
           </div>
           {description}
@@ -52,7 +53,7 @@ export const SettingField = ({ setting, settings, onChange }: Props) => {
             variant="outline"
             spacing={0}
             value={[value as string]}
-            onValueChange={(next) => next.at(0) !== undefined && set(next.at(0))}
+            onValueChange={(next) => !isNil(next.at(0)) && set(next.at(0))}
           >
             {def.options.map((option) => (
               <ToggleGroupItem

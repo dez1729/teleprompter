@@ -131,7 +131,7 @@ export const initialPlayback: PlaybackState = {
   lines: [],
 };
 
-/** Scrolling in either Scroll mode. A countdown is not scrolling yet. */
+// Scrolling in either Scroll mode. A countdown is not scrolling yet.
 export const isScrolling = (mode: PlaybackMode): boolean => mode.kind === "playing" || mode.kind === "following";
 
 export const needsTick = (state: PlaybackState): boolean => {

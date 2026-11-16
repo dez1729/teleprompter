@@ -46,7 +46,6 @@ interface Props {
   hasScript: boolean;
   timerOpen: boolean;
   onTimerOpenChange: (open: boolean) => void;
-  /** The Timer popover's content. */
   timerPanel: ReactNode;
   onCommand: (command: Command) => void;
 }

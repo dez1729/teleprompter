@@ -295,7 +295,7 @@ export const Prompter = () => {
               <TimerPanel
                 elapsedMs={timer.elapsedMs}
                 running={timer.running}
-                remainingWords={script && playback.wordCount > 0 ? playback.wordCount - playback.cursor : null}
+                remainingWords={!isNil(script) && playback.wordCount > 0 ? playback.wordCount - playback.cursor : null}
                 settings={settings}
                 onStart={timer.start}
                 onPause={timer.pause}

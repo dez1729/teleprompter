@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
@@ -11,7 +12,7 @@ const TIMER_KEYS = keysOnPage("timer");
 interface Props {
   elapsedMs: number;
   running: boolean;
-  /** Null when there is no Script to estimate. */
+  // Null when there is no Script to estimate.
   remainingWords: number | null;
   settings: DisplaySettings;
   onStart: () => void;
@@ -26,7 +27,7 @@ export const TimerPanel = ({ elapsedMs, running, remainingWords, settings, onSta
       <PopoverHeader>
         <PopoverTitle>Timer</PopoverTitle>
         <PopoverDescription>
-          {remainingWords === null
+          {isNil(remainingWords)
             ? "No Script to estimate."
             : `About ${formatDuration(remainingMs(remainingWords, settings.speedWpm))} left at ${settings.speedWpm} wpm`}
         </PopoverDescription>

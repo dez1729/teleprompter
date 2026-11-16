@@ -25,9 +25,9 @@ export interface BoolField {
   label: string;
   default: boolean;
 }
-/** The panels that show settings. The settings sheet's main page is the default; the Timer popover lists its own. */
+// The panels that show settings. The settings sheet's main page is the default; the Timer popover lists its own.
 export type SettingsPage = "main" | "advanced" | "timer";
-/** Shown on a panel other than the settings sheet's main page. */
+// Shown on a panel other than the settings sheet's main page.
 interface Placement {
   page?: Exclude<SettingsPage, "main">;
 }
@@ -171,7 +171,7 @@ export type BoolSettingKey = {
   [K in SettingKey]: (typeof SETTING_DEFS)[K] extends BoolField ? K : never;
 }[SettingKey];
 
-/** The settings a panel shows, in registry order. */
+// The settings a panel shows, in registry order.
 export const keysOnPage = (page: SettingsPage): SettingKey[] => {
   const defs: Record<string, Field> = SETTING_DEFS;
   return Object.keys(SETTING_DEFS).filter((key) => (defs[key]?.page ?? "main") === page) as SettingKey[];
