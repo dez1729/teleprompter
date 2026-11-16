@@ -189,8 +189,9 @@ const heard = (state: PlaybackState, matched: number, position: number, pace: nu
   const jumped = reader - (state.animTarget ?? state.cursor) > FOLLOW_JUMP_WORDS;
   // Trailing keeps the wobble of a second-old estimate behind the reader. A cursor gliding to catch up with a reader
   // far ahead cannot get ahead of them, so trailing would only slow it down. The trail comes back because the target
-  // stands still during the glide, about half a second, while the reader reads on; below about 1.5 words a second
-  // (90 wpm) it comes back only partly, as pace times glide, until the cursor next waits at a sentence end.
+  // stands still during the glide, 0.4 to 0.5 s, while the reader reads on; below about 1.5 to 1.9 words a second,
+  // depending on how far the jump is, it comes back only partly, as pace times glide, until the cursor next waits at a
+  // sentence end.
   const next = jumped ? reader : aimAt(Math.max(matched, position - FOLLOW_TRAIL_WORDS));
   return {
     ...state,
