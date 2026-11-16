@@ -260,6 +260,22 @@ test("the Timer's settings stay folded until opened", async ({ page }) => {
   await expect(runWithPlayback).toBeVisible();
 });
 
+test("the Timer stays open when you click the Script, and Esc closes it", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], "alpha bravo charlie");
+  await expect(page.getByText("alpha")).toBeVisible();
+
+  await page.keyboard.press("t");
+  const timerMenu = page.getByRole("dialog", { name: "Timer" });
+  await expect(timerMenu).toBeVisible();
+
+  await page.getByText("alpha").click();
+  await expect(timerMenu).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(timerMenu).toBeHidden();
+});
+
 test("the Timer runs with playback, not through the countdown, and Restart zeroes it", async ({ page }) => {
   await page.goto(url);
   tp(["send", "--replace"], Array.from({ length: 200 }, (_, i) => `word${i}`).join(" "));

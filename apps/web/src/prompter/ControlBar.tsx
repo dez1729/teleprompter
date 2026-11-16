@@ -159,7 +159,11 @@ export const ControlBar = ({
             </Hint>
             <Popover
               open={timerOpen}
-              onOpenChange={onTimerOpenChange}
+              onOpenChange={(open, details) => {
+                // The Timer stays up while you read, so clicking or dragging the Script leaves it open.
+                if (!open && (details.reason === "outside-press" || details.reason === "focus-out")) return;
+                onTimerOpenChange(open);
+              }}
             >
               <Hint command={toggleTimer}>
                 <PopoverTrigger
