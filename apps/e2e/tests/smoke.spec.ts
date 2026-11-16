@@ -278,6 +278,11 @@ test("the Timer closes when you click the Script unless it is pinned, and Esc cl
 
   await page.keyboard.press("Escape");
   await expect(timerMenu).toBeHidden();
+
+  await page.reload();
+  await expect(page.getByText("alpha")).toBeVisible();
+  await page.keyboard.press("t");
+  await expect(timerMenu.getByRole("button", { name: "Keep the Timer open" })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("the Timer runs with playback, not through the countdown, and Restart zeroes it", async ({ page }) => {

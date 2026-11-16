@@ -17,6 +17,7 @@ import { UndoToast } from "./UndoToast";
 import { FONT_STACKS, GAP_PACES } from "./settings";
 import type { FollowStatus } from "./follow/session";
 import { isScrolling } from "./playback";
+import { loadTimerPinned, saveTimerPinned } from "./storage";
 import { usePrompter } from "./usePrompter";
 
 const BAR_HIDE_DELAY_MS = 2000;
@@ -29,7 +30,13 @@ export const Prompter = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
-  const [timerPinned, setTimerPinned] = useState(false);
+  const [timerPinned, setTimerPinned] = useState(loadTimerPinned);
+
+  const pinTimer = (pinned: boolean) => {
+    setTimerPinned(pinned);
+    saveTimerPinned(pinned);
+  };
+
   const { script, connected, tokens, settings, playback, follow, readout, replaced, timer, connect, undoReplace, dispatch, updateSetting, run } =
     usePrompter({
       helpOpen,
@@ -315,7 +322,7 @@ export const Prompter = () => {
               <TimerPanel
                 timer={timer}
                 pinned={timerPinned}
-                onPinnedChange={setTimerPinned}
+                onPinnedChange={pinTimer}
                 remainingWords={!isNil(script) && playback.wordCount > 0 ? playback.wordCount - playback.cursor : null}
                 settings={settings}
                 onChange={updateSetting}
