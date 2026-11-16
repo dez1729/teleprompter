@@ -224,3 +224,39 @@ test("Advanced settings open in place of the display settings and Back returns",
   await page.keyboard.press(",");
   await expect(page.getByRole("dialog").getByText("Display settings")).toBeVisible();
 });
+
+test("the Timer counts reading time and resets", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], "alpha bravo charlie delta echo foxtrot");
+  await expect(page.getByText("alpha")).toBeVisible();
+
+  const readout = page.getByRole("timer");
+  await expect(readout).toHaveText("0:00");
+
+  await page.keyboard.press("t");
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(readout).toHaveText(/^0:0[1-9]$/);
+
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await page.getByRole("button", { name: "Reset" }).click();
+  await expect(readout).toHaveText("0:00");
+});
+
+test("the Timer runs with playback, not through the countdown, and Restart zeroes it", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], Array.from({ length: 200 }, (_, i) => `word${i}`).join(" "));
+  await expect(page.getByText("word0", { exact: false }).first()).toBeVisible();
+
+  const readout = page.getByRole("timer");
+  await page.keyboard.press("Space");
+  await expect(readout).toHaveText("0:00");
+  await expect(readout).toHaveText(/^0:0[1-9]$/, { timeout: 8000 });
+
+  await page.keyboard.press("Space");
+  const paused = await readout.textContent();
+  await page.waitForTimeout(1500);
+  await expect(readout).toHaveText(paused ?? "");
+
+  await page.keyboard.press("Home");
+  await expect(readout).toHaveText("0:00");
+});
