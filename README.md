@@ -116,6 +116,7 @@ Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it 
 | `f`     | Switch between Auto and Follow.                                                                                            |
 | `p`     | Open the Editor.                                                                                                           |
 | `s`     | Turn Spoken-only on or off.                                                                                                |
+| `t`     | Open the Timer.                                                                                                            |
 | `,`     | Open the display settings.                                                                                                 |
 
 Scroll the mouse wheel or drag the text to move through the Script by hand. Scrolling, dragging, and the arrow keys keep playing from where you move to, in Auto or Follow. To have them pause instead, turn off **Keep playing when you move** in Advanced settings.
@@ -151,6 +152,16 @@ A markdown Script often holds text you do not read aloud. Spoken-only, which is 
 - Bold text and link text stay. List markers and `>` quote marks are hidden, and a list reads as one paragraph with a line per item.
 
 Press `s` to see the whole Script. The Prompter stays on the word you were reading. Spoken-only changes only what the Prompter shows: the Editor and the stored Script keep every character. A text Script is never filtered.
+
+### Timer
+
+The Timer shows how long you have been reading. The top right corner of the Prompter shows the time, such as `2:14`, or `2:14 / 5:00` when you set a target length. It turns red once you pass the target.
+
+Press `t`, or the clock button in the control bar, to open the Timer. It has Start or Pause and Reset buttons and an estimate of the time left, worked out from the words still to read and the Speed. It also has these settings:
+
+- **Run with playback**, on by default. The Timer starts when the Prompter starts scrolling, in Auto or Follow, and pauses when it stops. The countdown is not counted. Restart and a Replace set it back to zero. Turn it off to start, pause, and reset the Timer yourself.
+- **Target length**, from 0 to 120 minutes. 0 means no target.
+- **Show timer**. Turn it off to hide the time in the corner. The Timer keeps running.
 
 ### Undo a Replace
 
