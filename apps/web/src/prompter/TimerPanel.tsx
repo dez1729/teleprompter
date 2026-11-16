@@ -1,9 +1,10 @@
 import { isNil } from "es-toolkit";
-import { ChevronDown, Pause, Play, RotateCcw } from "lucide-react";
+import { ChevronDown, Pause, Pin, Play, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { FieldGroup } from "@/components/ui/field";
 import { PopoverDescription, PopoverHeader, PopoverTitle } from "@/components/ui/popover";
+import { Toggle } from "@/components/ui/toggle";
 import { SettingField } from "./SettingField";
 import { keysOnPage, type DisplaySettings, type SettingKey } from "./settings";
 import { formatDuration, remainingMs } from "./timer";
@@ -13,19 +14,33 @@ const TIMER_KEYS = keysOnPage("timer");
 
 interface Props {
   timer: TimerControls;
+  // Pinned, the Timer stays open when you click the Script.
+  pinned: boolean;
+  onPinnedChange: (pinned: boolean) => void;
   // Null when there is no Script to estimate.
   remainingWords: number | null;
   settings: DisplaySettings;
   onChange: <K extends SettingKey>(key: K, value: DisplaySettings[K]) => void;
 }
 
-export const TimerPanel = ({ timer, remainingWords, settings, onChange }: Props) => {
+export const TimerPanel = ({ timer, pinned, onPinnedChange, remainingWords, settings, onChange }: Props) => {
   const { elapsedMs, running } = useTimerReading(timer);
 
   return (
     <>
       <PopoverHeader>
-        <PopoverTitle>Timer</PopoverTitle>
+        <div className="flex items-center justify-between">
+          <PopoverTitle>Timer</PopoverTitle>
+          <Toggle
+            size="sm"
+            aria-label="Keep the Timer open"
+            title={pinned ? "Pinned: stays open when you click the Script" : "Pin to keep it open"}
+            pressed={pinned}
+            onPressedChange={onPinnedChange}
+          >
+            <Pin className={pinned ? "fill-current" : undefined} />
+          </Toggle>
+        </div>
         <PopoverDescription>
           {settings.scrollMode === "follow"
             ? "Follow keeps your pace, so there is no estimate."

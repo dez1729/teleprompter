@@ -157,7 +157,7 @@ Press `s` to see the whole Script. The Prompter stays on the word you were readi
 
 The Timer shows how long you have been reading. The top right corner of the Prompter shows the time, such as `2:14`, or `2:14 / 5:00` when you set a target length. It turns red once you pass the target.
 
-Press `t`, or the clock button in the control bar, to open the Timer. It stays open while you read, even when you click or scroll the Script. Press `t`, Esc, or the clock button again to close it. It has Start or Pause and Reset buttons and an estimate of the time left, worked out from the words still to read and the Speed. In Follow it shows no estimate, since Follow goes at your pace, not the Speed. Its settings are folded under **Settings**. Open it to change them:
+Press `t`, or the clock button in the control bar, to open the Timer. Clicking the Script closes it. Click the pin in its corner to keep it open while you read; then only `t`, Esc, or the clock button close it. It has Start or Pause and Reset buttons and an estimate of the time left, worked out from the words still to read and the Speed. In Follow it shows no estimate, since Follow goes at your pace, not the Speed. Its settings are folded under **Settings**. Open it to change them:
 
 - **Run with playback**, on by default. The Timer starts when the Prompter starts scrolling, in Auto or Follow, and pauses when it stops. The countdown is not counted. Restart and a Replace set it back to zero. Turn it off to start, pause, and reset the Timer yourself.
 - **Target length**, from 0 to 120 minutes. 0 means no target.

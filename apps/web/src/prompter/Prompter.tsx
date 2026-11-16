@@ -29,6 +29,7 @@ export const Prompter = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
+  const [timerPinned, setTimerPinned] = useState(false);
   const { script, connected, tokens, settings, playback, follow, readout, replaced, timer, connect, undoReplace, dispatch, updateSetting, run } =
     usePrompter({
       helpOpen,
@@ -309,9 +310,12 @@ export const Prompter = () => {
             hasScript={!isNil(script)}
             timerOpen={timerOpen}
             onTimerOpenChange={setTimerOpen}
+            timerPinned={timerPinned}
             timerPanel={
               <TimerPanel
                 timer={timer}
+                pinned={timerPinned}
+                onPinnedChange={setTimerPinned}
                 remainingWords={!isNil(script) && playback.wordCount > 0 ? playback.wordCount - playback.cursor : null}
                 settings={settings}
                 onChange={updateSetting}

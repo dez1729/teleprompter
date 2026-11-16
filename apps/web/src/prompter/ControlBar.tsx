@@ -48,6 +48,7 @@ interface Props {
   hasScript: boolean;
   timerOpen: boolean;
   onTimerOpenChange: (open: boolean) => void;
+  timerPinned: boolean;
   timerPanel: ReactNode;
   onCommand: (command: Command) => void;
 }
@@ -61,6 +62,7 @@ export const ControlBar = ({
   hasScript,
   timerOpen,
   onTimerOpenChange,
+  timerPinned,
   timerPanel,
   onCommand,
 }: Props) => {
@@ -160,8 +162,8 @@ export const ControlBar = ({
             <Popover
               open={timerOpen}
               onOpenChange={(open, details) => {
-                // The Timer stays up while you read, so clicking or dragging the Script leaves it open.
-                if (!open && (details.reason === "outside-press" || details.reason === "focus-out")) return;
+                // Pinned, the Timer stays up while you read, so clicking or dragging the Script leaves it open.
+                if (!open && timerPinned && (details.reason === "outside-press" || details.reason === "focus-out")) return;
                 onTimerOpenChange(open);
               }}
             >
