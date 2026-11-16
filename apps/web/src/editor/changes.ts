@@ -18,9 +18,9 @@ const pieces = (text: string) => text.match(/\S+\s*|\s+/g) ?? [];
 export const changesBetween = (from: string, to: string): ChangeSet => {
   const shortest = Math.min(from.length, to.length);
   let prefix = 0;
-  while (prefix < shortest && from[prefix] === to[prefix]) prefix++;
+  while (prefix < shortest && from.at(prefix) === to.at(prefix)) prefix++;
   let suffix = 0;
-  while (suffix < shortest - prefix && from[from.length - 1 - suffix] === to[to.length - 1 - suffix]) suffix++;
+  while (suffix < shortest - prefix && from.at(from.length - 1 - suffix) === to.at(to.length - 1 - suffix)) suffix++;
 
   const fromMiddle = from.slice(prefix, from.length - suffix);
   const toMiddle = to.slice(prefix, to.length - suffix);

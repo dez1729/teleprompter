@@ -75,12 +75,12 @@ export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
 
   api.get("/history/:id", (c) => {
     const version = store.version(c.req.param("id"));
-    return version ? c.json(version) : c.json({ error: "No such Version" }, 404);
+    return !isNil(version) ? c.json(version) : c.json({ error: "No such Version" }, 404);
   });
 
   api.post("/history/:id/restore", (c) => {
     const change = store.restore(c.req.param("id"));
-    return change ? c.json(change.script) : c.json({ error: "No such Version" }, 404);
+    return !isNil(change) ? c.json(change.script) : c.json({ error: "No such Version" }, 404);
   });
 
   api.get("/events", (c) =>

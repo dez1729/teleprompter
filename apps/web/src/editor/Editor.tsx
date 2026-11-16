@@ -40,7 +40,7 @@ export const Editor = () => {
         {
           doc: () => editor.text(),
           applyRemote: (changes) => editor.applyRemote(changes),
-          send: (text, format) => sendScript({ kind: "edit", text, ...(format && { format }) } satisfies PushRequest as PushRequest),
+          send: (text, format) => sendScript({ kind: "edit", text, ...(!isNil(format) && { format }) } satisfies PushRequest as PushRequest),
           onState: (state) => {
             setStatus(state.status);
             setScript(state.script);
@@ -69,7 +69,7 @@ export const Editor = () => {
     const stream = new ScriptStream({
       onConnection: setConnected,
       onMessage: (message) => {
-        if (session.current) session.current.sync.receive(message.script, message.type === "snapshot");
+        if (!isNil(session.current)) session.current.sync.receive(message.script, message.type === "snapshot");
         else session.current = start(message.script);
       },
     });
@@ -102,7 +102,7 @@ export const Editor = () => {
           role="status"
           className="text-xs text-muted-foreground"
         >
-          {connected === false ? "Not connected to server" : script ? STATUS_TEXT[status] : "Connecting…"}
+          {connected === false ? "Not connected to server" : !isNil(script) ? STATUS_TEXT[status] : "Connecting…"}
         </p>
         <ToggleGroup
           aria-label="Format"
@@ -110,8 +110,8 @@ export const Editor = () => {
           size="sm"
           spacing={0}
           disabled={isNil(script)}
-          value={format ? [format] : []}
-          onValueChange={(next) => next.at(0) !== undefined && chooseFormat(next.at(0) as ScriptFormat)}
+          value={isNil(format) ? [] : [format]}
+          onValueChange={(next) => !isNil(next.at(0)) && chooseFormat(next.at(0) as ScriptFormat)}
         >
           <ToggleGroupItem value="markdown">Markdown</ToggleGroupItem>
           <ToggleGroupItem value="text">Text</ToggleGroupItem>

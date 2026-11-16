@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import type { PacedLine } from "./playback";
 
 export interface Line {
@@ -32,7 +33,7 @@ export const lineIndexOf = (layout: Layout, cursor: number): number => {
 const lineSpan = (layout: Layout, index: number): number => {
   const line = layout.lines.at(index)!;
   const next = layout.lines.at(index + 1);
-  return next ? next.top - line.top : line.height;
+  return !isNil(next) ? next.top - line.top : line.height;
 };
 
 /**
@@ -100,7 +101,7 @@ export const measureLayout = (container: HTMLElement, gapPace: number): Layout =
     const rowTop = span.offsetTop;
     const current = lines.at(-1);
     const lineHeight = parseFloat(getComputedStyle(span).lineHeight) || span.offsetHeight;
-    if (current && Math.abs(current.top - (rowTop - (lineHeight - span.offsetHeight) / 2)) < 1) {
+    if (!isNil(current) && Math.abs(current.top - (rowTop - (lineHeight - span.offsetHeight) / 2)) < 1) {
       current.endWord = word + 1;
       return;
     }

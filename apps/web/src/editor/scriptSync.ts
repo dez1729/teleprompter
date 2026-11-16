@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import type { ChangeSet } from "@codemirror/state";
 import type { Script, ScriptFormat } from "@teleprompter/protocol";
 import { normalizeLineBreaks, rebaseRemote } from "./changes";
@@ -90,10 +91,10 @@ export class ScriptSync {
 
   async #send(): Promise<void> {
     // The reply to the Edit in flight sends whatever was typed meanwhile.
-    if (this.#inFlight !== null) return;
+    if (!isNil(this.#inFlight)) return;
     const text = this.#host.doc();
     const format = this.#format;
-    if (text === this.#syncedText && format === undefined) return this.#report();
+    if (text === this.#syncedText && isNil(format)) return this.#report();
     this.#inFlight = text;
     this.#format = undefined;
     this.#report();
@@ -113,7 +114,7 @@ export class ScriptSync {
   }
 
   #report(): void {
-    const settled = this.#inFlight === null && this.#timer === undefined && this.#format === undefined;
+    const settled = isNil(this.#inFlight) && isNil(this.#timer) && isNil(this.#format);
     const saved = settled && this.#host.doc() === this.#syncedText;
     this.#host.onState({ status: this.#failed ? "failed" : saved ? "saved" : "pending", script: this.#synced });
   }

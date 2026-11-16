@@ -106,8 +106,8 @@ export const Prompter = () => {
 
   useEffect(() => {
     const observer = new ResizeObserver(remeasure);
-    if (stageRef.current) observer.observe(stageRef.current);
-    if (textRef.current) observer.observe(textRef.current);
+    if (!isNil(stageRef.current)) observer.observe(stageRef.current);
+    if (!isNil(textRef.current)) observer.observe(textRef.current);
     return () => observer.disconnect();
   }, [remeasure, script]);
 
@@ -177,14 +177,14 @@ export const Prompter = () => {
       <div
         ref={stageRef}
         className="fixed inset-0 touch-none overflow-hidden select-none"
-        style={{ backgroundColor: settings.bgColor, color: settings.textColor, cursor: script ? "grab" : "default" }}
+        style={{ backgroundColor: settings.bgColor, color: settings.textColor, cursor: !isNil(script) ? "grab" : "default" }}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        {script && (
+        {!isNil(script) && (
           <div
             className="absolute inset-x-0 overflow-hidden"
             style={{ top: settings.marginTop, bottom: settings.marginBottom }}
@@ -220,11 +220,11 @@ export const Prompter = () => {
           </div>
         )}
 
-        {countdown !== null && (
+        {!isNil(countdown) && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-9xl font-bold opacity-80">{countdown}</div>
         )}
 
-        {script && tokens.words.length === 0 && (
+        {!isNil(script) && tokens.words.length === 0 && (
           <div
             className="absolute inset-0 flex items-center justify-center"
             onPointerDown={(e) => e.stopPropagation()}
@@ -288,7 +288,7 @@ export const Prompter = () => {
             scrollMode={settings.scrollMode}
             speedWpm={settings.speedWpm}
             fontSize={settings.fontSize}
-            hasScript={script !== null}
+            hasScript={!isNil(script)}
             timerOpen={timerOpen}
             onTimerOpenChange={setTimerOpen}
             timerPanel={

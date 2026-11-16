@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import type { BoolSettingKey, NumberSettingKey } from "./settings";
 
 export type PlaybackCommand =
@@ -83,7 +84,7 @@ interface KeyPress {
 
 export const commandForKey = (event: KeyPress): Command | null => {
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-  const binding = KEYMAP.find((b) => b.key === key && (b.shift === undefined || b.shift === event.shiftKey));
+  const binding = KEYMAP.find((b) => b.key === key && (isNil(b.shift) || b.shift === event.shiftKey));
   return binding?.command ?? null;
 };
 
@@ -113,7 +114,7 @@ export const helpRows = (): { group: HelpGroup; rows: HelpRow[] }[] => {
   for (const binding of KEYMAP) {
     const id = JSON.stringify(binding.command);
     const existing = byCommand.get(id);
-    if (existing) existing.keys += ` / ${binding.label}`;
+    if (!isNil(existing)) existing.keys += ` / ${binding.label}`;
     else byCommand.set(id, { keys: binding.label, description: binding.description, group: binding.group });
   }
 

@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import { createContext, useContext, useState, type ReactElement, type ReactNode } from "react";
 import { Gauge, Keyboard, Mic, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -98,7 +99,7 @@ export const ControlBar = ({
                 aria-label="Scroll mode"
                 value={[scrollMode]}
                 onValueChange={(next) => {
-                  if (next.at(0) !== undefined && next.at(0) !== scrollMode) onCommand(switchScrollMode);
+                  if (!isNil(next.at(0)) && next.at(0) !== scrollMode) onCommand(switchScrollMode);
                   // The switch would keep the arrow keys for itself; the Prompter needs them to step through lines.
                   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                 }}

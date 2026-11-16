@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 /** A rendered line as pacing sees it. */
 export interface PacedLine {
   /** Index of the line's first word. */
@@ -135,7 +136,7 @@ export const initialPlayback: PlaybackState = {
 export const isScrolling = (mode: PlaybackMode): boolean => mode.kind === "playing" || mode.kind === "following";
 
 export const needsTick = (state: PlaybackState): boolean => {
-  return state.mode.kind !== "paused" || state.animTarget !== null;
+  return state.mode.kind !== "paused" || !isNil(state.animTarget);
 };
 
 const clampCursor = (state: PlaybackState, cursor: number) => Math.min(state.wordCount, Math.max(0, cursor));
@@ -237,7 +238,7 @@ const stepTarget = (starts: readonly number[], from: number, delta: 1 | -1): num
 
 const step = (state: PlaybackState, starts: readonly number[], delta: 1 | -1, keepPlaying: boolean): PlaybackState => {
   const target = stepTarget(starts, state.animTarget ?? state.cursor, delta);
-  if (target === null) return state;
+  if (isNil(target)) return state;
   return { ...state, animTarget: target, mode: afterMove(state.mode, target, keepPlaying) };
 };
 
@@ -310,7 +311,7 @@ const followTick = (state: PlaybackState, mode: Extract<PlaybackMode, { kind: "f
 };
 
 const tick = (state: PlaybackState, dtMs: number, wpm: number, minLineMs: number): PlaybackState => {
-  if (state.animTarget !== null) {
+  if (!isNil(state.animTarget)) {
     const distance = state.animTarget - state.cursor;
     if (Math.abs(distance) <= SNAP_DISTANCE) return { ...state, cursor: state.animTarget, animTarget: null };
     const eased = state.cursor + distance * (1 - Math.exp(-dtMs / STEP_EASE_TAU_MS));

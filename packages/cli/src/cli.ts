@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import { parseArgs } from "node:util";
 import { CliError, defaultUrl, send } from "./send.ts";
 
@@ -40,7 +41,7 @@ export const run = async (argv: string[], io: Io): Promise<number> => {
       case "--help":
       case "-h":
         io.out(USAGE);
-        return command === undefined ? 1 : 0;
+        return isNil(command) ? 1 : 0;
       default:
         throw new CliError(`Unknown command "${command}".\n${USAGE}`);
     }

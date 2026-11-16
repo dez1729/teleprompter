@@ -19,12 +19,12 @@ const isTypingTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
   if (target instanceof HTMLTextAreaElement) return true;
   if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(target.type);
-  return target.closest('[contenteditable]:not([contenteditable="false"])') !== null;
+  return !isNil(target.closest('[contenteditable]:not([contenteditable="false"])'));
 };
 
 /** Widgets that use the arrow keys themselves; they keep the arrows, the Prompter gets the other keys. */
 const consumesArrows = (target: EventTarget | null): boolean => {
-  return target instanceof HTMLElement && target.closest('input[type="range"], [role="slider"], [data-slot="toggle-group"]') !== null;
+  return target instanceof HTMLElement && !isNil(target.closest('input[type="range"], [role="slider"], [data-slot="toggle-group"]'));
 };
 
 export interface NudgeReadout {
@@ -41,7 +41,7 @@ export interface ReplaceNotice {
 
 /** The notice for a Replace that left a Version to go back to. Any other change clears the notice. */
 const replaceNotice = (message: ScriptMessage, restored: boolean): ReplaceNotice | null => {
-  if (message.type !== "change" || message.kind !== "replace" || message.previousVersionId === null) return null;
+  if (message.type !== "change" || message.kind !== "replace" || isNil(message.previousVersionId)) return null;
   const { source } = message.script;
   const text = restored ? "Script restored" : source ? `Script replaced from ${source}` : "Script replaced";
   return { versionId: message.previousVersionId, text };
@@ -65,7 +65,7 @@ export const usePrompter = (ui: UiBridge) => {
   const [connected, setConnected] = useState<boolean | null>(null);
   const script = current.text.trim() === "" ? null : current;
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings);
-  const tokens = useMemo(() => (script ? tokenize(script, settings.spokenOnly) : EMPTY_TOKENS), [script, settings.spokenOnly]);
+  const tokens = useMemo(() => (!isNil(script) ? tokenize(script, settings.spokenOnly) : EMPTY_TOKENS), [script, settings.spokenOnly]);
 
   const [playback, dispatch] = useReducer(playbackReducer, tokens, (initial) =>
     playbackReducer(initialPlayback, {

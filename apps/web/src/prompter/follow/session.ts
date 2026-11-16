@@ -122,7 +122,7 @@ export class FollowSession {
   #heard(text: string, started: number): void {
     const { script, target } = this.#host.place();
     const matched = align(script, heardWords(text), target);
-    if (this.#stopped || matched === null) return;
+    if (this.#stopped || isNil(matched)) return;
 
     // Going back starts the pace over; the matches before it say nothing about it.
     const wentBack = matched < (this.#recent.at(-1)?.position ?? 0);
