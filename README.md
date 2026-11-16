@@ -238,7 +238,7 @@ pnpm test:e2e
 4. Spoken-only mode for markdown: done.
 5. Obsidian plugin to send selected text to the Prompter: done.
 6. Follow mode: scrolls as you speak, using a local Whisper server: done.
-~~7. Azure Speech as an optional speech-to-text service.~~ (performed worse than using Whisper)
+7. ~~Azure Speech as an optional speech-to-text service.~~ (performed worse than using Whisper)
 8. Docker image.
 9. Read aloud: the computer speaks the Script with text-to-speech, to test pacing. The voice has its own words per minute, separate from Speed. With Follow on, the Prompter follows the voice.
 
