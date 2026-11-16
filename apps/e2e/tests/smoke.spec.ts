@@ -163,3 +163,16 @@ test('edits left over from the old Script dialog are removed', async ({ page }) 
   await expect(page.getByText('No Script yet')).toBeVisible()
   await expect.poll(() => page.evaluate(() => localStorage.getItem('teleprompter.draft'))).toBeNull()
 })
+
+test('Spoken-only hides headings and italics until it is switched off', async ({ page }) => {
+  await page.goto(url)
+  tp(['send', '--replace', '--markdown'], '# Opening\n\nSpoken *whispered* words')
+  await expect(page.getByText('Spoken')).toBeVisible()
+  await expect(page.getByText('Opening')).toHaveCount(0)
+  await expect(page.getByText('whispered')).toHaveCount(0)
+
+  await page.getByRole('button', { name: /settings/i }).first().click()
+  await page.getByRole('switch', { name: 'Spoken only' }).click()
+  await expect(page.getByText('Opening')).toBeVisible()
+  await expect(page.getByText('*whispered*')).toBeVisible()
+})
