@@ -4,10 +4,11 @@ import { isNil } from "es-toolkit";
 import { placementFor } from "./anchor";
 import { commandForKey, type Command, type UiCommand } from "./keymap";
 import { useFollow } from "./follow/useFollow";
-import { initialPlayback, needsTick, playbackReducer } from "./playback";
+import { initialPlayback, isScrolling, needsTick, playbackReducer } from "./playback";
 import { restoreVersion, ScriptStream, sendScript, type ScriptMessage } from "@/lib/scriptApi";
 import { EMPTY_TOKENS, tokenize } from "./script";
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from "./settings";
+import { useTimer } from "./useTimer";
 import { clearLegacyDraft, clearLegacyScript, loadLegacyScript, loadSettings, saveSettings } from "./storage";
 
 const MAX_FRAME_MS = 100;
@@ -80,6 +81,9 @@ export const usePrompter = (ui: UiBridge) => {
   playbackRef.current = playback;
   const follow = useFollow(playback.mode, tokens.words, settings.speedWpm, dispatch);
 
+  const timer = useTimer(isScrolling(playback.mode), settings.timerFollowsPlayback);
+  const { rewind } = timer;
+
   const [readout, setReadout] = useState<NudgeReadout | null>(null);
   const [replaced, setReplaced] = useState<ReplaceNotice | null>(null);
   /** True from an Undo click until the Replace it causes arrives, so that one reads as a restore. */
@@ -141,29 +145,33 @@ export const usePrompter = (ui: UiBridge) => {
    * The only way a Script reaches playback. Pushes, Edits and restored Versions
    * all arrive here as a change from the server.
    */
-  const receive = useCallback((message: ScriptMessage) => {
-    const { current: before, tokens: beforeTokens } = live.current;
-    const incoming = message.script;
-    if (message.type === "snapshot" && incoming.revision === 0) moveLegacyScript();
-    if (message.type === "snapshot" ? incoming.revision === before.revision : incoming.revision <= before.revision) return;
+  const receive = useCallback(
+    (message: ScriptMessage) => {
+      const { current: before, tokens: beforeTokens } = live.current;
+      const incoming = message.script;
+      if (message.type === "snapshot" && incoming.revision === 0) moveLegacyScript();
+      if (message.type === "snapshot" ? incoming.revision === before.revision : incoming.revision <= before.revision) return;
 
-    const nextTokens = tokenize(incoming, settingsRef.current.spokenOnly);
-    // A snapshot that differs is whatever happened while disconnected, so it anchors like an Edit.
-    const kind = message.type === "change" ? message.kind : "edit";
-    const place = placementFor(kind, beforeTokens, nextTokens);
+      const nextTokens = tokenize(incoming, settingsRef.current.spokenOnly);
+      // A snapshot that differs is whatever happened while disconnected, so it anchors like an Edit.
+      const kind = message.type === "change" ? message.kind : "edit";
+      const place = placementFor(kind, beforeTokens, nextTokens);
 
-    live.current = { current: incoming, tokens: nextTokens };
-    setCurrent(incoming);
-    dispatch({
-      type: "SET_SCRIPT",
-      wordCount: nextTokens.words.length,
-      paragraphStarts: nextTokens.paragraphStarts,
-      sentenceEnds: nextTokens.sentenceEnds,
-      place,
-    });
-    setReplaced(replaceNotice(message, restoring.current));
-    if (kind === "replace") restoring.current = false;
-  }, []);
+      live.current = { current: incoming, tokens: nextTokens };
+      setCurrent(incoming);
+      dispatch({
+        type: "SET_SCRIPT",
+        wordCount: nextTokens.words.length,
+        paragraphStarts: nextTokens.paragraphStarts,
+        sentenceEnds: nextTokens.sentenceEnds,
+        place,
+      });
+      if (place === "reset" && settingsRef.current.timerFollowsPlayback) rewind();
+      setReplaced(replaceNotice(message, restoring.current));
+      if (kind === "replace") restoring.current = false;
+    },
+    [rewind]
+  );
 
   useEffect(() => {
     const stream = new ScriptStream({ onMessage: receive, onConnection: setConnected });
@@ -193,7 +201,9 @@ export const usePrompter = (ui: UiBridge) => {
           if (playbackRef.current.mode.kind === "paused" && settingsRef.current.scrollMode === "follow") return dispatch({ type: "FOLLOW" });
           return dispatch({ type: "TOGGLE", countdownSec, countdownAtStartOnly });
         case "restart":
-          return dispatch({ type: "RESTART" });
+          dispatch({ type: "RESTART" });
+          if (settingsRef.current.timerFollowsPlayback) rewind();
+          return;
         case "nudge": {
           const next = nudgeSetting(settingsRef.current, command.setting, command.direction);
           changeSettings(next);
@@ -211,6 +221,7 @@ export const usePrompter = (ui: UiBridge) => {
         case "openSettings":
         case "openEditor":
         case "toggleHelp":
+        case "toggleTimer":
           return uiRef.current.onUiCommand(command);
         case "switchScrollMode": {
           const scrollMode = settingsRef.current.scrollMode === "auto" ? "follow" : "auto";
@@ -226,7 +237,7 @@ export const usePrompter = (ui: UiBridge) => {
         }
       }
     },
-    [changeSettings, showReadout]
+    [changeSettings, rewind, showReadout]
   );
 
   useEffect(() => {
@@ -265,6 +276,7 @@ export const usePrompter = (ui: UiBridge) => {
     follow,
     readout,
     replaced,
+    timer,
     undoReplace,
     dispatch,
     updateSetting,

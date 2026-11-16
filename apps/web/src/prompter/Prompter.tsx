@@ -11,9 +11,12 @@ import { HelpOverlay } from "./HelpOverlay";
 import { readCount, useReadWords } from "./readWords";
 import { ScriptText } from "./ScriptText";
 import { SettingsSheet } from "./SettingsSheet";
+import { TimerPanel } from "./TimerPanel";
+import { TimerReadout } from "./TimerReadout";
 import { UndoToast } from "./UndoToast";
 import { FONT_STACKS, GAP_PACES } from "./settings";
 import type { FollowStatus } from "./follow/session";
+import { isScrolling } from "./playback";
 import { usePrompter } from "./usePrompter";
 
 const BAR_HIDE_DELAY_MS = 2000;
@@ -25,12 +28,15 @@ const openEditor = () => openNamedWindow("/editor", EDITOR_WINDOW);
 export const Prompter = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const { script, connected, tokens, settings, playback, follow, readout, replaced, undoReplace, dispatch, updateSetting, run } = usePrompter({
+  const [timerOpen, setTimerOpen] = useState(false);
+  const { script, connected, tokens, settings, playback, follow, readout, replaced, timer, undoReplace, dispatch, updateSetting, run } = usePrompter({
     helpOpen,
     onUiCommand: (command) => {
       switch (command.type) {
         case "toggleHelp":
           return setHelpOpen((open) => !open);
+        case "toggleTimer":
+          return setTimerOpen((open) => !open);
         case "openSettings":
           return setSettingsOpen(true);
         case "openEditor":
@@ -113,7 +119,7 @@ export const Prompter = () => {
     return () => document.fonts.removeEventListener("loadingdone", remeasure);
   }, [remeasure]);
 
-  const playing = playback.mode.kind === "playing" || playback.mode.kind === "following";
+  const playing = isScrolling(playback.mode);
   // Starting or stopping shows the bar again, as a mouse move does.
   const [barShownFor, setBarShownFor] = useState(playing);
   if (barShownFor !== playing) {
@@ -255,7 +261,16 @@ export const Prompter = () => {
           </div>
         )}
 
-        <FollowStatusLine status={follow} />
+        <div className="pointer-events-none absolute top-3 right-4 flex max-w-md flex-col items-end gap-1">
+          {settings.showTimer && (
+            <TimerReadout
+              elapsedMs={timer.elapsedMs}
+              targetMin={settings.timerTargetMin}
+              mirror={settings.mirror}
+            />
+          )}
+          <FollowStatusLine status={follow} />
+        </div>
 
         {connected === false && (
           <p
@@ -268,12 +283,26 @@ export const Prompter = () => {
 
         <div onPointerDown={(e) => e.stopPropagation()}>
           <ControlBar
-            visible={!playing || recentMouse}
+            visible={!playing || recentMouse || timerOpen}
             playing={playing || playback.mode.kind === "countdown"}
             scrollMode={settings.scrollMode}
             speedWpm={settings.speedWpm}
             fontSize={settings.fontSize}
             hasScript={script !== null}
+            timerOpen={timerOpen}
+            onTimerOpenChange={setTimerOpen}
+            timerPanel={
+              <TimerPanel
+                elapsedMs={timer.elapsedMs}
+                running={timer.running}
+                remainingWords={script && playback.wordCount > 0 ? playback.wordCount - playback.cursor : null}
+                settings={settings}
+                onStart={timer.start}
+                onPause={timer.pause}
+                onReset={timer.reset}
+                onChange={updateSetting}
+              />
+            }
             onCommand={run}
           />
         </div>
@@ -308,7 +337,7 @@ const FollowStatusLine = ({ status }: FollowStatusLineProps) => {
     <p
       role="status"
       data-follow-status={status.kind}
-      className="pointer-events-none absolute top-3 right-3 max-w-md text-right text-xs opacity-60"
+      className="text-right text-xs opacity-60"
     >
       {text}
     </p>
