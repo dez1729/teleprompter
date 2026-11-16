@@ -32,6 +32,7 @@ export const hostGuard = (ports: () => readonly number[]): MiddlewareHandler => 
 export const originGuard = (ports: () => readonly number[]): MiddlewareHandler => {
   return async (c, next) => {
     const origin = c.req.header("origin");
+
     if (!isNil(origin) && !SAFE_METHODS.has(c.req.method)) {
       const origins = new Set([...allowed(ports())].map((host) => `http://${host}`)).add(OBSIDIAN_ORIGIN);
       if (!origins.has(origin.toLowerCase())) return c.json({ error: "Forbidden origin" }, 403);

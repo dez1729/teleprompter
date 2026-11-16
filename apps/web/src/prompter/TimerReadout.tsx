@@ -13,6 +13,7 @@ interface Props {
 export const TimerReadout = ({ elapsedMs, targetMin, mirror }: Props) => {
   const targetMs = targetMin * 60_000;
   const over = targetMs > 0 && elapsedMs > targetMs;
+
   return (
     <p
       role="timer"

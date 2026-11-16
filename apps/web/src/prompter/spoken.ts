@@ -44,11 +44,14 @@ const rewriteObsidian = (source: string): string => {
 const inlineText = (text: string, node: Node): string => {
   let out = "";
   let pos = node.from;
+
   for (let child = node.firstChild; child; child = child.nextSibling) {
     out += text.slice(pos, child.from);
+
     if (child.name === "Escape") out += text.slice(child.from + 1, child.to);
     else if (child.name === "HardBreak") out += "\n";
     else if (!HIDDEN_INLINE.has(child.name)) out += inlineText(text, child);
+
     pos = child.to;
   }
 

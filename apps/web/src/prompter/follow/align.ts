@@ -45,6 +45,7 @@ const similar = (a: string, b: string): boolean => {
 export const align = (script: readonly string[], heard: readonly string[], from: number): number | null => {
   const said = heard.slice(-HEARD_LIMIT);
   const near = { lo: Math.max(0, Math.floor(from) - BEHIND), hi: Math.min(script.length, Math.ceil(from) + LOOKAHEAD) };
+
   return (
     bestEnd(script, said, from, near, (end) => (end >= from && end - from <= NEAR_WORDS ? NEAR_MIN_SCORE : MIN_SCORE)) ??
     bestEnd(script, said, from, { lo: 0, hi: script.length }, () => FAR_MIN_SCORE)
@@ -71,6 +72,7 @@ const bestEnd = (
   let previous = Array.from({ length: width }, () => 0);
   let current = Array.from({ length: width }, () => 0);
   let best: { score: number; end: number } | null = null;
+
   for (const word of said) {
     for (let j = 1; j < width; j++) {
       const diagonal = previous.at(j - 1)! + (similar(word, script.at(lo + j - 1)!) ? MATCH : MISMATCH);

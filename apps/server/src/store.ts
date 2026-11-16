@@ -16,6 +16,7 @@ import { readJsonFile, writeJsonFile } from "./jsonFile.ts";
 
 export const nextScript = (current: Script, request: PushRequest): Script => {
   const revision = current.revision + 1;
+
   if (request.kind === "append") {
     const text = appendText(current.text, request.text);
     const format = request.format ?? (current.format === "markdown" ? "markdown" : guessFormat(text));

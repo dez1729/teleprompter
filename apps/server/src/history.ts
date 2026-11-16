@@ -9,6 +9,7 @@ const PREVIEW_CHARS = 80;
 
 export const summarize = ({ text, format: _format, ...rest }: Version): VersionSummary => {
   const flat = text.trim().replace(/\s+/g, " ");
+
   return {
     ...rest,
     wordCount: flat === "" ? 0 : flat.split(" ").length,

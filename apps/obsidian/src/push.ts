@@ -32,6 +32,7 @@ export class PushError extends Error {}
 
 export const sendPush = async (request: PushRequest, serverUrl: string, http: Http): Promise<void> => {
   let endpoint: string;
+
   try {
     endpoint = new URL("/api/script", serverUrl).href;
   }
@@ -40,6 +41,7 @@ export const sendPush = async (request: PushRequest, serverUrl: string, http: Ht
   }
 
   let response: Awaited<ReturnType<Http>>;
+
   try {
     response = await http({
       url: endpoint,

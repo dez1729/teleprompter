@@ -69,6 +69,7 @@ export class FollowSession {
   start(): void {
     this.#host.onStatus({ kind: "starting" });
     this.#opening = openMicrophone();
+
     void this.#opening.then(
       (mic) => this.#listen(mic),
       (error: unknown) => this.#fail(micError(error))
@@ -80,6 +81,7 @@ export class FollowSession {
     if (this.#stopped) return;
     this.#stopped = true;
     clearInterval(this.#quietCheck);
+
     void this.#opening?.then(
       (mic) => mic.stop(),
       () => {}
@@ -96,6 +98,7 @@ export class FollowSession {
   async #listen(mic: Microphone): Promise<void> {
     if (this.#stopped) return;
     this.#host.onStatus({ kind: "listening" });
+
     // Checked often, apart from the slower transcription loop, so the cursor stops soon after the reader does.
     this.#quietCheck = setInterval(() => {
       this.#host.dispatch({ type: "VOICE", speaking: mic.voiced() });
@@ -105,6 +108,7 @@ export class FollowSession {
     while (!this.#stopped) {
       const started = performance.now();
       const clip = mic.clip();
+
       if (!isNil(clip)) {
         try {
           this.#heard(await transcribe(clip), started);

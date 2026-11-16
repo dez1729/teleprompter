@@ -53,6 +53,7 @@ describe("the gap below a line", () => {
       { type: "PLAY", countdownSec: 0, countdownAtStartOnly: false }
     );
     let ms = 0;
+
     while (state.cursor < words) {
       state = run(state, { type: "TICK", dtMs: 10, wpm: 300, minLineMs: 1500 });
       ms += 10;
@@ -178,6 +179,7 @@ describe("playback", () => {
       { type: "TICK", dtMs: 5000, wpm: 100 },
       { type: "RESTART" }
     );
+
     expect(state.cursor).toBe(0);
     expect(state.mode.kind).toBe("paused");
   });
@@ -278,6 +280,7 @@ describe("Follow", () => {
       reading,
       ...Array.from({ length: 10 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) satisfies PlaybackEvent as PlaybackEvent)
     );
+
     expect(afterOneSecond.mode.kind === "following" && afterOneSecond.mode.target).toBeCloseTo(17);
     expect(settle(afterOneSecond).cursor).toBeCloseTo(14 + 3 * (FOLLOW_COAST_MS / 1000));
   });
@@ -312,6 +315,7 @@ describe("Follow", () => {
       heardAt(40, 3 / 1000),
       ...Array.from({ length: 6 }, () => ({ type: "TICK", dtMs: 50, wpm: 100 }) satisfies PlaybackEvent as PlaybackEvent)
     );
+
     expect(jumped.cursor).toBeGreaterThan(39);
   });
 

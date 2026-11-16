@@ -84,6 +84,7 @@ export const Prompter = () => {
       settings.readWordsColor,
     ]
   );
+
   useReadWords(textRef, tokens, settings.readWords ? readCount(playback.cursor, tokens.words.length) : 0);
 
   const remeasure = useCallback(() => {
@@ -122,12 +123,14 @@ export const Prompter = () => {
   const playing = isScrolling(playback.mode);
   // Starting or stopping shows the bar again, as a mouse move does.
   const [barShownFor, setBarShownFor] = useState(playing);
+
   if (barShownFor !== playing) {
     setBarShownFor(playing);
     setRecentMouse(true);
   }
 
   const showBar = () => setRecentMouse(true);
+
   useEffect(() => {
     if (!recentMouse || !playing) return;
     const timer = setTimeout(() => setRecentMouse(false), BAR_HIDE_DELAY_MS);
@@ -333,6 +336,7 @@ interface FollowStatusLineProps {
 const FollowStatusLine = ({ status }: FollowStatusLineProps) => {
   if (status.kind === "off") return null;
   const text = status.kind === "error" ? status.message : status.kind === "starting" ? "Opening the microphone…" : "Following your voice";
+
   return (
     <p
       role="status"

@@ -107,11 +107,13 @@ describe("mapCursor", () => {
     const timed = (run: () => number) => {
       let result = run();
       let ms = Infinity;
+
       for (let attempt = 0; attempt < 5; attempt++) {
         const start = performance.now();
         result = run();
         ms = Math.min(ms, performance.now() - start);
       }
+
       return { result, ms };
     };
 

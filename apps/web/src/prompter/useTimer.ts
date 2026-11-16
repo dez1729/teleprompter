@@ -37,6 +37,7 @@ const createTimerStore = () => {
     },
     redraw: () => set({ ...snapshot, now: performance.now() }),
   };
+
   return store;
 };
 

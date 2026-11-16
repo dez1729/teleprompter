@@ -73,6 +73,7 @@ export const Editor = () => {
         else session.current = start(message.script);
       },
     });
+
     stream.start();
 
     const flush = () => session.current?.sync.flush();

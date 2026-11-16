@@ -11,6 +11,7 @@ const freePort = (): Promise<number> => {
   return new Promise((resolve, reject) => {
     const probe = createServer();
     probe.once("error", reject);
+
     probe.listen(0, "127.0.0.1", () => {
       const { port } = probe.address() as { port: number };
       probe.close(() => resolve(port));
@@ -26,6 +27,7 @@ test.beforeEach(async () => {
   const port = await freePort();
   url = `http://127.0.0.1:${port}`;
   dataDir = mkdtempSync(join(tmpdir(), "tp-e2e-"));
+
   server = spawn("node", [TP, "serve"], {
     env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", TELEPROMPTER_DATA_DIR: dataDir },
     stdio: "inherit",
@@ -39,6 +41,7 @@ test.beforeEach(async () => {
       )
     )
       return;
+
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 

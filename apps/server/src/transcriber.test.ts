@@ -7,9 +7,11 @@ import { ScriptStore } from "./store.ts";
 import { TranscriberError, whisperTranscriber, type Transcriber } from "./transcriber.ts";
 
 let dir: string;
+
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "tp-transcribe-"));
 });
+
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 const speech = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/wav" });

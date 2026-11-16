@@ -111,9 +111,11 @@ export interface HelpRow {
 /** The help overlay's content: one row per command, in KEYMAP order, within each group. */
 export const helpRows = (): { group: HelpGroup; rows: HelpRow[] }[] => {
   const byCommand = new Map<string, HelpRow & { group: HelpGroup }>();
+
   for (const binding of KEYMAP) {
     const id = JSON.stringify(binding.command);
     const existing = byCommand.get(id);
+
     if (!isNil(existing)) existing.keys += ` / ${binding.label}`;
     else byCommand.set(id, { keys: binding.label, description: binding.description, group: binding.group });
   }

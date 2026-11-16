@@ -20,12 +20,15 @@ const PORT = 4747;
 const HOST = `localhost:${PORT}`;
 
 let dir: string;
+
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "tp-server-"));
 });
+
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 let nowMs: number;
+
 beforeEach(() => {
   nowMs = Date.parse("2026-01-01T00:00:00Z");
 });
@@ -92,6 +95,7 @@ describe("Push", () => {
     const { push } = setup();
     expect(((await (await push({ kind: "edit", text: "# Title" } satisfies PushRequest as PushRequest)).json()) as Script).format).toBe("markdown");
     expect(((await (await push({ kind: "edit", text: "plain now" } satisfies PushRequest as PushRequest)).json()) as Script).format).toBe("markdown");
+
     expect(
       ((await (await push({ kind: "edit", text: "plain now", format: "text" } satisfies PushRequest as PushRequest)).json()) as Script).format
     ).toBe("text");
@@ -107,6 +111,7 @@ describe("Push", () => {
 
   it("an explicit format wins over detection", async () => {
     const { push } = setup();
+
     expect(
       ((await (await push({ kind: "replace", text: "plain", format: "markdown" } satisfies PushRequest as PushRequest)).json()) as Script).format
     ).toBe("markdown");
@@ -155,6 +160,7 @@ describe("validation", () => {
 describe("Host and Origin guards", () => {
   it("rejects a Host that is not loopback with our port", async () => {
     const { app } = setup();
+
     for (const host of ["evil.example", "evil.example:4747", "localhost", "localhost:9999", ""]) {
       const res = await app.request("/api/script", { headers: host ? { host } : {} });
       expect(res.status, host).toBe(403);
@@ -163,6 +169,7 @@ describe("Host and Origin guards", () => {
 
   it("accepts localhost and 127.0.0.1 on the app port and the dev port", async () => {
     const { app } = setup();
+
     for (const host of ["localhost:4747", "127.0.0.1:4747", "localhost:4748", "127.0.0.1:4748"]) {
       expect((await app.request("/api/script", { headers: { host } })).status, host).toBe(200);
     }
@@ -170,6 +177,7 @@ describe("Host and Origin guards", () => {
 
   it("rejects a state-changing request from another origin", async () => {
     const { push, store } = setup();
+
     for (const origin of ["https://evil.example", "http://localhost:9999", "null"]) {
       expect((await push({ kind: "replace", text: "a" } satisfies PushRequest as PushRequest, { origin })).status, origin).toBe(403);
     }
@@ -179,6 +187,7 @@ describe("Host and Origin guards", () => {
 
   it("accepts the app origins, Obsidian, and a request with no Origin", async () => {
     const { push } = setup();
+
     for (const origin of ["http://localhost:4747", "http://localhost:4748", "http://127.0.0.1:4747", "http://127.0.0.1:4748", "app://obsidian.md"]) {
       expect((await push({ kind: "replace", text: "a" } satisfies PushRequest as PushRequest, { origin })).status, origin).toBe(200);
     }
@@ -224,10 +233,12 @@ describe("Script history", () => {
     await push({ kind: "replace", text: "# three", source: "Other" } satisfies PushRequest as PushRequest);
 
     const versions = await history(request);
+
     expect(versions.map(({ reason, source, preview, wordCount, revision }) => ({ reason, source, preview, wordCount, revision }))).toEqual([
       { reason: "replace", source: "Note", preview: "one two", wordCount: 2, revision: 2 },
       { reason: "append", source: "Note", preview: "one", wordCount: 1, revision: 1 },
     ]);
+
     expect(versions.at(0)).not.toHaveProperty("text");
     expect(versions.at(0)!.savedAt).toBe("2026-01-01T00:00:00.000Z");
   });
@@ -254,6 +265,7 @@ describe("Script history", () => {
 
     nowMs += EDIT_IDLE_MS;
     await push({ kind: "edit", text: "abcde" } satisfies PushRequest as PushRequest);
+
     expect((await history(request)).map((v) => [v.reason, v.preview])).toEqual([
       ["edit", "abcd"],
       ["edit", "a"],
@@ -312,10 +324,12 @@ describe("Script history", () => {
     expect(await res.json()).toEqual({ text: "# one", format: "markdown", source: "Note", revision: 3 });
 
     const after = await history(request);
+
     expect(after.map((v: VersionSummary) => [v.reason, v.preview])).toEqual([
       ["replace", "two"],
       ["replace", "# one"],
     ]);
+
     expect(changes).toEqual([{ kind: "replace", script: store.get(), previousVersionId: after.at(0)!.id }]);
 
     // Restoring the Version the restore saved undoes the restore.
@@ -368,6 +382,7 @@ describe("Script history", () => {
 const readUntil = async (reader: ReadableStreamDefaultReader<Uint8Array>, needle: string, seen = ""): Promise<string> => {
   const decoder = new TextDecoder();
   let text = seen;
+
   while (!text.includes(needle)) {
     const { value, done } = await reader.read();
     if (done) throw new Error(`stream ended before ${JSON.stringify(needle)}: ${text}`);

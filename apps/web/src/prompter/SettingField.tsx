@@ -19,6 +19,7 @@ export const SettingField = ({ setting, settings, onChange }: Props) => {
   const id = `setting-${setting}`;
   const description = <FieldDescription id={`${id}-description`}>{def.description}</FieldDescription>;
   const describedBy = `${id}-description`;
+
   switch (def.kind) {
     case "number":
       return (

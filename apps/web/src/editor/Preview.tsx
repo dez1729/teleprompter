@@ -9,6 +9,7 @@ interface PreviewProps {
 
 export const Preview = ({ text, format }: PreviewProps) => {
   const shown = useDeferredValue(text);
+
   return (
     <div
       aria-label="Preview"

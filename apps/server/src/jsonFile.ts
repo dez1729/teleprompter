@@ -7,6 +7,7 @@ interface Schema<T> {
 /** Reads a JSON file. A missing file gives the fallback; an unreadable one is moved aside first. */
 export const readJsonFile = <T>(file: string, schema: Schema<T>, fallback: T): T => {
   let raw: string;
+
   try {
     raw = readFileSync(file, "utf8");
   }

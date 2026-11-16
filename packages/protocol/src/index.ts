@@ -13,6 +13,7 @@ export const ScriptSchema = z.object({
   /** Increments on every change. 0 means no Script has ever been set. */
   revision: z.number().int().nonnegative(),
 });
+
 export type Script = z.infer<typeof ScriptSchema>;
 
 export const EMPTY_SCRIPT: Script = { text: "", format: "text", source: null, revision: 0 };
@@ -31,6 +32,7 @@ export const ScriptChangeSchema = z.object({
   /** The Version saved just before this change, which restoring undoes it. Null when none was saved. */
   previousVersionId: z.string().nullable(),
 });
+
 export type ScriptChange = z.infer<typeof ScriptChangeSchema>;
 
 export const PushRequestSchema = z
@@ -46,6 +48,7 @@ export const PushRequestSchema = z
     path: ["text"],
     message: "text must not be empty",
   });
+
 export type PushRequest = z.infer<typeof PushRequestSchema>;
 
 /** How many Versions Script history keeps. */
@@ -61,6 +64,7 @@ export const VersionSchema = z.object({
   source: z.string().nullable(),
   reason: ChangeKindSchema,
 });
+
 export type Version = z.infer<typeof VersionSchema>;
 
 export const HistorySchema = z.array(VersionSchema);
@@ -69,6 +73,7 @@ export const VersionSummarySchema = VersionSchema.omit({ text: true, format: tru
   wordCount: z.number().int().nonnegative(),
   preview: z.string(),
 });
+
 export type VersionSummary = z.infer<typeof VersionSummarySchema>;
 
 const MARKDOWN_HINT = /^(#{1,6}\s|\s*[-*+]\s|>\s|```|---\s*$)|\*\*|\[[^\]]+\]\([^)]+\)/m;

@@ -98,6 +98,7 @@ export const usePrompter = (ui: UiBridge) => {
   useEffect(clearLegacyDraft, []);
 
   const active = needsTick(playback);
+
   useEffect(() => {
     if (!active) return;
     let last = performance.now();
@@ -109,6 +110,7 @@ export const usePrompter = (ui: UiBridge) => {
         wpm: settingsRef.current.speedWpm,
         minLineMs: settingsRef.current.minLineSec * 1000,
       });
+
       last = now;
       frame = requestAnimationFrame(loop);
     };
@@ -127,6 +129,7 @@ export const usePrompter = (ui: UiBridge) => {
     const { current, tokens: before } = live.current;
     const after = tokenize(current, next.spokenOnly);
     live.current = { current, tokens: after };
+
     dispatch({
       type: "SET_SCRIPT",
       wordCount: after.words.length,
@@ -159,6 +162,7 @@ export const usePrompter = (ui: UiBridge) => {
 
       live.current = { current: incoming, tokens: nextTokens };
       setCurrent(incoming);
+
       dispatch({
         type: "SET_SCRIPT",
         wordCount: nextTokens.words.length,
@@ -166,6 +170,7 @@ export const usePrompter = (ui: UiBridge) => {
         sentenceEnds: nextTokens.sentenceEnds,
         place,
       });
+
       if (place === "reset" && settingsRef.current.timerFollowsPlayback) rewind();
       setReplaced(replaceNotice(message, restoring.current));
       if (kind === "replace") restoring.current = false;
@@ -183,6 +188,7 @@ export const usePrompter = (ui: UiBridge) => {
   const undoReplace = useCallback((notice: ReplaceNotice) => {
     restoring.current = true;
     setReplaced(null);
+
     restoreVersion(notice.versionId).catch(() => {
       restoring.current = false;
       setReplaced(notice);
@@ -196,6 +202,7 @@ export const usePrompter = (ui: UiBridge) => {
       const { countdown } = settingsRef.current;
       const countdownSec = countdown === "off" ? 0 : settingsRef.current.countdownSec;
       const countdownAtStartOnly = countdown === "start";
+
       switch (command.type) {
         case "toggle":
           if (playbackRef.current.mode.kind === "paused" && settingsRef.current.scrollMode === "follow") return dispatch({ type: "FOLLOW" });
@@ -228,6 +235,7 @@ export const usePrompter = (ui: UiBridge) => {
           changeSettings({ ...settingsRef.current, scrollMode });
           // Switching while scrolling carries on in the other mode, from the same place.
           const { mode } = playbackRef.current;
+
           if (mode.kind !== "paused") {
             dispatch({ type: "PAUSE" });
             dispatch(scrollMode === "follow" ? { type: "FOLLOW" } : { type: "PLAY", countdownSec: 0, countdownAtStartOnly });
@@ -261,6 +269,7 @@ export const usePrompter = (ui: UiBridge) => {
 
     window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("keyup", onKeyUp);
+
     return () => {
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("keyup", onKeyUp);

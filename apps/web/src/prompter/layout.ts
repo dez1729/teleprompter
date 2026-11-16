@@ -21,8 +21,10 @@ export const lineIndexOf = (layout: Layout, cursor: number): number => {
   if (lines.length === 0) return -1;
   let lo = 0;
   let hi = lines.length - 1;
+
   while (lo < hi) {
     const mid = (lo + hi + 1) >> 1;
+
     if (lines.at(mid)!.firstWord <= cursor) lo = mid;
     else hi = mid - 1;
   }
@@ -57,6 +59,7 @@ export const cursorToY = (layout: Layout, cursor: number): number => {
   if (index < 0) return 0;
   const { line, gap, rowShare } = lineMotion(layout, index);
   const fraction = Math.min(1, Math.max(0, (cursor - line.firstWord) / (line.endWord - line.firstWord)));
+
   return fraction <= rowShare
     ? line.top + (fraction / rowShare) * line.height
     : line.top + line.height + ((fraction - rowShare) / (1 - rowShare)) * gap;
@@ -78,8 +81,10 @@ export const yToCursor = (layout: Layout, y: number): number => {
   if (y <= first.top) return first.firstWord;
   let lo = 0;
   let hi = lines.length - 1;
+
   while (lo < hi) {
     const mid = (lo + hi + 1) >> 1;
+
     if (lines.at(mid)!.top <= y) lo = mid;
     else hi = mid - 1;
   }
@@ -90,6 +95,7 @@ export const yToCursor = (layout: Layout, y: number): number => {
     offset <= line.height || gap === 0
       ? Math.min(1, offset / line.height) * rowShare
       : rowShare + Math.min(1, (offset - line.height) / gap) * (1 - rowShare);
+
   return line.firstWord + fraction * (line.endWord - line.firstWord);
 };
 
@@ -97,10 +103,12 @@ export const yToCursor = (layout: Layout, y: number): number => {
 export const measureLayout = (container: HTMLElement, gapPace: number): Layout => {
   const spans = container.querySelectorAll<HTMLElement>("[data-word]");
   const lines: Line[] = [];
+
   spans.forEach((span, word) => {
     const rowTop = span.offsetTop;
     const current = lines.at(-1);
     const lineHeight = parseFloat(getComputedStyle(span).lineHeight) || span.offsetHeight;
+
     if (!isNil(current) && Math.abs(current.top - (rowTop - (lineHeight - span.offsetHeight) / 2)) < 1) {
       current.endWord = word + 1;
       return;

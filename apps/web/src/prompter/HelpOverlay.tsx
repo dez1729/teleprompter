@@ -10,6 +10,7 @@ interface Props {
 
 export const HelpOverlay = ({ open, onOpenChange }: Props) => {
   const groups = [...helpRows(), { group: "Mouse", rows: MOUSE_ROWS }];
+
   return (
     <Dialog
       open={open}

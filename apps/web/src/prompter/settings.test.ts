@@ -91,12 +91,14 @@ describe("timer settings", () => {
       showTimer: false,
       timerFollowsPlayback: false,
     });
+
     expect(parseSettings({ timerTargetMin: "long", showTimer: "no" })).toMatchObject({ timerTargetMin: 0, showTimer: true });
     expect(parseSettings({ timerTargetMin: 999 }).timerTargetMin).toBe(SETTING_DEFS.timerTargetMin.max);
   });
 
   it("shows them in the Timer popover and nowhere in the settings sheet", () => {
     expect(keysOnPage("timer")).toEqual(TIMER_KEYS);
+
     for (const key of TIMER_KEYS) {
       expect(keysOnPage("main")).not.toContain(key);
       expect(keysOnPage("advanced")).not.toContain(key);

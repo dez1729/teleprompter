@@ -32,8 +32,10 @@ export const changesBetween = (from: string, to: string): ChangeSet => {
 
   const specs: ChangeSpec[] = [];
   let position = prefix;
+
   for (const part of parts) {
     const text = part.value.join("");
+
     if (part.added) specs.push({ from: position, insert: text });
     else {
       if (part.removed) specs.push({ from: position, to: position + text.length });

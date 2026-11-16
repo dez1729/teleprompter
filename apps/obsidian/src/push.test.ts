@@ -54,6 +54,7 @@ describe("sendPush", () => {
 describe("sending to a real server, as Obsidian does", () => {
   let server: RunningServer;
   let dataDir: string;
+
   beforeAll(async () => {
     dataDir = mkdtempSync(join(tmpdir(), "tp-obsidian-"));
     server = await startServer({ port: 0, dataDir, webDir: dataDir });
@@ -73,6 +74,7 @@ describe("sending to a real server, as Obsidian does", () => {
     await sendPush(pushFor("replace", "", note)!, server.url, obsidian);
     await sendPush(pushFor("append", "Thanks for coming.", note)!, server.url, obsidian);
     const script = await (await fetch(new URL("/api/script", server.url))).json();
+
     expect(script).toMatchObject({
       text: `${note.text}\n\nThanks for coming.`,
       format: "markdown",

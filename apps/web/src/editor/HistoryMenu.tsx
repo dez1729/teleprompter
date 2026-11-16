@@ -31,6 +31,7 @@ export const HistoryMenu = ({ revision }: HistoryMenuProps) => {
   const history = useQuery({ queryKey: ["history", revision], queryFn: fetchHistory, enabled: open, placeholderData: keepPreviousData });
   const restore = useMutation({ mutationFn: restoreVersion, onSuccess: () => setOpen(false) });
   const failed = history.isError || restore.isError;
+
   useEffect(() => {
     if (!open) return;
     const timer = setInterval(() => setNow(Date.now()), AGE_REFRESH_MS);
@@ -43,6 +44,7 @@ export const HistoryMenu = ({ revision }: HistoryMenuProps) => {
       restore.reset();
       setNow(Date.now());
     }
+
     setOpen(next);
   };
   const versions = failed ? undefined : history.data;

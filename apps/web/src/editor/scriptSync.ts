@@ -98,6 +98,7 @@ export class ScriptSync {
     this.#inFlight = text;
     this.#format = undefined;
     this.#report();
+
     try {
       const script = await this.#host.send(text, format);
       this.#failed = false;

@@ -9,32 +9,39 @@ export interface NumberField {
   step: number;
   unit?: string;
 }
+
 export interface ChoiceField<T extends string = string> {
   kind: "choice";
   label: string;
   default: T;
   options: readonly { value: T; label: string }[];
 }
+
 export interface ColorField {
   kind: "color";
   label: string;
   default: string;
 }
+
 export interface BoolField {
   kind: "bool";
   label: string;
   default: boolean;
 }
+
 // The panels that show settings. The settings sheet's main page is the default; the Timer popover lists its own.
 export type SettingsPage = "main" | "advanced" | "timer";
+
 // Shown on a panel other than the settings sheet's main page.
 interface Placement {
   page?: Exclude<SettingsPage, "main">;
 }
+
 /** What the setting does, shown under its label. Every setting has one. */
 interface Described {
   description: string;
 }
+
 export type Field = (NumberField | ChoiceField | ColorField | BoolField) & Placement & Described;
 
 const onPage =
@@ -163,6 +170,7 @@ export const GAP_PACES = { short: 5, normal: 3, long: 1.5 } as const satisfies R
 
 export type SettingKey = keyof typeof SETTING_DEFS;
 export type DisplaySettings = { -readonly [K in SettingKey]: (typeof SETTING_DEFS)[K]["default"] };
+
 export type NumberSettingKey = {
   [K in SettingKey]: (typeof SETTING_DEFS)[K] extends NumberField ? K : never;
 }[SettingKey];

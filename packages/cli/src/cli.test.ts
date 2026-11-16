@@ -25,6 +25,7 @@ const setup = (overrides: Partial<Io> = {}) => {
     if (!isString(sent)) throw new Error("tp sent no JSON body");
     return JSON.parse(sent);
   };
+
   return { io, out, err, fetchMock, body };
 };
 

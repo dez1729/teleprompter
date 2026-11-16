@@ -26,6 +26,7 @@ interface HintProps {
 const Hint = ({ command, children }: HintProps) => {
   const barVisible = useContext(BarVisible);
   const [open, setOpen] = useState(false);
+
   return (
     <Tooltip
       open={open && barVisible}
@@ -71,6 +72,7 @@ export const ControlBar = ({
   const toggleTimer: Command = { type: "toggleTimer" };
   const openSettings: Command = { type: "openSettings" };
   const toggleHelp: Command = { type: "toggleHelp" };
+
   return (
     <TooltipProvider delay={TOOLTIP_DELAY_MS}>
       <BarVisible.Provider value={visible}>
@@ -221,6 +223,7 @@ interface StepperProps {
 const Stepper = ({ label, value, setting, disabled = false, onCommand }: StepperProps) => {
   const down: Command = { type: "nudge", setting, direction: -1 };
   const up: Command = { type: "nudge", setting, direction: 1 };
+
   return (
     <div className="flex items-center">
       <Hint command={down}>

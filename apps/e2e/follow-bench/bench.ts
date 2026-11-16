@@ -67,6 +67,7 @@ const speak = async (text: string): Promise<ArrayBuffer> => {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ model: "kokoro", input: text, voice: "af_heart", response_format: "wav", speed: 1 }),
   });
+
   if (!response.ok) throw new Error(`Kokoro at ${KOKORO_URL} answered ${response.status}: ${await response.text()}`);
   return response.arrayBuffer();
 };
@@ -81,6 +82,7 @@ const timeWords = async (audio: ArrayBuffer, scriptWords: readonly string[]): Pr
   if (!response.ok) throw new Error(`Whisper at ${WHISPER_URL} answered ${response.status}: ${await response.text()}`);
   const { words } = (await response.json()) as { words: { word: string; start: number; end: number }[] };
   const heard = words.filter((w) => normalizeWord(w.word) !== "");
+
   if (heard.length !== scriptWords.length) {
     throw new Error(`Whisper heard ${heard.length} words in a Script of ${scriptWords.length}; reword the paragraph`);
   }
@@ -92,6 +94,7 @@ const parseWav = (wav: Buffer): Pcm => {
   let offset = 12;
   let fmt: Buffer | undefined;
   let data: Buffer | undefined;
+
   while (offset + 8 <= wav.length) {
     const id = wav.toString("ascii", offset, offset + 4);
     let size = wav.readUInt32LE(offset + 4);
@@ -102,6 +105,7 @@ const parseWav = (wav: Buffer): Pcm => {
     if (id === "data") data = body;
     offset += 8 + size + (size % 2);
   }
+
   // Chromium's fake microphone plays 16-bit PCM; anything else would make every run silent.
   if (isNil(fmt) || isNil(data) || fmt.readUInt16LE(0) !== 1 || fmt.readUInt16LE(14) !== 16) {
     throw new Error("Kokoro did not send a 16-bit PCM WAV");
@@ -140,6 +144,7 @@ const watchCursor = (sampleMs: number) => {
   const w = window as unknown as { micRequestedAt?: number; micOpenedAt?: number; cursorSamples: [number, number][] };
   w.cursorSamples = [];
   const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+
   navigator.mediaDevices.getUserMedia = async (constraints) => {
     w.micRequestedAt = performance.now();
     const stream = await getUserMedia(constraints);
@@ -155,13 +160,16 @@ const watchCursor = (sampleMs: number) => {
     const lineHeight = parseFloat(getComputedStyle(first).lineHeight);
     const currentY = readingWindow.getBoundingClientRect().top + lineHeight;
     let row = { top: -Infinity, first: 0, count: 0 };
+
     for (const span of spans) {
       const rect = span.getBoundingClientRect();
       const top = rect.top - (lineHeight - rect.height) / 2;
       if (top > currentY) break;
+
       if (Math.abs(top - row.top) < 1) row.count++;
       else row = { top, first: Number(span.dataset.word), count: 1 };
     }
+
     return row.first + Math.min(1, (currentY - row.top) / lineHeight) * row.count;
   };
 
@@ -182,6 +190,7 @@ const score = (points: readonly Point[], sentenceEnds: readonly number[], wordCo
   const caught = points.find((p) => p.since >= 0 && Math.abs(p.cursor - p.spoken) <= CAUGHT_UP_WORDS);
   const reading = isNil(caught) ? [] : points.filter((p) => p.since >= caught.since && p.spoken < wordCount);
   const nextEnd = (spoken: number) => sentenceEnds.find((end) => end >= spoken) ?? wordCount;
+
   return {
     catchUp: caught?.since ?? NaN,
     medianLag: median(reading.map((p) => p.spoken - p.cursor)),
@@ -202,12 +211,15 @@ interface RunOptions extends FollowOptions {
 
 const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<RunOutcome> => {
   const dataDir = mkdtempSync(join(tmpdir(), "tp-follow-bench-"));
+
   try {
     const server = await startServer({ ...optionsFromEnv(), port: 0, dataDir, webDir: WEB_DIR });
+
     try {
       const browser = await chromium.launch({
         args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-audio-capture=${clipPath}`],
       });
+
       try {
         return await follow(server.url, browser, { from, timing, trace });
       }
@@ -237,6 +249,7 @@ const follow = async (url: string, browser: Browser, { from, timing, trace }: Fo
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ kind: "replace", text: PARAGRAPH } satisfies PushRequest as PushRequest),
   });
+
   if (!pushed.ok) throw new Error(`Pushing the Script failed: ${pushed.status}`);
 
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -260,11 +273,13 @@ const follow = async (url: string, browser: Browser, { from, timing, trace }: Fo
     const sec = ms / 1000 - LEAD_IN_SEC + cutSec;
     return { since: sec - began, cursor, spoken: timing.filter((w) => w.start <= sec).length };
   });
+
   if (trace) {
     const opening = await page.evaluate(() => {
       const w = window as unknown as { micRequestedAt: number; micOpenedAt: number };
       return w.micOpenedAt - w.micRequestedAt;
     });
+
     // The fake microphone may start playing anywhere in this time, so it bounds how far off every time below can be.
     console.log(`microphone opened ${opening.toFixed(0)} ms after it was requested`);
     for (const p of points) console.log(`${p.since.toFixed(2)}\tspoken ${p.spoken}\tcursor ${p.cursor.toFixed(2)}`);
@@ -293,14 +308,17 @@ const recording = await speak(PARAGRAPH);
 const timing = await timeWords(recording, SCRIPT_WORDS);
 const pcm = parseWav(Buffer.from(recording));
 const clipDir = mkdtempSync(join(tmpdir(), "tp-follow-clips-"));
+
 try {
   for (const from of starts) {
     const clipPath = join(clipDir, `from-${from}.wav`);
     writeFileSync(clipPath, clipFrom(pcm, cutBefore(timing, from)));
     const results: RunResult[] = [];
     let stopped = 0;
+
     for (let run = 1; run <= runs; run++) {
       const r = await runOnce({ from, clipPath, timing, trace: values.trace });
+
       if ("stopped" in r) {
         stopped++;
         console.log(`from ${from} run ${run}: Follow stopped: ${r.stopped}`);
@@ -308,6 +326,7 @@ try {
       }
 
       results.push(r);
+
       console.log(
         `from ${from} run ${run}: catch-up ${show(r.catchUp)} s, median lag ${show(r.medianLag)} words, ` +
           `max ahead ${show(r.ahead)}, past sentence end ${show(r.pastSentenceEnd)}`
