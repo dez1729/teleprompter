@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from './settings'
 import { commandForKey } from './keymap'
-import { tokenize } from './script'
+import { project } from './script'
 
 describe('settings', () => {
   it('uses defaults for missing or malformed input', () => {
@@ -53,7 +53,7 @@ describe('keymap', () => {
 
 describe('script', () => {
   it('splits paragraphs on blank lines and keeps single newlines as breaks', () => {
-    const { words, paragraphStarts } = tokenize({ text: 'one two\nthree\n\n\nfour' })
+    const { words, paragraphStarts } = project({ text: 'one two\nthree\n\n\nfour', format: 'text' }, { spokenOnly: false })
     expect(words.map((w) => w.text)).toEqual(['one', 'two', 'three', 'four'])
     expect(words.map((w) => w.lineBreakBefore)).toEqual([false, false, true, false])
     expect(paragraphStarts).toEqual([0, 3])

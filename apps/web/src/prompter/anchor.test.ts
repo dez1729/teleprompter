@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { mapCursor, placementFor } from './anchor'
-import { tokenize } from './script'
+import { project } from './script'
 
 const words = (text: string) => text.split(/\s+/).filter(Boolean)
 const map = (before: string, after: string, cursor: number) => mapCursor(words(before), words(after), cursor)
 
 describe('placementFor', () => {
-  const tok = (text: string) => tokenize({ text })
+  const tok = (text: string) => project({ text, format: 'text' }, { spokenOnly: false })
   const before = tok('one two three four')
 
   it('resets on a Replace and on a first Script', () => {
