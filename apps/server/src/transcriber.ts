@@ -21,6 +21,7 @@ export const whisperTranscriber = ({
   fetch: send = fetch,
 }: WhisperOptions = {}): Transcriber => {
   const endpoint = new URL("/v1/audio/transcriptions", url).href;
+
   return async (audio) => {
     const form = new FormData();
     form.append("file", audio, "speech.wav");
@@ -29,6 +30,7 @@ export const whisperTranscriber = ({
     // Without it, Whisper hears words such as "You" in silence.
     form.append("vad_filter", "true");
     let response: Response;
+
     try {
       response = await send(endpoint, { method: "POST", body: form });
     }

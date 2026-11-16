@@ -49,6 +49,7 @@ export const startServer = (options: ServerOptions = {}): Promise<RunningServer>
     const server = serve({ fetch: app.fetch, hostname: host, port }, (info) => {
       boundPort = info.port;
       server.off("error", reject);
+
       resolve({
         url: `http://${host}:${info.port}`,
         port: info.port,

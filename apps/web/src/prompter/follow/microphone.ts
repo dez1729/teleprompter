@@ -36,6 +36,7 @@ export const openMicrophone = async (): Promise<Microphone> => {
   });
 
   const context = new AudioContext();
+
   try {
     const url = URL.createObjectURL(new Blob([CAPTURE_WORKLET], { type: "text/javascript" }));
     await context.audioWorklet.addModule(url).finally(() => URL.revokeObjectURL(url));
@@ -52,6 +53,7 @@ export const openMicrophone = async (): Promise<Microphone> => {
 
   const source = context.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(context, "tp-capture");
+
   node.port.onmessage = (event: MessageEvent<Float32Array>) => {
     for (const sample of event.data) ring[written++ % ring.length] = sample;
   };
@@ -89,6 +91,7 @@ export const openMicrophone = async (): Promise<Microphone> => {
 
 const loud = (samples: Float32Array, rate: number): boolean => {
   const window = Math.round(rate / 10);
+
   for (let start = 0; start + window <= samples.length; start += window) {
     let sum = 0;
     for (const sample of samples.subarray(start, start + window)) sum += sample ** 2;
@@ -103,6 +106,7 @@ export const resample = (samples: Float32Array, from: number, to: number): Float
   if (from === to) return samples;
   const ratio = from / to;
   const out = new Float32Array(Math.floor(samples.length / ratio));
+
   for (let i = 0; i < out.length; i++) {
     const start = Math.floor(i * ratio);
     const end = Math.max(start + 1, Math.floor((i + 1) * ratio));
@@ -120,6 +124,7 @@ export const wav = (samples: Float32Array, rate: number): Blob => {
   const text = (offset: number, value: string) => {
     for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
   };
+
   text(0, "RIFF");
   view.setUint32(4, 36 + samples.length * 2, true);
   text(8, "WAVE");

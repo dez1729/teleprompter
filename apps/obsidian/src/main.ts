@@ -57,6 +57,7 @@ export default class TeleprompterPlugin extends Plugin {
   async push(kind: PushKind, editor: Editor, context: MarkdownView | MarkdownFileInfo) {
     const note = { basename: context.file?.basename ?? "Obsidian", text: editor.getValue() };
     const request = pushFor(kind, editor.getSelection(), note);
+
     if (isNil(request)) {
       new Notice("Nothing to send: the note is empty.");
       return;
@@ -86,6 +87,7 @@ class TeleprompterSettingTab extends PluginSettingTab {
 
   display() {
     this.containerEl.empty();
+
     new Setting(this.containerEl)
       .setName("Server address")
       .setDesc(`Where "tp serve" is running. The default is ${DEFAULT_SERVER_URL}.`)

@@ -17,6 +17,7 @@ export const useReadWords = (textRef: RefObject<HTMLElement | null>, words: unkn
     const text = textRef.current;
     if (isNil(text)) return;
     let { current } = marked;
+
     if (current.words !== words) {
       // New words are new elements, none of them marked yet.
       current = { words, spans: [...text.querySelectorAll<HTMLElement>("[data-word]")], count: 0 };

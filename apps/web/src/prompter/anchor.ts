@@ -31,6 +31,7 @@ const segments = (oldWords: readonly string[], newWords: readonly string[]): Seg
   const result: Segment[] = [{ oldLength: prefix, newLength: prefix, kept: true }];
   const change = (oldLength: number, newLength: number) => {
     const last = result.at(-1)!;
+
     if (last.kept) result.push({ oldLength, newLength, kept: false });
     else {
       last.oldLength += oldLength;
@@ -63,6 +64,7 @@ export const mapCursor = (oldWords: readonly string[], newWords: readonly string
   let oldStart = 0;
   let newStart = 0;
   let mapped = 0;
+
   for (const { oldLength, newLength } of segments(oldWords, newWords)) {
     if (oldLength > 0 && position >= oldStart) {
       const share = Math.min(position - oldStart, oldLength) / oldLength;

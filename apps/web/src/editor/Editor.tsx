@@ -1,5 +1,5 @@
 import { Eye, MonitorPlay } from "lucide-react";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { PushRequest, Script, ScriptFormat } from "@teleprompter/protocol";
 import { isNil } from "es-toolkit";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,6 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
 };
 
 export const Editor = () => {
-  const parent = useRef<HTMLDivElement>(null);
   const session = useRef<{ editor: ScriptEditor; sync: ScriptSync } | null>(null);
   const [script, setScript] = useState<Script | null>(null);
   const [status, setStatus] = useState<SyncStatus>("saved");
@@ -33,14 +32,17 @@ export const Editor = () => {
   useEffect(() => {
     document.title = "Editor · Teleprompter";
     window.name ||= EDITOR_WINDOW;
+  }, []);
 
+  // A ref callback for the editor's container: the editor needs that element, and the stream feeds the editor.
+  const mount = useCallback((parent: HTMLDivElement) => {
     /** The Editor starts from the server's Script, so nothing can be typed over a Script it has not seen. */
     const start = (initial: Script) => {
       const sync = new ScriptSync(
         {
           doc: () => editor.text(),
           applyRemote: (changes) => editor.applyRemote(changes),
-          send: (text, format) => sendScript({ kind: "edit", text, ...(format && { format }) } satisfies PushRequest as PushRequest),
+          send: (text, format) => sendScript({ kind: "edit", text, ...(!isNil(format) && { format }) } satisfies PushRequest as PushRequest),
           onState: (state) => {
             setStatus(state.status);
             setScript(state.script);
@@ -51,7 +53,7 @@ export const Editor = () => {
         initial
       );
       const editor = createScriptEditor({
-        parent: parent.current!,
+        parent,
         text: normalizeLineBreaks(initial.text),
         format: initial.format,
         onChange: (next) => {
@@ -69,10 +71,11 @@ export const Editor = () => {
     const stream = new ScriptStream({
       onConnection: setConnected,
       onMessage: (message) => {
-        if (session.current) session.current.sync.receive(message.script, message.type === "snapshot");
+        if (!isNil(session.current)) session.current.sync.receive(message.script, message.type === "snapshot");
         else session.current = start(message.script);
       },
     });
+
     stream.start();
 
     const flush = () => session.current?.sync.flush();
@@ -102,7 +105,7 @@ export const Editor = () => {
           role="status"
           className="text-xs text-muted-foreground"
         >
-          {connected === false ? "Not connected to server" : script ? STATUS_TEXT[status] : "Connecting…"}
+          {connected === false ? "Not connected to server" : !isNil(script) ? STATUS_TEXT[status] : "Connecting…"}
         </p>
         <ToggleGroup
           aria-label="Format"
@@ -110,8 +113,8 @@ export const Editor = () => {
           size="sm"
           spacing={0}
           disabled={isNil(script)}
-          value={format ? [format] : []}
-          onValueChange={(next) => next.at(0) !== undefined && chooseFormat(next.at(0) as ScriptFormat)}
+          value={isNil(format) ? [] : [format]}
+          onValueChange={(next) => !isNil(next.at(0)) && chooseFormat(next.at(0) as ScriptFormat)}
         >
           <ToggleGroupItem value="markdown">Markdown</ToggleGroupItem>
           <ToggleGroupItem value="text">Text</ToggleGroupItem>
@@ -137,10 +140,10 @@ export const Editor = () => {
       </header>
       <div className="flex min-h-0 flex-1">
         <div
-          ref={parent}
+          ref={mount}
           className="min-w-0 flex-1"
         />
-        {previewing && script && (
+        {previewing && !isNil(script) && (
           <div className="min-w-0 flex-1 border-l">
             <Suspense>
               <Preview

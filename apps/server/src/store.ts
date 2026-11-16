@@ -16,6 +16,7 @@ import { readJsonFile, writeJsonFile } from "./jsonFile.ts";
 
 export const nextScript = (current: Script, request: PushRequest): Script => {
   const revision = current.revision + 1;
+
   if (request.kind === "append") {
     const text = appendText(current.text, request.text);
     const format = request.format ?? (current.format === "markdown" ? "markdown" : guessFormat(text));
@@ -81,7 +82,7 @@ export class ScriptStore {
     const version = this.#history.get(id);
     if (isNil(version)) return undefined;
     const { text, format, source } = version;
-    return this.change({ kind: "replace", text, format, ...(source === null ? {} : { source }) });
+    return this.change({ kind: "replace", text, format, ...(isNil(source) ? {} : { source }) });
   }
 
   subscribe(listener: Listener): () => void {

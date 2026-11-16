@@ -4,10 +4,11 @@ import { isNil } from "es-toolkit";
 import { placementFor } from "./anchor";
 import { commandForKey, type Command, type UiCommand } from "./keymap";
 import { useFollow } from "./follow/useFollow";
-import { initialPlayback, needsTick, playbackReducer } from "./playback";
+import { initialPlayback, isScrolling, needsTick, playbackReducer } from "./playback";
 import { restoreVersion, ScriptStream, sendScript, type ScriptMessage } from "@/lib/scriptApi";
 import { EMPTY_TOKENS, tokenize } from "./script";
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from "./settings";
+import { useTimer } from "./useTimer";
 import { clearLegacyDraft, clearLegacyScript, loadLegacyScript, loadSettings, saveSettings } from "./storage";
 
 const MAX_FRAME_MS = 100;
@@ -18,12 +19,12 @@ const isTypingTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
   if (target instanceof HTMLTextAreaElement) return true;
   if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(target.type);
-  return target.closest('[contenteditable]:not([contenteditable="false"])') !== null;
+  return !isNil(target.closest('[contenteditable]:not([contenteditable="false"])'));
 };
 
 /** Widgets that use the arrow keys themselves; they keep the arrows, the Prompter gets the other keys. */
 const consumesArrows = (target: EventTarget | null): boolean => {
-  return target instanceof HTMLElement && target.closest('input[type="range"], [role="slider"], [data-slot="toggle-group"]') !== null;
+  return target instanceof HTMLElement && !isNil(target.closest('input[type="range"], [role="slider"], [data-slot="toggle-group"]'));
 };
 
 export interface NudgeReadout {
@@ -40,7 +41,7 @@ export interface ReplaceNotice {
 
 /** The notice for a Replace that left a Version to go back to. Any other change clears the notice. */
 const replaceNotice = (message: ScriptMessage, restored: boolean): ReplaceNotice | null => {
-  if (message.type !== "change" || message.kind !== "replace" || message.previousVersionId === null) return null;
+  if (message.type !== "change" || message.kind !== "replace" || isNil(message.previousVersionId)) return null;
   const { source } = message.script;
   const text = restored ? "Script restored" : source ? `Script replaced from ${source}` : "Script replaced";
   return { versionId: message.previousVersionId, text };
@@ -64,7 +65,7 @@ export const usePrompter = (ui: UiBridge) => {
   const [connected, setConnected] = useState<boolean | null>(null);
   const script = current.text.trim() === "" ? null : current;
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings);
-  const tokens = useMemo(() => (script ? tokenize(script, settings.spokenOnly) : EMPTY_TOKENS), [script, settings.spokenOnly]);
+  const tokens = useMemo(() => (!isNil(script) ? tokenize(script, settings.spokenOnly) : EMPTY_TOKENS), [script, settings.spokenOnly]);
 
   const [playback, dispatch] = useReducer(playbackReducer, tokens, (initial) =>
     playbackReducer(initialPlayback, {
@@ -80,6 +81,9 @@ export const usePrompter = (ui: UiBridge) => {
   playbackRef.current = playback;
   const follow = useFollow(playback.mode, tokens.words, settings.speedWpm, dispatch);
 
+  const timer = useTimer(isScrolling(playback.mode), settings.timerFollowsPlayback);
+  const { rewind } = timer;
+
   const [readout, setReadout] = useState<NudgeReadout | null>(null);
   const [replaced, setReplaced] = useState<ReplaceNotice | null>(null);
   /** True from an Undo click until the Replace it causes arrives, so that one reads as a restore. */
@@ -94,6 +98,7 @@ export const usePrompter = (ui: UiBridge) => {
   useEffect(clearLegacyDraft, []);
 
   const active = needsTick(playback);
+
   useEffect(() => {
     if (!active) return;
     let last = performance.now();
@@ -105,6 +110,7 @@ export const usePrompter = (ui: UiBridge) => {
         wpm: settingsRef.current.speedWpm,
         minLineMs: settingsRef.current.minLineSec * 1000,
       });
+
       last = now;
       frame = requestAnimationFrame(loop);
     };
@@ -123,6 +129,7 @@ export const usePrompter = (ui: UiBridge) => {
     const { current, tokens: before } = live.current;
     const after = tokenize(current, next.spokenOnly);
     live.current = { current, tokens: after };
+
     dispatch({
       type: "SET_SCRIPT",
       wordCount: after.words.length,
@@ -141,31 +148,38 @@ export const usePrompter = (ui: UiBridge) => {
    * The only way a Script reaches playback. Pushes, Edits and restored Versions
    * all arrive here as a change from the server.
    */
-  const receive = useCallback((message: ScriptMessage) => {
-    const { current: before, tokens: beforeTokens } = live.current;
-    const incoming = message.script;
-    if (message.type === "snapshot" && incoming.revision === 0) moveLegacyScript();
-    if (message.type === "snapshot" ? incoming.revision === before.revision : incoming.revision <= before.revision) return;
+  const receive = useCallback(
+    (message: ScriptMessage) => {
+      const { current: before, tokens: beforeTokens } = live.current;
+      const incoming = message.script;
+      if (message.type === "snapshot" && incoming.revision === 0) moveLegacyScript();
+      if (message.type === "snapshot" ? incoming.revision === before.revision : incoming.revision <= before.revision) return;
 
-    const nextTokens = tokenize(incoming, settingsRef.current.spokenOnly);
-    // A snapshot that differs is whatever happened while disconnected, so it anchors like an Edit.
-    const kind = message.type === "change" ? message.kind : "edit";
-    const place = placementFor(kind, beforeTokens, nextTokens);
+      const nextTokens = tokenize(incoming, settingsRef.current.spokenOnly);
+      // A snapshot that differs is whatever happened while disconnected, so it anchors like an Edit.
+      const kind = message.type === "change" ? message.kind : "edit";
+      const place = placementFor(kind, beforeTokens, nextTokens);
 
-    live.current = { current: incoming, tokens: nextTokens };
-    setCurrent(incoming);
-    dispatch({
-      type: "SET_SCRIPT",
-      wordCount: nextTokens.words.length,
-      paragraphStarts: nextTokens.paragraphStarts,
-      sentenceEnds: nextTokens.sentenceEnds,
-      place,
-    });
-    setReplaced(replaceNotice(message, restoring.current));
-    if (kind === "replace") restoring.current = false;
-  }, []);
+      live.current = { current: incoming, tokens: nextTokens };
+      setCurrent(incoming);
 
-  useEffect(() => {
+      dispatch({
+        type: "SET_SCRIPT",
+        wordCount: nextTokens.words.length,
+        paragraphStarts: nextTokens.paragraphStarts,
+        sentenceEnds: nextTokens.sentenceEnds,
+        place,
+      });
+
+      if (kind === "replace") rewind();
+      setReplaced(replaceNotice(message, restoring.current));
+      if (kind === "replace") restoring.current = false;
+    },
+    [rewind]
+  );
+
+  // A ref callback for the Prompter's stage, so the stream is open exactly while the window shows the Script.
+  const connect = useCallback(() => {
     const stream = new ScriptStream({ onMessage: receive, onConnection: setConnected });
     stream.start();
     return () => stream.stop();
@@ -175,6 +189,7 @@ export const usePrompter = (ui: UiBridge) => {
   const undoReplace = useCallback((notice: ReplaceNotice) => {
     restoring.current = true;
     setReplaced(null);
+
     restoreVersion(notice.versionId).catch(() => {
       restoring.current = false;
       setReplaced(notice);
@@ -188,12 +203,15 @@ export const usePrompter = (ui: UiBridge) => {
       const { countdown } = settingsRef.current;
       const countdownSec = countdown === "off" ? 0 : settingsRef.current.countdownSec;
       const countdownAtStartOnly = countdown === "start";
+
       switch (command.type) {
         case "toggle":
           if (playbackRef.current.mode.kind === "paused" && settingsRef.current.scrollMode === "follow") return dispatch({ type: "FOLLOW" });
           return dispatch({ type: "TOGGLE", countdownSec, countdownAtStartOnly });
         case "restart":
-          return dispatch({ type: "RESTART" });
+          dispatch({ type: "RESTART" });
+          rewind();
+          return;
         case "nudge": {
           const next = nudgeSetting(settingsRef.current, command.setting, command.direction);
           changeSettings(next);
@@ -211,12 +229,14 @@ export const usePrompter = (ui: UiBridge) => {
         case "openSettings":
         case "openEditor":
         case "toggleHelp":
+        case "toggleTimer":
           return uiRef.current.onUiCommand(command);
         case "switchScrollMode": {
           const scrollMode = settingsRef.current.scrollMode === "auto" ? "follow" : "auto";
           changeSettings({ ...settingsRef.current, scrollMode });
           // Switching while scrolling carries on in the other mode, from the same place.
           const { mode } = playbackRef.current;
+
           if (mode.kind !== "paused") {
             dispatch({ type: "PAUSE" });
             dispatch(scrollMode === "follow" ? { type: "FOLLOW" } : { type: "PLAY", countdownSec: 0, countdownAtStartOnly });
@@ -226,7 +246,7 @@ export const usePrompter = (ui: UiBridge) => {
         }
       }
     },
-    [changeSettings, showReadout]
+    [changeSettings, rewind, showReadout]
   );
 
   useEffect(() => {
@@ -250,6 +270,7 @@ export const usePrompter = (ui: UiBridge) => {
 
     window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("keyup", onKeyUp);
+
     return () => {
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("keyup", onKeyUp);
@@ -265,6 +286,8 @@ export const usePrompter = (ui: UiBridge) => {
     follow,
     readout,
     replaced,
+    timer,
+    connect,
     undoReplace,
     dispatch,
     updateSetting,

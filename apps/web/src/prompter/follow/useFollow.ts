@@ -13,10 +13,12 @@ export const useFollow = (mode: PlaybackMode, words: readonly Word[], expectedWp
   const [status, setStatus] = useState<FollowStatus>(OFF);
   // Turning Follow on starts from "starting", not from whatever the last session ended on.
   const [wasFollowing, setWasFollowing] = useState(following);
+
   if (wasFollowing !== following) {
     setWasFollowing(following);
     if (following) setStatus({ kind: "starting" });
   }
+
   const script = useMemo(() => words.map((word) => normalizeWord(word.text)), [words]);
   const place = useRef<FollowPlace>({ script, target: 0 });
   place.current = { script, target: mode.kind === "following" ? mode.target : 0 };

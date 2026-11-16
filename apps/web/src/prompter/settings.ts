@@ -9,33 +9,46 @@ export interface NumberField {
   step: number;
   unit?: string;
 }
+
 export interface ChoiceField<T extends string = string> {
   kind: "choice";
   label: string;
   default: T;
   options: readonly { value: T; label: string }[];
 }
+
 export interface ColorField {
   kind: "color";
   label: string;
   default: string;
 }
+
 export interface BoolField {
   kind: "bool";
   label: string;
   default: boolean;
 }
-/** Shown on the Advanced settings page instead of the main one. */
+
+// The panels that show settings. The settings sheet's main page is the default; the Timer popover lists its own.
+export type SettingsPage = "main" | "advanced" | "timer";
+
+// Shown on a panel other than the settings sheet's main page.
 interface Placement {
-  advanced?: true;
+  page?: Exclude<SettingsPage, "main">;
 }
+
 /** What the setting does, shown under its label. Every setting has one. */
 interface Described {
   description: string;
 }
+
 export type Field = (NumberField | ChoiceField | ColorField | BoolField) & Placement & Described;
 
-const advanced = <F extends Field>(field: F): F & { advanced: true } => ({ ...field, advanced: true });
+const onPage =
+  <P extends Exclude<SettingsPage, "main">>(page: P) =>
+  <F extends Field>(field: F): F & { page: P } => ({ ...field, page });
+const advanced = onPage("advanced");
+const timerPanel = onPage("timer");
 const about = <F extends NumberField | ChoiceField | ColorField | BoolField>(description: string, field: F): F & Described => ({
   ...field,
   description,
@@ -140,6 +153,16 @@ export const SETTING_DEFS = {
       bool("Keep playing when you move", true)
     )
   ),
+  timerFollowsPlayback: timerPanel(
+    about(
+      "The timer starts when the Prompter starts scrolling or following and pauses when it stops. Restart and a Replace zero it. Off, you start and pause it yourself.",
+      bool("Run with playback", true)
+    )
+  ),
+  timerTargetMin: timerPanel(
+    about("How long you mean to read for. The readout turns red once you pass it. 0 means no target.", num("Target length", 0, 0, 120, 0.5, "min"))
+  ),
+  showTimer: timerPanel(about("Shows the elapsed time in the top right corner. The timer keeps running when hidden.", bool("Show timer", true))),
 } as const satisfies Record<string, Field>;
 
 /** How many times faster than a line the gap below it scrolls by, for each Paragraph pause. */
@@ -147,6 +170,7 @@ export const GAP_PACES = { short: 5, normal: 3, long: 1.5 } as const satisfies R
 
 export type SettingKey = keyof typeof SETTING_DEFS;
 export type DisplaySettings = { -readonly [K in SettingKey]: (typeof SETTING_DEFS)[K]["default"] };
+
 export type NumberSettingKey = {
   [K in SettingKey]: (typeof SETTING_DEFS)[K] extends NumberField ? K : never;
 }[SettingKey];
@@ -154,6 +178,12 @@ export type NumberSettingKey = {
 export type BoolSettingKey = {
   [K in SettingKey]: (typeof SETTING_DEFS)[K] extends BoolField ? K : never;
 }[SettingKey];
+
+// The settings a panel shows, in registry order.
+export const keysOnPage = (page: SettingsPage): SettingKey[] => {
+  const defs: Record<string, Field> = SETTING_DEFS;
+  return Object.keys(SETTING_DEFS).filter((key) => (defs[key]?.page ?? "main") === page) as SettingKey[];
+};
 
 export const DEFAULT_SETTINGS = Object.fromEntries(Object.entries(SETTING_DEFS).map(([key, def]) => [key, def.default])) as DisplaySettings;
 

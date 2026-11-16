@@ -11,6 +11,7 @@ const freePort = (): Promise<number> => {
   return new Promise((resolve, reject) => {
     const probe = createServer();
     probe.once("error", reject);
+
     probe.listen(0, "127.0.0.1", () => {
       const { port } = probe.address() as { port: number };
       probe.close(() => resolve(port));
@@ -26,6 +27,7 @@ test.beforeEach(async () => {
   const port = await freePort();
   url = `http://127.0.0.1:${port}`;
   dataDir = mkdtempSync(join(tmpdir(), "tp-e2e-"));
+
   server = spawn("node", [TP, "serve"], {
     env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", TELEPROMPTER_DATA_DIR: dataDir },
     stdio: "inherit",
@@ -39,6 +41,7 @@ test.beforeEach(async () => {
       )
     )
       return;
+
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
@@ -223,4 +226,80 @@ test("Advanced settings open in place of the display settings and Back returns",
   await page.keyboard.press("Escape");
   await page.keyboard.press(",");
   await expect(page.getByRole("dialog").getByText("Display settings")).toBeVisible();
+});
+
+test("the Timer counts reading time and resets", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], "alpha bravo charlie delta echo foxtrot");
+  await expect(page.getByText("alpha")).toBeVisible();
+
+  const readout = page.getByRole("timer");
+  await expect(readout).toHaveText("0:00");
+
+  await page.keyboard.press("t");
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await expect(readout).toHaveText(/^0:0[1-9]$/);
+
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await page.getByRole("button", { name: "Reset" }).click();
+  await expect(readout).toHaveText("0:00");
+});
+
+test("the Timer's settings stay folded until opened", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], "alpha bravo charlie");
+  await expect(page.getByText("alpha")).toBeVisible();
+
+  await page.keyboard.press("t");
+  const timerMenu = page.getByRole("dialog", { name: "Timer" });
+  await expect(timerMenu).toBeVisible();
+  const runWithPlayback = timerMenu.getByRole("switch", { name: "Run with playback" });
+  await expect(runWithPlayback).toBeHidden();
+
+  await timerMenu.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(runWithPlayback).toBeVisible();
+});
+
+test("the Timer closes when you click the Script unless it is pinned, and Esc closes it", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], "alpha bravo charlie");
+  await expect(page.getByText("alpha")).toBeVisible();
+
+  await page.keyboard.press("t");
+  const timerMenu = page.getByRole("dialog", { name: "Timer" });
+  await expect(timerMenu).toBeVisible();
+  await page.getByText("alpha").click();
+  await expect(timerMenu).toBeHidden();
+
+  await page.keyboard.press("t");
+  await timerMenu.getByRole("button", { name: "Keep the Timer open" }).click();
+  await page.getByText("alpha").click();
+  await expect(timerMenu).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(timerMenu).toBeHidden();
+
+  await page.reload();
+  await expect(page.getByText("alpha")).toBeVisible();
+  await page.keyboard.press("t");
+  await expect(timerMenu.getByRole("button", { name: "Keep the Timer open" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the Timer runs with playback, not through the countdown, and Restart zeroes it", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], Array.from({ length: 200 }, (_, i) => `word${i}`).join(" "));
+  await expect(page.getByText("word0", { exact: false }).first()).toBeVisible();
+
+  const readout = page.getByRole("timer");
+  await page.keyboard.press("Space");
+  await expect(readout).toHaveText("0:00");
+  await expect(readout).toHaveText(/^0:0[1-9]$/, { timeout: 8000 });
+
+  await page.keyboard.press("Space");
+  const paused = await readout.textContent();
+  await page.waitForTimeout(1500);
+  await expect(readout).toHaveText(paused ?? "");
+
+  await page.keyboard.press("Home");
+  await expect(readout).toHaveText("0:00");
 });

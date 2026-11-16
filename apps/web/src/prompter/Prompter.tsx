@@ -11,9 +11,13 @@ import { HelpOverlay } from "./HelpOverlay";
 import { readCount, useReadWords } from "./readWords";
 import { ScriptText } from "./ScriptText";
 import { SettingsSheet } from "./SettingsSheet";
+import { TimerPanel } from "./TimerPanel";
+import { TimerReadout } from "./TimerReadout";
 import { UndoToast } from "./UndoToast";
 import { FONT_STACKS, GAP_PACES } from "./settings";
 import type { FollowStatus } from "./follow/session";
+import { isScrolling } from "./playback";
+import { loadTimerPinned, saveTimerPinned } from "./storage";
 import { usePrompter } from "./usePrompter";
 
 const BAR_HIDE_DELAY_MS = 2000;
@@ -25,19 +29,30 @@ const openEditor = () => openNamedWindow("/editor", EDITOR_WINDOW);
 export const Prompter = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const { script, connected, tokens, settings, playback, follow, readout, replaced, undoReplace, dispatch, updateSetting, run } = usePrompter({
-    helpOpen,
-    onUiCommand: (command) => {
-      switch (command.type) {
-        case "toggleHelp":
-          return setHelpOpen((open) => !open);
-        case "openSettings":
-          return setSettingsOpen(true);
-        case "openEditor":
-          return openEditor();
-      }
-    },
-  });
+  const [timerOpen, setTimerOpen] = useState(false);
+  const [timerPinned, setTimerPinned] = useState(loadTimerPinned);
+
+  const pinTimer = (pinned: boolean) => {
+    setTimerPinned(pinned);
+    saveTimerPinned(pinned);
+  };
+
+  const { script, connected, tokens, settings, playback, follow, readout, replaced, timer, connect, undoReplace, dispatch, updateSetting, run } =
+    usePrompter({
+      helpOpen,
+      onUiCommand: (command) => {
+        switch (command.type) {
+          case "toggleHelp":
+            return setHelpOpen((open) => !open);
+          case "toggleTimer":
+            return setTimerOpen((open) => !open);
+          case "openSettings":
+            return setSettingsOpen(true);
+          case "openEditor":
+            return openEditor();
+        }
+      },
+    });
 
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT);
   const [recentMouse, setRecentMouse] = useState(true);
@@ -48,6 +63,20 @@ export const Prompter = () => {
   }, []);
 
   const stageRef = useRef<HTMLDivElement>(null);
+
+  const attachStage = useCallback(
+    (node: HTMLDivElement) => {
+      stageRef.current = node;
+      const disconnect = connect();
+
+      return () => {
+        disconnect();
+        stageRef.current = null;
+      };
+    },
+    [connect]
+  );
+
   const textRef = useRef<HTMLDivElement>(null);
 
   const lineHeightPx = settings.fontSize * settings.lineHeight;
@@ -78,6 +107,7 @@ export const Prompter = () => {
       settings.readWordsColor,
     ]
   );
+
   useReadWords(textRef, tokens, settings.readWords ? readCount(playback.cursor, tokens.words.length) : 0);
 
   const remeasure = useCallback(() => {
@@ -100,8 +130,8 @@ export const Prompter = () => {
 
   useEffect(() => {
     const observer = new ResizeObserver(remeasure);
-    if (stageRef.current) observer.observe(stageRef.current);
-    if (textRef.current) observer.observe(textRef.current);
+    if (!isNil(stageRef.current)) observer.observe(stageRef.current);
+    if (!isNil(textRef.current)) observer.observe(textRef.current);
     return () => observer.disconnect();
   }, [remeasure, script]);
 
@@ -113,15 +143,17 @@ export const Prompter = () => {
     return () => document.fonts.removeEventListener("loadingdone", remeasure);
   }, [remeasure]);
 
-  const playing = playback.mode.kind === "playing" || playback.mode.kind === "following";
+  const playing = isScrolling(playback.mode);
   // Starting or stopping shows the bar again, as a mouse move does.
   const [barShownFor, setBarShownFor] = useState(playing);
+
   if (barShownFor !== playing) {
     setBarShownFor(playing);
     setRecentMouse(true);
   }
 
   const showBar = () => setRecentMouse(true);
+
   useEffect(() => {
     if (!recentMouse || !playing) return;
     const timer = setTimeout(() => setRecentMouse(false), BAR_HIDE_DELAY_MS);
@@ -169,16 +201,16 @@ export const Prompter = () => {
   return (
     <>
       <div
-        ref={stageRef}
+        ref={attachStage}
         className="fixed inset-0 touch-none overflow-hidden select-none"
-        style={{ backgroundColor: settings.bgColor, color: settings.textColor, cursor: script ? "grab" : "default" }}
+        style={{ backgroundColor: settings.bgColor, color: settings.textColor, cursor: !isNil(script) ? "grab" : "default" }}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        {script && (
+        {!isNil(script) && (
           <div
             className="absolute inset-x-0 overflow-hidden"
             style={{ top: settings.marginTop, bottom: settings.marginBottom }}
@@ -214,11 +246,11 @@ export const Prompter = () => {
           </div>
         )}
 
-        {countdown !== null && (
+        {!isNil(countdown) && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-9xl font-bold opacity-80">{countdown}</div>
         )}
 
-        {script && tokens.words.length === 0 && (
+        {!isNil(script) && tokens.words.length === 0 && (
           <div
             className="absolute inset-0 flex items-center justify-center"
             onPointerDown={(e) => e.stopPropagation()}
@@ -255,7 +287,16 @@ export const Prompter = () => {
           </div>
         )}
 
-        <FollowStatusLine status={follow} />
+        <div className="pointer-events-none absolute top-3 right-4 flex max-w-md flex-col items-end gap-1">
+          {settings.showTimer && (
+            <TimerReadout
+              timer={timer}
+              targetMin={settings.timerTargetMin}
+              mirror={settings.mirror}
+            />
+          )}
+          <FollowStatusLine status={follow} />
+        </div>
 
         {connected === false && (
           <p
@@ -268,12 +309,25 @@ export const Prompter = () => {
 
         <div onPointerDown={(e) => e.stopPropagation()}>
           <ControlBar
-            visible={!playing || recentMouse}
+            visible={!playing || recentMouse || timerOpen}
             playing={playing || playback.mode.kind === "countdown"}
             scrollMode={settings.scrollMode}
             speedWpm={settings.speedWpm}
             fontSize={settings.fontSize}
-            hasScript={script !== null}
+            hasScript={!isNil(script)}
+            timerOpen={timerOpen}
+            onTimerOpenChange={setTimerOpen}
+            timerPinned={timerPinned}
+            timerPanel={
+              <TimerPanel
+                timer={timer}
+                pinned={timerPinned}
+                onPinnedChange={pinTimer}
+                remainingWords={!isNil(script) && playback.wordCount > 0 ? playback.wordCount - playback.cursor : null}
+                settings={settings}
+                onChange={updateSetting}
+              />
+            }
             onCommand={run}
           />
         </div>
@@ -304,11 +358,12 @@ interface FollowStatusLineProps {
 const FollowStatusLine = ({ status }: FollowStatusLineProps) => {
   if (status.kind === "off") return null;
   const text = status.kind === "error" ? status.message : status.kind === "starting" ? "Opening the microphone…" : "Following your voice";
+
   return (
     <p
       role="status"
       data-follow-status={status.kind}
-      className="pointer-events-none absolute top-3 right-3 max-w-md text-right text-xs opacity-60"
+      className="text-right text-xs opacity-60"
     >
       {text}
     </p>

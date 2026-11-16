@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import { parseArgs } from "node:util";
 import { CliError, defaultUrl, send } from "./send.ts";
 
@@ -28,6 +29,7 @@ const SEND_OPTIONS = {
 
 export const run = async (argv: string[], io: Io): Promise<number> => {
   const [command, ...rest] = argv;
+
   try {
     switch (command) {
       case "serve":
@@ -40,7 +42,7 @@ export const run = async (argv: string[], io: Io): Promise<number> => {
       case "--help":
       case "-h":
         io.out(USAGE);
-        return command === undefined ? 1 : 0;
+        return isNil(command) ? 1 : 0;
       default:
         throw new CliError(`Unknown command "${command}".\n${USAGE}`);
     }
@@ -54,6 +56,7 @@ export const run = async (argv: string[], io: Io): Promise<number> => {
 
 const runSend = async (args: string[], io: Io): Promise<number> => {
   let parsed;
+
   try {
     parsed = parseArgs({ args, options: SEND_OPTIONS, allowPositionals: true });
   }
@@ -65,6 +68,7 @@ const runSend = async (args: string[], io: Io): Promise<number> => {
   if (values.replace === values.append) throw new CliError("Pass exactly one of --replace or --append.");
 
   let text = positionals.join(" ");
+
   if (text === "") {
     if (io.stdinIsTty) throw new CliError("No text given. Pass it as an argument or pipe it in.");
     text = await io.readStdin();
@@ -77,6 +81,7 @@ const runSend = async (args: string[], io: Io): Promise<number> => {
     { kind, text, markdown: values.markdown ?? false, source: values.source },
     { url: io.env.TELEPROMPTER_URL || defaultUrl, fetch: io.fetch }
   );
+
   io.out(`${kind === "replace" ? "Replaced" : "Appended to"} the Script (revision ${script.revision}).`);
   return 0;
 };

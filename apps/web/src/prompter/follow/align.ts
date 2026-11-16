@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import { normalizeWord } from "@teleprompter/protocol";
 
 /** How far behind the reader's position a match may land, in words, for when they go back and read a line again. */
@@ -30,9 +31,9 @@ const similar = (a: string, b: string): boolean => {
   if (a === b) return true;
   if (Math.min(a.length, b.length) < 4 || Math.abs(a.length - b.length) > 1) return false;
   let i = 0;
-  while (i < a.length && a[i] === b[i]) i++;
+  while (i < a.length && a.at(i) === b.at(i)) i++;
   let j = 0;
-  while (j < a.length - i && j < b.length - i && a[a.length - 1 - j] === b[b.length - 1 - j]) j++;
+  while (j < a.length - i && j < b.length - i && a.at(a.length - 1 - j) === b.at(b.length - 1 - j)) j++;
   return Math.max(a.length, b.length) - i - j <= 1;
 };
 
@@ -44,6 +45,7 @@ const similar = (a: string, b: string): boolean => {
 export const align = (script: readonly string[], heard: readonly string[], from: number): number | null => {
   const said = heard.slice(-HEARD_LIMIT);
   const near = { lo: Math.max(0, Math.floor(from) - BEHIND), hi: Math.min(script.length, Math.ceil(from) + LOOKAHEAD) };
+
   return (
     bestEnd(script, said, from, near, (end) => (end >= from && end - from <= NEAR_WORDS ? NEAR_MIN_SCORE : MIN_SCORE)) ??
     bestEnd(script, said, from, { lo: 0, hi: script.length }, () => FAR_MIN_SCORE)
@@ -70,6 +72,7 @@ const bestEnd = (
   let previous = Array.from({ length: width }, () => 0);
   let current = Array.from({ length: width }, () => 0);
   let best: { score: number; end: number } | null = null;
+
   for (const word of said) {
     for (let j = 1; j < width; j++) {
       const diagonal = previous.at(j - 1)! + (similar(word, script.at(lo + j - 1)!) ? MATCH : MISMATCH);
@@ -78,7 +81,7 @@ const bestEnd = (
       // Going back is rarer than reading on, so a match behind the reader counts as farther away.
       const distance = end >= from ? end - from : (from - end) * 3;
       const score = current.at(j)! - DISTANCE_COST * distance;
-      if (current.at(j)! >= needed(end) && (best === null || score > best.score)) best = { score, end };
+      if (current.at(j)! >= needed(end) && (isNil(best) || score > best.score)) best = { score, end };
     }
 
     [previous, current] = [current, previous];

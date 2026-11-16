@@ -21,6 +21,7 @@ const request = async (path: string, init?: RequestInit): Promise<unknown> => {
 /** Sends a change to the Script and resolves with the Script the server made of it. */
 export const sendScript = async (change: PushRequest): Promise<Script> => {
   const body = JSON.stringify(change);
+
   return ScriptSchema.parse(
     await request("/api/script", {
       method: "POST",
@@ -77,6 +78,7 @@ export class ScriptStream {
     const source = new EventSource("/api/events");
     source.onopen = () => this.#handlers.onConnection(true);
     source.onerror = () => this.#handlers.onConnection(false);
+
     source.addEventListener("script", (event) => {
       const script = parse(ScriptSchema, (event as MessageEvent<string>).data);
       if (!isNil(script)) this.#handlers.onMessage({ type: "snapshot", script });

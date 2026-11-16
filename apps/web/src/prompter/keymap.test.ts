@@ -43,6 +43,12 @@ describe("commandForKey", () => {
     expect(commandForKey({ key: "?", shiftKey: false })).toBeNull();
   });
 
+  it("toggles the Timer with t", () => {
+    expect(commandForKey({ key: "t", shiftKey: false })).toEqual({ type: "toggleTimer" });
+    expect(tooltipFor({ type: "toggleTimer" })).toBe("Timer (T)");
+    expect(helpRows().flatMap((g) => g.rows)).toContainEqual({ keys: "T", description: "Timer" });
+  });
+
   it("opens settings and the Editor", () => {
     expect(commandForKey({ key: ",", shiftKey: false })).toEqual({ type: "openSettings" });
     expect(commandForKey({ key: "P", shiftKey: true })).toEqual({ type: "openEditor" });

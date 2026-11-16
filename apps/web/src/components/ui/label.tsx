@@ -1,7 +1,7 @@
 import { type ComponentProps } from "react";
 import { cn } from "cn";
 
-function Label({ className, ...props }: ComponentProps<"label">) {
+const Label = ({ className, ...props }: ComponentProps<"label">) => {
   return (
     <label
       data-slot="label"
@@ -12,6 +12,6 @@ function Label({ className, ...props }: ComponentProps<"label">) {
       {...props}
     />
   );
-}
+};
 
 export { Label };

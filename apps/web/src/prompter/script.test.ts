@@ -11,9 +11,11 @@ interface ShownOptions {
 const shown = (text: string, { format = "markdown", spokenOnly = true }: ShownOptions = {}) => {
   const tokens = tokenize({ text, format }, spokenOnly);
   const out: string[] = [];
+
   tokens.paragraphStarts.forEach((start, paragraph) => {
     if (tokens.sectionStarts.includes(paragraph)) out.push("——");
     const end = tokens.paragraphStarts.at(paragraph + 1) ?? tokens.words.length;
+
     out.push(
       tokens.words
         .slice(start, end)
@@ -73,6 +75,7 @@ describe("Spoken-only", () => {
   it("drops code blocks, tables, HTML blocks and link definitions", () => {
     const text =
       "Before.\n\n```\nconst x = 1\n```\n\n    indented code\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n<div>\nhtml\n</div>\n\n[ref]: http://x\n\nAfter.";
+
     expect(shown(text)).toEqual(["Before.", "After."]);
   });
 
@@ -87,6 +90,7 @@ describe("Spoken-only", () => {
   it("drops frontmatter, %% comments and footnotes, and reads wikilinks by their shown text", () => {
     const text =
       "---\ntitle: Show\ntags: [a]\n---\nHello %%secret%% [[Page]] [[Page|alias]] [[Page#Part]] ![[pic.png]] note[^1].\n\n%%\nhidden\n%%\n\n[^1]: The footnote.";
+
     expect(shown(text)).toEqual(["Hello Page alias Page note."]);
   });
 

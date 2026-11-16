@@ -12,6 +12,7 @@ export const openNamedWindow = (path: string, name: string): void => {
   const target = window.open("", name);
   if (isNil(target)) return;
   let isNew: boolean;
+
   try {
     isNew = target.location.href === "about:blank";
   }

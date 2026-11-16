@@ -20,10 +20,12 @@ const setup = (overrides: Partial<Io> = {}) => {
   };
 
   const body = () => {
-    const sent = fetchMock.mock.calls.at(0)?.[1]?.body;
+    const [, init] = fetchMock.mock.calls.at(0) ?? [];
+    const sent = init?.body;
     if (!isString(sent)) throw new Error("tp sent no JSON body");
     return JSON.parse(sent);
   };
+
   return { io, out, err, fetchMock, body };
 };
 

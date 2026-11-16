@@ -26,5 +26,6 @@ const code = await run(process.argv.slice(2), {
     }
   },
 });
+
 // `tp serve` returns once listening; the open server keeps the process alive.
 if (code !== 0) process.exitCode = code;

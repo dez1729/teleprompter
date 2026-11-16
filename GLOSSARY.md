@@ -88,6 +88,10 @@ The span of upcoming words after the Current line that Follow searches for a mat
 The words before the reader's position, shown in a distinct color (karaoke style) unless turned off. In Follow they are the words Follow has matched to the reader's voice, and the ones it expects them to have said since; in Auto, the words the pace has passed.
 _Avoid_: Spoken highlight, progress fill
 
+**Timer**:
+A stopwatch of reading time, shown in the Prompter's top right corner and controlled from its own popover. By default it runs while the Prompter is scrolling and is zeroed by Restart or a Replace. An optional target length turns it red once passed.
+_Avoid_: Clock, stopwatch
+
 **Speed**:
 The Auto pace, in words per minute. Independent of text size.
 _Avoid_: Scroll rate, px/s

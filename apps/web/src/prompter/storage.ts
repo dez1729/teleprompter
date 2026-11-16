@@ -1,14 +1,15 @@
-import { isPlainObject, isString } from "es-toolkit";
+import { isBoolean, isPlainObject, isString, isNil } from "es-toolkit";
 import { DEFAULT_SETTINGS, parseSettings, type DisplaySettings } from "./settings";
 
 const LEGACY_SCRIPT_KEY = "teleprompter.script";
 const LEGACY_DRAFT_KEY = "teleprompter.draft";
 const SETTINGS_KEY = "teleprompter.settings";
+const TIMER_PINNED_KEY = "teleprompter.timerPinned";
 
 const read = (key: string): unknown => {
   try {
     const raw = localStorage.getItem(key);
-    return raw === null ? null : JSON.parse(raw);
+    return isNil(raw) ? null : JSON.parse(raw);
   }
   catch {
     return null;
@@ -55,7 +56,15 @@ export const clearLegacyDraft = () => remove(LEGACY_DRAFT_KEY);
 
 export const loadSettings = (): DisplaySettings => {
   const raw = read(SETTINGS_KEY);
-  return raw === null ? DEFAULT_SETTINGS : parseSettings(raw);
+  return isNil(raw) ? DEFAULT_SETTINGS : parseSettings(raw);
 };
 
 export const saveSettings = (settings: DisplaySettings) => write(SETTINGS_KEY, settings);
+
+// Kept apart from the settings because the pin is its own control, not a field in a settings panel.
+export const loadTimerPinned = (): boolean => {
+  const raw = read(TIMER_PINNED_KEY);
+  return isBoolean(raw) ? raw : false;
+};
+
+export const saveTimerPinned = (pinned: boolean) => write(TIMER_PINNED_KEY, pinned);

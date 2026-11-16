@@ -1,3 +1,5 @@
+import { isNil } from "es-toolkit";
+
 /** A rendered line as pacing sees it. */
 export interface PacedLine {
   /** Index of the line's first word. */
@@ -131,8 +133,11 @@ export const initialPlayback: PlaybackState = {
   lines: [],
 };
 
+// Scrolling in either Scroll mode. A countdown is not scrolling yet.
+export const isScrolling = (mode: PlaybackMode): boolean => mode.kind === "playing" || mode.kind === "following";
+
 export const needsTick = (state: PlaybackState): boolean => {
-  return state.mode.kind !== "paused" || state.animTarget !== null;
+  return state.mode.kind !== "paused" || !isNil(state.animTarget);
 };
 
 const clampCursor = (state: PlaybackState, cursor: number) => Math.min(state.wordCount, Math.max(0, cursor));
@@ -179,6 +184,7 @@ const heard = (state: PlaybackState, matched: number, position: number, pace: nu
   const reread = matched < last - FOLLOW_REREAD_WORDS;
   // Nothing new: carrying on as before keeps the cursor from coasting on stale speech.
   if (!reread && matched <= last) return state;
+
   const aimAt = (estimate: number) => {
     // The time the match took is allowed for only up to the end of the sentence, where the reader may have paused.
     const allowed = Math.min(estimate, Math.max(matched, nextPausePoint(state, matched)));
@@ -193,6 +199,7 @@ const heard = (state: PlaybackState, matched: number, position: number, pace: nu
   // depending on how far the jump is, it comes back only partly, as pace times glide, until the cursor next waits at a
   // sentence end.
   const next = jumped ? reader : aimAt(Math.max(matched, position - FOLLOW_TRAIL_WORDS));
+
   return {
     ...state,
     animTarget: jumped ? next : state.animTarget,
@@ -234,7 +241,7 @@ const stepTarget = (starts: readonly number[], from: number, delta: 1 | -1): num
 
 const step = (state: PlaybackState, starts: readonly number[], delta: 1 | -1, keepPlaying: boolean): PlaybackState => {
   const target = stepTarget(starts, state.animTarget ?? state.cursor, delta);
-  if (target === null) return state;
+  if (isNil(target)) return state;
   return { ...state, animTarget: target, mode: afterMove(state.mode, target, keepPlaying) };
 };
 
@@ -279,6 +286,7 @@ const followTick = (state: PlaybackState, mode: Extract<PlaybackMode, { kind: "f
   // Speech before a pause is the reader finishing the sentence; only speech after one starts the next.
   const pausedAtEnd = held && (mode.pausedAtEnd || !mode.speaking);
   const heldMs = pausedAtEnd && releasable && mode.speaking ? mode.heldMs + dtMs : 0;
+
   if (heldMs >= FOLLOW_READ_ON_MS) {
     // The reader has read on: coast to the next sentence end, with fresh coasting time.
     return { ...state, mode: { ...mode, coastFrom: limit, pausedAtEnd: false, heldMs: 0, coastMs: 0 } };
@@ -288,6 +296,7 @@ const followTick = (state: PlaybackState, mode: Extract<PlaybackMode, { kind: "f
   const target = clampCursor(state, Math.min(Math.max(mode.target, limit), mode.target + mode.pace * coasting));
   const coastMs = mode.coastMs + coasting;
   const gap = target - state.cursor;
+
   if (gap < -SNAP_DISTANCE) {
     const eased = state.cursor + gap * (1 - Math.exp(-dtMs / FOLLOW_BACK_TAU_MS));
     const cursor = eased - target <= SNAP_DISTANCE ? target : eased;
@@ -298,6 +307,7 @@ const followTick = (state: PlaybackState, mode: Extract<PlaybackMode, { kind: "f
   const wanted = gap <= 0 ? 0 : Math.min(FOLLOW_MAX_SPEED, Math.max(FOLLOW_MIN_SPEED, pace + gap / FOLLOW_CATCHUP_MS));
   const speed = mode.speed + (wanted - mode.speed) * (1 - Math.exp(-dtMs / FOLLOW_SPEED_TAU_MS));
   const idle = speed < 1e-6 && wanted === 0 && coasting === 0;
+
   if (idle && heldMs === mode.heldMs && pausedAtEnd === mode.pausedAtEnd) {
     return mode.speed === 0 ? state : { ...state, mode: { ...mode, speed: 0 } };
   }
@@ -307,7 +317,7 @@ const followTick = (state: PlaybackState, mode: Extract<PlaybackMode, { kind: "f
 };
 
 const tick = (state: PlaybackState, dtMs: number, wpm: number, minLineMs: number): PlaybackState => {
-  if (state.animTarget !== null) {
+  if (!isNil(state.animTarget)) {
     const distance = state.animTarget - state.cursor;
     if (Math.abs(distance) <= SNAP_DISTANCE) return { ...state, cursor: state.animTarget, animTarget: null };
     const eased = state.cursor + distance * (1 - Math.exp(-dtMs / STEP_EASE_TAU_MS));
@@ -368,6 +378,7 @@ export const playbackReducer = (state: PlaybackState, event: PlaybackEvent): Pla
     case "SET_SCRIPT": {
       const pausePoints = [...new Set([...event.sentenceEnds, ...event.paragraphStarts])].sort((a, b) => a - b);
       const next = { ...state, wordCount: event.wordCount, paragraphStarts: event.paragraphStarts, pausePoints };
+
       return event.place === "reset"
         ? { ...next, cursor: 0, animTarget: null, mode: { kind: "paused" }, lines: [], countdownArmed: true }
         : { ...next, cursor: clampCursor(next, event.place(state.cursor)), animTarget: null };

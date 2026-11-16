@@ -42,6 +42,7 @@ export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
     async (c) => {
       const body = await c.req.json().catch(() => undefined);
       const parsed = PushRequestSchema.safeParse(body);
+
       if (!parsed.success) {
         const issues = parsed.error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message }));
         return c.json({ error: "Invalid request", issues }, 400);
@@ -61,6 +62,7 @@ export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
       if (isNil(transcriber)) return c.json({ error: "No Transcriber is set up." }, 503);
       const audio = await c.req.blob();
       if (audio.size === 0) return c.json({ error: "The audio is empty." }, 400);
+
       try {
         return c.json({ text: await transcriber(audio) });
       }
@@ -75,12 +77,12 @@ export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
 
   api.get("/history/:id", (c) => {
     const version = store.version(c.req.param("id"));
-    return version ? c.json(version) : c.json({ error: "No such Version" }, 404);
+    return !isNil(version) ? c.json(version) : c.json({ error: "No such Version" }, 404);
   });
 
   api.post("/history/:id/restore", (c) => {
     const change = store.restore(c.req.param("id"));
-    return change ? c.json(change.script) : c.json({ error: "No such Version" }, 404);
+    return !isNil(change) ? c.json(change.script) : c.json({ error: "No such Version" }, 404);
   });
 
   api.get("/events", (c) =>

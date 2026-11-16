@@ -8,6 +8,7 @@ import {
   ScriptSchema,
   VersionSchema,
   VersionSummarySchema,
+  type PushRequest,
   type Script,
   type VersionSummary,
 } from "@teleprompter/protocol";
@@ -19,21 +20,27 @@ const PORT = 4747;
 const HOST = `localhost:${PORT}`;
 
 let dir: string;
+
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "tp-server-"));
 });
+
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 let nowMs: number;
+
 beforeEach(() => {
   nowMs = Date.parse("2026-01-01T00:00:00Z");
 });
 
+interface RequestOptions extends Omit<RequestInit, "headers"> {
+  headers?: Record<string, string>;
+}
+
 const setup = (heartbeatMs?: number) => {
   const store = new ScriptStore(dir, { now: () => nowMs });
   const app = createApp({ store, port: () => PORT, heartbeatMs });
-  const request = (path: string, init: Omit<RequestInit, "headers"> & { headers?: Record<string, string> } = {}) =>
-    app.request(path, { ...init, headers: { host: HOST, ...init.headers } });
+  const request = (path: string, init: RequestOptions = {}) => app.request(path, { ...init, headers: { host: HOST, ...init.headers } });
 
   const push = (body: unknown, headers: Record<string, string> = {}) =>
     request("/api/script", {
@@ -54,54 +61,60 @@ describe("Push", () => {
 
   it("Replace sets the text, source and format and bumps the revision", async () => {
     const { push } = setup();
-    const res = await push({ kind: "replace", text: "# Hi\nthere", source: "Note" });
+    const res = await push({ kind: "replace", text: "# Hi\nthere", source: "Note" } satisfies PushRequest as PushRequest);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ text: "# Hi\nthere", format: "markdown", source: "Note", revision: 1 });
   });
 
   it("Replace clears the previous source when none is given", async () => {
     const { push } = setup();
-    await push({ kind: "replace", text: "a", source: "Note" });
-    expect(((await (await push({ kind: "replace", text: "b" })).json()) as Script).source).toBeNull();
+    await push({ kind: "replace", text: "a", source: "Note" } satisfies PushRequest as PushRequest);
+    expect(((await (await push({ kind: "replace", text: "b" } satisfies PushRequest as PushRequest)).json()) as Script).source).toBeNull();
   });
 
   it("Append joins with a blank line and keeps the source", async () => {
     const { push } = setup();
-    await push({ kind: "replace", text: "one two", source: "Note" });
-    const script = (await (await push({ kind: "append", text: "three" })).json()) as Script;
+    await push({ kind: "replace", text: "one two", source: "Note" } satisfies PushRequest as PushRequest);
+    const script = (await (await push({ kind: "append", text: "three" } satisfies PushRequest as PushRequest)).json()) as Script;
     expect(script).toMatchObject({ text: "one two\n\nthree", source: "Note", revision: 2 });
   });
 
   it("Append to an empty Script is the addition alone", async () => {
     const { push } = setup();
-    expect(((await (await push({ kind: "append", text: "three" })).json()) as Script).text).toBe("three");
+    expect(((await (await push({ kind: "append", text: "three" } satisfies PushRequest as PushRequest)).json()) as Script).text).toBe("three");
   });
 
   it("Edit replaces the text and keeps the source", async () => {
     const { push } = setup();
-    await push({ kind: "replace", text: "one", source: "Note" });
-    const script = (await (await push({ kind: "edit", text: "one two" })).json()) as Script;
+    await push({ kind: "replace", text: "one", source: "Note" } satisfies PushRequest as PushRequest);
+    const script = (await (await push({ kind: "edit", text: "one two" } satisfies PushRequest as PushRequest)).json()) as Script;
     expect(script).toMatchObject({ text: "one two", source: "Note", revision: 2 });
   });
 
   it("Edit keeps the format unless it starts from an empty Script", async () => {
     const { push } = setup();
-    expect(((await (await push({ kind: "edit", text: "# Title" })).json()) as Script).format).toBe("markdown");
-    expect(((await (await push({ kind: "edit", text: "plain now" })).json()) as Script).format).toBe("markdown");
-    expect(((await (await push({ kind: "edit", text: "plain now", format: "text" })).json()) as Script).format).toBe("text");
+    expect(((await (await push({ kind: "edit", text: "# Title" } satisfies PushRequest as PushRequest)).json()) as Script).format).toBe("markdown");
+    expect(((await (await push({ kind: "edit", text: "plain now" } satisfies PushRequest as PushRequest)).json()) as Script).format).toBe("markdown");
+
+    expect(
+      ((await (await push({ kind: "edit", text: "plain now", format: "text" } satisfies PushRequest as PushRequest)).json()) as Script).format
+    ).toBe("text");
   });
 
   it("Edit may clear the Script", async () => {
     const { push } = setup();
-    await push({ kind: "replace", text: "one" });
-    const res = await push({ kind: "edit", text: "" });
+    await push({ kind: "replace", text: "one" } satisfies PushRequest as PushRequest);
+    const res = await push({ kind: "edit", text: "" } satisfies PushRequest as PushRequest);
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ text: "", revision: 2 });
   });
 
   it("an explicit format wins over detection", async () => {
     const { push } = setup();
-    expect(((await (await push({ kind: "replace", text: "plain", format: "markdown" })).json()) as Script).format).toBe("markdown");
+
+    expect(
+      ((await (await push({ kind: "replace", text: "plain", format: "markdown" } satisfies PushRequest as PushRequest)).json()) as Script).format
+    ).toBe("markdown");
   });
 });
 
@@ -128,7 +141,7 @@ describe("validation", () => {
 
   it("rejects a body over the cap with 413", async () => {
     const { request } = setup();
-    const big = JSON.stringify({ kind: "replace", text: "x".repeat(MAX_BODY_BYTES) });
+    const big = JSON.stringify({ kind: "replace", text: "x".repeat(MAX_BODY_BYTES) } satisfies PushRequest as PushRequest);
     const res = await request("/api/script", {
       method: "POST",
       headers: { "content-type": "application/json", "content-length": String(big.length) },
@@ -147,6 +160,7 @@ describe("validation", () => {
 describe("Host and Origin guards", () => {
   it("rejects a Host that is not loopback with our port", async () => {
     const { app } = setup();
+
     for (const host of ["evil.example", "evil.example:4747", "localhost", "localhost:9999", ""]) {
       const res = await app.request("/api/script", { headers: host ? { host } : {} });
       expect(res.status, host).toBe(403);
@@ -155,6 +169,7 @@ describe("Host and Origin guards", () => {
 
   it("accepts localhost and 127.0.0.1 on the app port and the dev port", async () => {
     const { app } = setup();
+
     for (const host of ["localhost:4747", "127.0.0.1:4747", "localhost:4748", "127.0.0.1:4748"]) {
       expect((await app.request("/api/script", { headers: { host } })).status, host).toBe(200);
     }
@@ -162,8 +177,9 @@ describe("Host and Origin guards", () => {
 
   it("rejects a state-changing request from another origin", async () => {
     const { push, store } = setup();
+
     for (const origin of ["https://evil.example", "http://localhost:9999", "null"]) {
-      expect((await push({ kind: "replace", text: "a" }, { origin })).status, origin).toBe(403);
+      expect((await push({ kind: "replace", text: "a" } satisfies PushRequest as PushRequest, { origin })).status, origin).toBe(403);
     }
 
     expect(store.get().revision).toBe(0);
@@ -171,11 +187,12 @@ describe("Host and Origin guards", () => {
 
   it("accepts the app origins, Obsidian, and a request with no Origin", async () => {
     const { push } = setup();
+
     for (const origin of ["http://localhost:4747", "http://localhost:4748", "http://127.0.0.1:4747", "http://127.0.0.1:4748", "app://obsidian.md"]) {
-      expect((await push({ kind: "replace", text: "a" }, { origin })).status, origin).toBe(200);
+      expect((await push({ kind: "replace", text: "a" } satisfies PushRequest as PushRequest, { origin })).status, origin).toBe(200);
     }
 
-    expect((await push({ kind: "replace", text: "a" })).status).toBe(200);
+    expect((await push({ kind: "replace", text: "a" } satisfies PushRequest as PushRequest)).status).toBe(200);
   });
 
   it("does not check Origin on reads", async () => {
@@ -187,8 +204,8 @@ describe("Host and Origin guards", () => {
 describe("persistence", () => {
   it("a new store on the same directory sees the last Script", async () => {
     const first = setup();
-    await first.push({ kind: "replace", text: "kept", source: "Note" });
-    await first.push({ kind: "append", text: "more" });
+    await first.push({ kind: "replace", text: "kept", source: "Note" } satisfies PushRequest as PushRequest);
+    await first.push({ kind: "append", text: "more" } satisfies PushRequest as PushRequest);
     const second = new ScriptStore(dir);
     expect(second.get()).toEqual({ text: "kept\n\nmore", format: "text", source: "Note", revision: 2 });
     expect(JSON.parse(readFileSync(join(dir, "script.json"), "utf8"))).toEqual(second.get());
@@ -211,41 +228,44 @@ describe("Script history", () => {
 
   it("saves the Script as it was before every Push, newest first", async () => {
     const { push, request } = setup();
-    await push({ kind: "replace", text: "one", source: "Note" });
-    await push({ kind: "append", text: "two" });
-    await push({ kind: "replace", text: "# three", source: "Other" });
+    await push({ kind: "replace", text: "one", source: "Note" } satisfies PushRequest as PushRequest);
+    await push({ kind: "append", text: "two" } satisfies PushRequest as PushRequest);
+    await push({ kind: "replace", text: "# three", source: "Other" } satisfies PushRequest as PushRequest);
 
     const versions = await history(request);
+
     expect(versions.map(({ reason, source, preview, wordCount, revision }) => ({ reason, source, preview, wordCount, revision }))).toEqual([
       { reason: "replace", source: "Note", preview: "one two", wordCount: 2, revision: 2 },
       { reason: "append", source: "Note", preview: "one", wordCount: 1, revision: 1 },
     ]);
+
     expect(versions.at(0)).not.toHaveProperty("text");
     expect(versions.at(0)!.savedAt).toBe("2026-01-01T00:00:00.000Z");
   });
 
   it("does not save an empty Script", async () => {
     const { push, request } = setup();
-    await push({ kind: "replace", text: "one" });
+    await push({ kind: "replace", text: "one" } satisfies PushRequest as PushRequest);
     expect(await history(request)).toEqual([]);
-    await push({ kind: "edit", text: "" });
-    await push({ kind: "replace", text: "two" });
+    await push({ kind: "edit", text: "" } satisfies PushRequest as PushRequest);
+    await push({ kind: "replace", text: "two" } satisfies PushRequest as PushRequest);
     expect((await history(request)).map((v) => v.preview)).toEqual(["one"]);
   });
 
   it("saves before an Edit only after 30 s with no Edit", async () => {
     const { push, request } = setup();
-    await push({ kind: "replace", text: "a" });
-    await push({ kind: "edit", text: "ab" });
+    await push({ kind: "replace", text: "a" } satisfies PushRequest as PushRequest);
+    await push({ kind: "edit", text: "ab" } satisfies PushRequest as PushRequest);
     nowMs += EDIT_IDLE_MS - 1;
-    await push({ kind: "edit", text: "abc" });
+    await push({ kind: "edit", text: "abc" } satisfies PushRequest as PushRequest);
     // The quiet is measured from the last Edit, not from the last saved Version.
     nowMs += EDIT_IDLE_MS - 1;
-    await push({ kind: "edit", text: "abcd" });
+    await push({ kind: "edit", text: "abcd" } satisfies PushRequest as PushRequest);
     expect((await history(request)).map((v) => [v.reason, v.preview])).toEqual([["edit", "a"]]);
 
     nowMs += EDIT_IDLE_MS;
-    await push({ kind: "edit", text: "abcde" });
+    await push({ kind: "edit", text: "abcde" } satisfies PushRequest as PushRequest);
+
     expect((await history(request)).map((v) => [v.reason, v.preview])).toEqual([
       ["edit", "abcd"],
       ["edit", "a"],
@@ -254,16 +274,16 @@ describe("Script history", () => {
 
   it("a Push between Edits does not reset the Edit quiet period", async () => {
     const { push, request } = setup();
-    await push({ kind: "replace", text: "a" });
-    await push({ kind: "edit", text: "ab" });
-    await push({ kind: "append", text: "c" });
-    await push({ kind: "edit", text: "abcd" });
+    await push({ kind: "replace", text: "a" } satisfies PushRequest as PushRequest);
+    await push({ kind: "edit", text: "ab" } satisfies PushRequest as PushRequest);
+    await push({ kind: "append", text: "c" } satisfies PushRequest as PushRequest);
+    await push({ kind: "edit", text: "abcd" } satisfies PushRequest as PushRequest);
     expect((await history(request)).map((v) => v.reason)).toEqual(["append", "edit"]);
   });
 
   it("keeps only the newest Versions", async () => {
     const { push, request } = setup();
-    for (let i = 0; i <= HISTORY_LIMIT + 2; i++) await push({ kind: "replace", text: `script ${i}` });
+    for (let i = 0; i <= HISTORY_LIMIT + 2; i++) await push({ kind: "replace", text: `script ${i}` } satisfies PushRequest as PushRequest);
     const versions = await history(request);
     expect(versions).toHaveLength(HISTORY_LIMIT);
     expect(versions.at(0)!.preview).toBe(`script ${HISTORY_LIMIT + 1}`);
@@ -272,8 +292,8 @@ describe("Script history", () => {
 
   it("shortens the preview of a long Script and flattens its whitespace", async () => {
     const { push, request } = setup();
-    await push({ kind: "replace", text: `first\n\nsecond ${"word ".repeat(40)}` });
-    await push({ kind: "replace", text: "next" });
+    await push({ kind: "replace", text: `first\n\nsecond ${"word ".repeat(40)}` } satisfies PushRequest as PushRequest);
+    await push({ kind: "replace", text: "next" } satisfies PushRequest as PushRequest);
     const [version] = await history(request);
     expect(version!.preview.startsWith("first second word")).toBe(true);
     expect(version!.preview.length).toBeLessThanOrEqual(81);
@@ -283,8 +303,8 @@ describe("Script history", () => {
 
   it("serves one full Version, and 404 for an unknown id", async () => {
     const { push, request } = setup();
-    await push({ kind: "replace", text: "# one", source: "Note" });
-    await push({ kind: "replace", text: "two" });
+    await push({ kind: "replace", text: "# one", source: "Note" } satisfies PushRequest as PushRequest);
+    await push({ kind: "replace", text: "two" } satisfies PushRequest as PushRequest);
     const [summary] = await history(request);
     const version = VersionSchema.parse(await (await request(`/api/history/${summary!.id}`)).json());
     expect(version).toMatchObject({ text: "# one", format: "markdown", source: "Note", reason: "replace", revision: 1 });
@@ -293,8 +313,8 @@ describe("Script history", () => {
 
   it("restore makes the Version the Script as a Replace and saves the Script it replaced", async () => {
     const { push, request, store } = setup();
-    await push({ kind: "replace", text: "# one", source: "Note" });
-    await push({ kind: "replace", text: "two" });
+    await push({ kind: "replace", text: "# one", source: "Note" } satisfies PushRequest as PushRequest);
+    await push({ kind: "replace", text: "two" } satisfies PushRequest as PushRequest);
     const changes: unknown[] = [];
     store.subscribe((change) => changes.push(change));
     const [first] = await history(request);
@@ -304,10 +324,12 @@ describe("Script history", () => {
     expect(await res.json()).toEqual({ text: "# one", format: "markdown", source: "Note", revision: 3 });
 
     const after = await history(request);
+
     expect(after.map((v: VersionSummary) => [v.reason, v.preview])).toEqual([
       ["replace", "two"],
       ["replace", "# one"],
     ]);
+
     expect(changes).toEqual([{ kind: "replace", script: store.get(), previousVersionId: after.at(0)!.id }]);
 
     // Restoring the Version the restore saved undoes the restore.
@@ -317,15 +339,15 @@ describe("Script history", () => {
 
   it("restore answers 404 for an unknown id and changes nothing", async () => {
     const { push, request, store } = setup();
-    await push({ kind: "replace", text: "one" });
+    await push({ kind: "replace", text: "one" } satisfies PushRequest as PushRequest);
     expect((await restore(request, "nope")).status).toBe(404);
     expect(store.get().revision).toBe(1);
   });
 
   it("restore is guarded like any other write", async () => {
     const { push, request, app, store } = setup();
-    await push({ kind: "replace", text: "one" });
-    await push({ kind: "replace", text: "two" });
+    await push({ kind: "replace", text: "one" } satisfies PushRequest as PushRequest);
+    await push({ kind: "replace", text: "two" } satisfies PushRequest as PushRequest);
     const [version] = await history(request);
     expect((await restore(request, version!.id, { origin: "https://evil.example" })).status).toBe(403);
     const res = await app.request(`/api/history/${version!.id}/restore`, { method: "POST", headers: { host: "evil.example" } });
@@ -345,8 +367,8 @@ describe("Script history", () => {
 
   it("survives a restart, and moves an unreadable history file aside", async () => {
     const first = setup();
-    await first.push({ kind: "replace", text: "one" });
-    await first.push({ kind: "replace", text: "two" });
+    await first.push({ kind: "replace", text: "one" } satisfies PushRequest as PushRequest);
+    await first.push({ kind: "replace", text: "two" } satisfies PushRequest as PushRequest);
     expect(new ScriptStore(dir).versions().map((v) => v.text)).toEqual(["one"]);
 
     writeFileSync(join(dir, "history.json"), '[{"nope":1}]');
@@ -360,6 +382,7 @@ describe("Script history", () => {
 const readUntil = async (reader: ReadableStreamDefaultReader<Uint8Array>, needle: string, seen = ""): Promise<string> => {
   const decoder = new TextDecoder();
   let text = seen;
+
   while (!text.includes(needle)) {
     const { value, done } = await reader.read();
     if (done) throw new Error(`stream ended before ${JSON.stringify(needle)}: ${text}`);
@@ -383,13 +406,13 @@ const parseEvents = (text: string) => {
 describe("GET /api/events", () => {
   it("sends the current Script on connect, then one ScriptChange per change", async () => {
     const { request, push } = setup();
-    await push({ kind: "replace", text: "first" });
+    await push({ kind: "replace", text: "first" } satisfies PushRequest as PushRequest);
     const res = await request("/api/events");
     expect(res.headers.get("content-type")).toContain("text/event-stream");
     const reader = res.body!.getReader();
 
     let text = await readUntil(reader, "\n\n");
-    await push({ kind: "append", text: "second" });
+    await push({ kind: "append", text: "second" } satisfies PushRequest as PushRequest);
     text = await readUntil(reader, "event: change", text);
     text = await readUntil(reader, '"revision":2', text);
     await reader.cancel();

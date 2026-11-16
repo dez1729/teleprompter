@@ -50,6 +50,7 @@ export const tokenize = (script: Pick<Script, "text" | "format">, spokenOnly: bo
     if (sectionStart && paragraphIndex > 0) sectionStarts.push(paragraphIndex);
     sectionStart = false;
     paragraphStarts.push(words.length);
+
     lines.forEach((line, lineIndex) =>
       line.forEach((text, wordIndex) => words.push({ text, paragraphIndex, lineBreakBefore: lineIndex > 0 && wordIndex === 0 }))
     );

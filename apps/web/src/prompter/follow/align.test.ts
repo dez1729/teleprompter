@@ -7,6 +7,7 @@ const script = heardWords(
 );
 const at = (phrase: string) => {
   const words = heardWords(phrase);
+
   for (let i = 0; i + words.length <= script.length; i++) {
     if (words.every((word, k) => script.at(i + k) === word)) return i + words.length;
   }
@@ -60,6 +61,7 @@ describe("align", () => {
       ...Array.from({ length: LOOKAHEAD + 10 }, (_, i) => `filler${i}`),
       ...heardWords("one two three four five six"),
     ];
+
     expect(align(twice, heardWords("one two three four five six"), 0)).toBe(6);
   });
 

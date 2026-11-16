@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, type ReactElement } from "react";
-import { Gauge, Keyboard, Mic, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen } from "lucide-react";
+import { isNil } from "es-toolkit";
+import { createContext, useContext, useState, type ReactElement, type ReactNode } from "react";
+import { Gauge, Keyboard, Mic, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { tooltipFor, type Command } from "./keymap";
@@ -24,6 +26,7 @@ interface HintProps {
 const Hint = ({ command, children }: HintProps) => {
   const barVisible = useContext(BarVisible);
   const [open, setOpen] = useState(false);
+
   return (
     <Tooltip
       open={open && barVisible}
@@ -43,17 +46,35 @@ interface Props {
   speedWpm: number;
   fontSize: number;
   hasScript: boolean;
+  timerOpen: boolean;
+  onTimerOpenChange: (open: boolean) => void;
+  timerPinned: boolean;
+  timerPanel: ReactNode;
   onCommand: (command: Command) => void;
 }
 
-export const ControlBar = ({ visible, playing, scrollMode, speedWpm, fontSize, hasScript, onCommand }: Props) => {
+export const ControlBar = ({
+  visible,
+  playing,
+  scrollMode,
+  speedWpm,
+  fontSize,
+  hasScript,
+  timerOpen,
+  onTimerOpenChange,
+  timerPinned,
+  timerPanel,
+  onCommand,
+}: Props) => {
   const toggle: Command = { type: "toggle" };
   const switchScrollMode: Command = { type: "switchScrollMode" };
   const follows = scrollMode === "follow";
   const restart: Command = { type: "restart" };
   const openEditor: Command = { type: "openEditor" };
+  const toggleTimer: Command = { type: "toggleTimer" };
   const openSettings: Command = { type: "openSettings" };
   const toggleHelp: Command = { type: "toggleHelp" };
+
   return (
     <TooltipProvider delay={TOOLTIP_DELAY_MS}>
       <BarVisible.Provider value={visible}>
@@ -82,7 +103,7 @@ export const ControlBar = ({ visible, playing, scrollMode, speedWpm, fontSize, h
                 aria-label="Scroll mode"
                 value={[scrollMode]}
                 onValueChange={(next) => {
-                  if (next.at(0) !== undefined && next.at(0) !== scrollMode) onCommand(switchScrollMode);
+                  if (!isNil(next.at(0)) && next.at(0) !== scrollMode) onCommand(switchScrollMode);
                   // The switch would keep the arrow keys for itself; the Prompter needs them to step through lines.
                   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                 }}
@@ -138,6 +159,37 @@ export const ControlBar = ({ visible, playing, scrollMode, speedWpm, fontSize, h
                 <SquarePen />
               </Button>
             </Hint>
+            <Popover
+              open={timerOpen}
+              onOpenChange={(open, details) => {
+                // Pinned, the Timer stays up while you read, so clicking or dragging the Script leaves it open.
+                if (!open && timerPinned && (details.reason === "outside-press" || details.reason === "focus-out")) return;
+                onTimerOpenChange(open);
+              }}
+            >
+              <Hint command={toggleTimer}>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Timer"
+                    />
+                  }
+                >
+                  <Timer />
+                </PopoverTrigger>
+              </Hint>
+              <PopoverContent
+                side="top"
+                sideOffset={12}
+                className="w-80"
+                // The popover renders inside the Prompter's React tree, so a wheel over it would otherwise scroll the Script.
+                onWheel={(event) => event.stopPropagation()}
+              >
+                {timerPanel}
+              </PopoverContent>
+            </Popover>
             <Hint command={openSettings}>
               <Button
                 size="icon"
@@ -177,6 +229,7 @@ interface StepperProps {
 const Stepper = ({ label, value, setting, disabled = false, onCommand }: StepperProps) => {
   const down: Command = { type: "nudge", setting, direction: -1 };
   const up: Command = { type: "nudge", setting, direction: 1 };
+
   return (
     <div className="flex items-center">
       <Hint command={down}>

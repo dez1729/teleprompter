@@ -23,6 +23,7 @@ interface SendTarget {
 export const send = async (options: SendOptions, { url, fetch: doFetch = fetch }: SendTarget): Promise<Script> => {
   const endpoint = new URL("/api/script", url);
   let response: Response;
+
   try {
     response = await doFetch(endpoint, {
       method: "POST",
