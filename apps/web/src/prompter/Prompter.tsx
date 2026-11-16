@@ -29,21 +29,22 @@ export const Prompter = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
-  const { script, connected, tokens, settings, playback, follow, readout, replaced, timer, undoReplace, dispatch, updateSetting, run } = usePrompter({
-    helpOpen,
-    onUiCommand: (command) => {
-      switch (command.type) {
-        case "toggleHelp":
-          return setHelpOpen((open) => !open);
-        case "toggleTimer":
-          return setTimerOpen((open) => !open);
-        case "openSettings":
-          return setSettingsOpen(true);
-        case "openEditor":
-          return openEditor();
-      }
-    },
-  });
+  const { script, connected, tokens, settings, playback, follow, readout, replaced, timer, connect, undoReplace, dispatch, updateSetting, run } =
+    usePrompter({
+      helpOpen,
+      onUiCommand: (command) => {
+        switch (command.type) {
+          case "toggleHelp":
+            return setHelpOpen((open) => !open);
+          case "toggleTimer":
+            return setTimerOpen((open) => !open);
+          case "openSettings":
+            return setSettingsOpen(true);
+          case "openEditor":
+            return openEditor();
+        }
+      },
+    });
 
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT);
   const [recentMouse, setRecentMouse] = useState(true);
@@ -54,6 +55,20 @@ export const Prompter = () => {
   }, []);
 
   const stageRef = useRef<HTMLDivElement>(null);
+
+  const attachStage = useCallback(
+    (node: HTMLDivElement) => {
+      stageRef.current = node;
+      const disconnect = connect();
+
+      return () => {
+        disconnect();
+        stageRef.current = null;
+      };
+    },
+    [connect]
+  );
+
   const textRef = useRef<HTMLDivElement>(null);
 
   const lineHeightPx = settings.fontSize * settings.lineHeight;
@@ -178,7 +193,7 @@ export const Prompter = () => {
   return (
     <>
       <div
-        ref={stageRef}
+        ref={attachStage}
         className="fixed inset-0 touch-none overflow-hidden select-none"
         style={{ backgroundColor: settings.bgColor, color: settings.textColor, cursor: !isNil(script) ? "grab" : "default" }}
         onWheel={onWheel}

@@ -178,7 +178,8 @@ export const usePrompter = (ui: UiBridge) => {
     [rewind]
   );
 
-  useEffect(() => {
+  // A ref callback for the Prompter's stage, so the stream is open exactly while the window shows the Script.
+  const connect = useCallback(() => {
     const stream = new ScriptStream({ onMessage: receive, onConnection: setConnected });
     stream.start();
     return () => stream.stop();
@@ -286,6 +287,7 @@ export const usePrompter = (ui: UiBridge) => {
     readout,
     replaced,
     timer,
+    connect,
     undoReplace,
     dispatch,
     updateSetting,

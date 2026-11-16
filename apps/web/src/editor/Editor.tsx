@@ -1,5 +1,5 @@
 import { Eye, MonitorPlay } from "lucide-react";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { PushRequest, Script, ScriptFormat } from "@teleprompter/protocol";
 import { isNil } from "es-toolkit";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,6 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
 };
 
 export const Editor = () => {
-  const parent = useRef<HTMLDivElement>(null);
   const session = useRef<{ editor: ScriptEditor; sync: ScriptSync } | null>(null);
   const [script, setScript] = useState<Script | null>(null);
   const [status, setStatus] = useState<SyncStatus>("saved");
@@ -33,7 +32,10 @@ export const Editor = () => {
   useEffect(() => {
     document.title = "Editor · Teleprompter";
     window.name ||= EDITOR_WINDOW;
+  }, []);
 
+  // A ref callback for the editor's container: the editor needs that element, and the stream feeds the editor.
+  const mount = useCallback((parent: HTMLDivElement) => {
     /** The Editor starts from the server's Script, so nothing can be typed over a Script it has not seen. */
     const start = (initial: Script) => {
       const sync = new ScriptSync(
@@ -51,7 +53,7 @@ export const Editor = () => {
         initial
       );
       const editor = createScriptEditor({
-        parent: parent.current!,
+        parent,
         text: normalizeLineBreaks(initial.text),
         format: initial.format,
         onChange: (next) => {
@@ -138,7 +140,7 @@ export const Editor = () => {
       </header>
       <div className="flex min-h-0 flex-1">
         <div
-          ref={parent}
+          ref={mount}
           className="min-w-0 flex-1"
         />
         {previewing && script && (
