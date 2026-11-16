@@ -11,7 +11,7 @@ interface Props {
 
 /** Memoized so per-frame cursor updates never re-render the words. */
 export const ScriptText = memo(
-  forwardRef<HTMLDivElement, Props>(function ScriptText({ tokens, style }, ref) {
+  forwardRef<HTMLDivElement, Props>(({ tokens, style }, ref) => {
     const paragraphs: { key: number; words: { index: number; text: string; lineBreakBefore: boolean }[] }[] = [];
     tokens.words.forEach((word, index) => {
       if (paragraphs.length === 0 || paragraphs.at(-1)!.key !== word.paragraphIndex) {

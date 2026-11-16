@@ -257,7 +257,8 @@ describe("playback", () => {
 describe("Follow", () => {
   const following = run(loaded, { type: "SCRUB", cursor: 10, keepPlaying: false }, { type: "FOLLOW" });
   const heardAt = (position: number, pace = 0): PlaybackEvent => ({ type: "HEARD", matched: position, position, pace });
-  const settle = (state: PlaybackState) => run(state, ...Array.from({ length: 60 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) as const));
+  const settle = (state: PlaybackState) =>
+    run(state, ...Array.from({ length: 60 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) satisfies PlaybackEvent as PlaybackEvent));
 
   it("starts from where the reader is and waits for their voice", () => {
     expect(following.mode).toMatchObject({ kind: "following", target: 10 });
@@ -273,13 +274,20 @@ describe("Follow", () => {
 
   it("keeps moving at the reader's pace between matches, then waits for their voice", () => {
     const reading = run(following, heardAt(14, 3 / 1000));
-    const afterOneSecond = run(reading, ...Array.from({ length: 10 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) as const));
+    const afterOneSecond = run(
+      reading,
+      ...Array.from({ length: 10 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) satisfies PlaybackEvent as PlaybackEvent)
+    );
     expect(afterOneSecond.mode.kind === "following" && afterOneSecond.mode.target).toBeCloseTo(17);
     expect(settle(afterOneSecond).cursor).toBeCloseTo(14 + 3 * (FOLLOW_COAST_MS / 1000));
   });
 
   it("stops coasting when the reader goes quiet", () => {
-    const coasted = run(following, heardAt(14, 3 / 1000), ...Array.from({ length: 10 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) as const));
+    const coasted = run(
+      following,
+      heardAt(14, 3 / 1000),
+      ...Array.from({ length: 10 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) satisfies PlaybackEvent as PlaybackEvent)
+    );
     const quiet = settle(run(coasted, { type: "QUIET", forMs: 700 }));
     expect(quiet.cursor).toBeCloseTo(Math.max(coasted.cursor, 17 - 3 * 0.7));
     expect(settle(run(quiet, { type: "QUIET", forMs: 700 })).cursor).toBe(quiet.cursor);
@@ -299,27 +307,35 @@ describe("Follow", () => {
   });
 
   it("glides to a reader far ahead instead of scrolling through the words between", () => {
-    const jumped = run(following, heardAt(40, 3 / 1000), ...Array.from({ length: 6 }, () => ({ type: "TICK", dtMs: 50, wpm: 100 }) as const));
+    const jumped = run(
+      following,
+      heardAt(40, 3 / 1000),
+      ...Array.from({ length: 6 }, () => ({ type: "TICK", dtMs: 50, wpm: 100 }) satisfies PlaybackEvent as PlaybackEvent)
+    );
     expect(jumped.cursor).toBeGreaterThan(39);
   });
 
   it("aims a little behind a reader it is keeping up with, but right at one it has to catch up with", () => {
-    const heardNear = { type: "HEARD", matched: 12, position: 14, pace: 0 } as const;
+    const heardNear = { type: "HEARD", matched: 12, position: 14, pace: 0 } satisfies PlaybackEvent as PlaybackEvent;
     expect(settle(run(following, heardNear)).cursor).toBeCloseTo(13.25);
-    const heardFar = { type: "HEARD", matched: 30, position: 32, pace: 0 } as const;
+    const heardFar = { type: "HEARD", matched: 30, position: 32, pace: 0 } satisfies PlaybackEvent as PlaybackEvent;
     expect(settle(run(following, heardFar)).cursor).toBe(32);
   });
 
   it("counts a reader just past the jump distance as far ahead, before trailing", () => {
-    const heardJustFar = { type: "HEARD", matched: 18, position: 18.5, pace: 0 } as const;
+    const heardJustFar = { type: "HEARD", matched: 18, position: 18.5, pace: 0 } satisfies PlaybackEvent as PlaybackEvent;
     expect(settle(run(following, heardJustFar)).cursor).toBe(18.5);
   });
 
   it("trails the reader again from the first match after a jump", () => {
     // The jump lands on where the reader is by now; a second later they have read three words further.
     // At this pace the reader moves on more than the trail during the glide; a much slower reader would not.
-    const heardFar = { type: "HEARD", matched: 30, position: 32, pace: 3 / 1000 } as const;
-    const jumped = run(following, heardFar, ...Array.from({ length: 10 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) as const));
+    const heardFar = { type: "HEARD", matched: 30, position: 32, pace: 3 / 1000 } satisfies PlaybackEvent as PlaybackEvent;
+    const jumped = run(
+      following,
+      heardFar,
+      ...Array.from({ length: 10 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) satisfies PlaybackEvent as PlaybackEvent)
+    );
     const next = run(jumped, { type: "HEARD", matched: 33, position: 35, pace: 3 / 1000 });
     expect(next.mode.kind === "following" && next.mode.target).toBeCloseTo(34.25);
   });
@@ -381,7 +397,8 @@ describe("Follow at the end of a sentence", () => {
     { type: "FOLLOW" }
   );
   const heardAt = (matched: number, position = matched, pace = 3 / 1000): PlaybackEvent => ({ type: "HEARD", matched, position, pace });
-  const settle = (state: PlaybackState) => run(state, ...Array.from({ length: 60 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) as const));
+  const settle = (state: PlaybackState) =>
+    run(state, ...Array.from({ length: 60 }, () => ({ type: "TICK", dtMs: 100, wpm: 100 }) satisfies PlaybackEvent as PlaybackEvent));
 
   it("coasts no further than the end of the sentence the reader was heard in", () => {
     expect(settle(run(script, heardAt(10))).cursor).toBe(12);

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DEFAULT_PORT } from "@teleprompter/protocol";
+import { DEFAULT_PORT, type PushRequest } from "@teleprompter/protocol";
 import { startServer, type RunningServer } from "@teleprompter/server";
 import { DEFAULT_SERVER_URL, PushError, pushFor, sendPush, type Http } from "./push.ts";
 
@@ -32,7 +32,7 @@ describe("pushFor", () => {
 });
 
 describe("sendPush", () => {
-  const request = { kind: "replace", text: "Hello.", format: "markdown", source: "Note" } as const;
+  const request = { kind: "replace", text: "Hello.", format: "markdown", source: "Note" } satisfies PushRequest as PushRequest;
   const fails = (message: RegExp, serverUrl: string, http: Http) =>
     expect(sendPush(request, serverUrl, http)).rejects.toThrow(
       expect.objectContaining({ constructor: PushError, message: expect.stringMatching(message) })
