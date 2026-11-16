@@ -25,9 +25,11 @@ export interface BoolField {
   label: string;
   default: boolean;
 }
-/** Shown on the Advanced settings page instead of the main one. */
+/** The panels that show settings. The settings sheet's main page is the default; the Timer popover lists its own. */
+export type SettingsPage = "main" | "advanced" | "timer";
+/** Shown on a panel other than the settings sheet's main page. */
 interface Placement {
-  advanced?: true;
+  page?: Exclude<SettingsPage, "main">;
 }
 /** What the setting does, shown under its label. Every setting has one. */
 interface Described {
@@ -35,7 +37,10 @@ interface Described {
 }
 export type Field = (NumberField | ChoiceField | ColorField | BoolField) & Placement & Described;
 
-const advanced = <F extends Field>(field: F): F & { advanced: true } => ({ ...field, advanced: true });
+const onPage =
+  <P extends Exclude<SettingsPage, "main">>(page: P) =>
+  <F extends Field>(field: F): F & { page: P } => ({ ...field, page });
+const advanced = onPage("advanced");
 const about = <F extends NumberField | ChoiceField | ColorField | BoolField>(description: string, field: F): F & Described => ({
   ...field,
   description,
@@ -154,6 +159,12 @@ export type NumberSettingKey = {
 export type BoolSettingKey = {
   [K in SettingKey]: (typeof SETTING_DEFS)[K] extends BoolField ? K : never;
 }[SettingKey];
+
+/** The settings a panel shows, in registry order. */
+export const keysOnPage = (page: SettingsPage): SettingKey[] => {
+  const defs: Record<string, Field> = SETTING_DEFS;
+  return Object.keys(SETTING_DEFS).filter((key) => (defs[key]?.page ?? "main") === page) as SettingKey[];
+};
 
 export const DEFAULT_SETTINGS = Object.fromEntries(Object.entries(SETTING_DEFS).map(([key, def]) => [key, def.default])) as DisplaySettings;
 
