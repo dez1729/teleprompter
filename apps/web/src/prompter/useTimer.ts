@@ -11,7 +11,8 @@ interface Snapshot {
 type Change = (state: TimerState, now: number) => TimerState;
 
 // The clock lives outside React, so playback changes can start and stop it without setting state from an effect.
-// It redraws on each whole second of elapsed time, and only while it runs and something shows it.
+// While it runs it redraws on each whole second of elapsed time, watched or not, so a view that mounts later
+// reads the current second from its first frame.
 const createTimerStore = () => {
   let snapshot: Snapshot = { timer: STOPPED_TIMER, now: performance.now() };
   let followsPlayback = false;
@@ -21,7 +22,7 @@ const createTimerStore = () => {
   const schedule = () => {
     clearTimeout(redraw);
     redraw = undefined;
-    if (isNil(snapshot.timer.startedAt) || listeners.size === 0) return;
+    if (isNil(snapshot.timer.startedAt)) return;
 
     const untilNextSecond = 1000 - (elapsedMs(snapshot.timer, performance.now()) % 1000);
     redraw = setTimeout(() => set({ ...snapshot, now: performance.now() }), untilNextSecond);
@@ -41,15 +42,9 @@ const createTimerStore = () => {
 
   return {
     subscribe: (listener: () => void) => {
-      // Nothing redrew while unwatched, so a running timer's clock is stale until it is read again.
-      if (listeners.size === 0 && !isNil(snapshot.timer.startedAt)) snapshot = { ...snapshot, now: performance.now() };
       listeners.add(listener);
-      schedule();
 
-      return () => {
-        listeners.delete(listener);
-        schedule();
-      };
+      return () => void listeners.delete(listener);
     },
     getSnapshot: () => snapshot,
     // A timer that follows playback runs exactly while playback scrolls. One that does not is left to its own controls.
