@@ -2,7 +2,9 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "teleprompter",
   "description": "Plugins for the local Teleprompter.",
-  "owner": { "name": "Teleprompter contributors" },
+  "owner": {
+    "name": "Desmond Leung"
+  },
   "plugins": [
     {
       "name": "teleprompter",
