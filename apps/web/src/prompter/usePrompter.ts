@@ -4,7 +4,7 @@ import { placementFor } from './anchor'
 import { commandForKey, type Command, type UiCommand } from './keymap'
 import { initialPlayback, needsTick, playbackReducer } from './playback'
 import { openScriptStream, restoreVersion, sendScript, type ScriptMessage } from '@/lib/scriptApi'
-import { tokenize, type TokenizedScript } from './script'
+import { project, type TokenizedScript } from './script'
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from './settings'
 import { clearLegacyDraft, clearLegacyScript, loadLegacyScript, loadSettings, saveSettings } from './storage'
 
@@ -67,8 +67,8 @@ export function usePrompter(ui: UiBridge) {
   const [connected, setConnected] = useState<boolean | null>(null)
   const script = current.text.trim() === '' ? null : current
   const [settings, setSettings] = useState<DisplaySettings>(loadSettings)
-  const tokens = useMemo(() => (script ? tokenize(script) : EMPTY_TOKENS), [script])
-
+  const { spokenOnly } = settings
+  const tokens = useMemo(() => (script ? project(script, { spokenOnly }) : EMPTY_TOKENS), [script, spokenOnly])
 
   const [playback, dispatch] = useReducer(playbackReducer, tokens, (initial) =>
     playbackReducer(initialPlayback, {
@@ -108,7 +108,22 @@ export function usePrompter(ui: UiBridge) {
   }, [active])
 
   const updateSetting = useCallback(<K extends SettingKey>(key: K, value: DisplaySettings[K]) => {
-    setSettings((current) => ({ ...current, [key]: value }))
+    const next = { ...settingsRef.current, [key]: value }
+    settingsRef.current = next
+    setSettings(next)
+    if (key !== 'spokenOnly') return
+
+    // Toggling changes which words exist, so the reader is carried to the same spoken words.
+    const { current: loaded, tokens: beforeTokens } = live.current
+    if (loaded.text.trim() === '') return
+    const nextTokens = project(loaded, next)
+    live.current = { current: loaded, tokens: nextTokens }
+    dispatch({
+      type: 'SET_SCRIPT',
+      wordCount: nextTokens.words.length,
+      paragraphStarts: nextTokens.paragraphStarts,
+      place: placementFor('edit', beforeTokens, nextTokens),
+    })
   }, [])
 
   /**
@@ -121,7 +136,7 @@ export function usePrompter(ui: UiBridge) {
     if (message.type === 'snapshot' && incoming.revision === 0) moveLegacyScript()
     if (message.type === 'snapshot' ? incoming.revision === before.revision : incoming.revision <= before.revision) return
 
-    const nextTokens = tokenize(incoming)
+    const nextTokens = project(incoming, settingsRef.current)
     // A snapshot that differs is whatever happened while disconnected, so it anchors like an Edit.
     const kind = message.type === 'change' ? message.kind : 'edit'
     const place = placementFor(kind, beforeTokens, nextTokens)

@@ -72,6 +72,7 @@ export const SETTING_DEFS = {
   marginTop: num('Top margin', 0, 0, 600, 8, 'px'),
   marginBottom: num('Bottom margin', 0, 0, 600, 8, 'px'),
   mirror: bool('Mirror', false),
+  spokenOnly: bool('Spoken only', true),
   speedWpm: num('Speed', 140, 40, 400, 5, 'wpm'),
   minLineSec: num('Minimum time per line', 1.5, 0, 5, 0.25, 's'),
   countdownSec: num('Countdown', 3, 0, 10, 1, 's'),
