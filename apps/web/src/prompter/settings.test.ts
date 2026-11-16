@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, GAP_PACES, SETTING_DEFS, formatSettingValue, nudgeSetting, parseSettings } from "./settings";
+import { DEFAULT_SETTINGS, GAP_PACES, SETTING_DEFS, formatSettingValue, keysOnPage, nudgeSetting, parseSettings } from "./settings";
 import { commandForKey } from "./keymap";
 
 describe("settings", () => {
@@ -75,5 +75,31 @@ describe("Countdown", () => {
 
   it("keeps a saved Countdown choice", () => {
     expect(parseSettings({ countdown: "off", countdownSec: 4 })).toMatchObject({ countdown: "off", countdownSec: 4 });
+  });
+});
+
+describe("timer settings", () => {
+  const TIMER_KEYS = ["timerFollowsPlayback", "timerTargetMin", "showTimer"];
+
+  it("defaults to running with playback, no target, and shown", () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ timerFollowsPlayback: true, timerTargetMin: 0, showTimer: true });
+  });
+
+  it("parses saved values and falls back to defaults for bad ones", () => {
+    expect(parseSettings({ timerTargetMin: 7.5, showTimer: false, timerFollowsPlayback: false })).toMatchObject({
+      timerTargetMin: 7.5,
+      showTimer: false,
+      timerFollowsPlayback: false,
+    });
+    expect(parseSettings({ timerTargetMin: "long", showTimer: "no" })).toMatchObject({ timerTargetMin: 0, showTimer: true });
+    expect(parseSettings({ timerTargetMin: 999 }).timerTargetMin).toBe(SETTING_DEFS.timerTargetMin.max);
+  });
+
+  it("shows them in the Timer popover and nowhere in the settings sheet", () => {
+    expect(keysOnPage("timer")).toEqual(TIMER_KEYS);
+    for (const key of TIMER_KEYS) {
+      expect(keysOnPage("main")).not.toContain(key);
+      expect(keysOnPage("advanced")).not.toContain(key);
+    }
   });
 });

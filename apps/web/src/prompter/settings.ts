@@ -41,6 +41,7 @@ const onPage =
   <P extends Exclude<SettingsPage, "main">>(page: P) =>
   <F extends Field>(field: F): F & { page: P } => ({ ...field, page });
 const advanced = onPage("advanced");
+const timerPanel = onPage("timer");
 const about = <F extends NumberField | ChoiceField | ColorField | BoolField>(description: string, field: F): F & Described => ({
   ...field,
   description,
@@ -145,6 +146,16 @@ export const SETTING_DEFS = {
       bool("Keep playing when you move", true)
     )
   ),
+  timerFollowsPlayback: timerPanel(
+    about(
+      "The timer starts when the Prompter starts scrolling or following and pauses when it stops. Restart and a Replace zero it. Off, you start and pause it yourself.",
+      bool("Run with playback", true)
+    )
+  ),
+  timerTargetMin: timerPanel(
+    about("How long you mean to read for. The readout turns red once you pass it. 0 means no target.", num("Target length", 0, 0, 120, 0.5, "min"))
+  ),
+  showTimer: timerPanel(about("Shows the elapsed time in the top right corner. The timer keeps running when hidden.", bool("Show timer", true))),
 } as const satisfies Record<string, Field>;
 
 /** How many times faster than a line the gap below it scrolls by, for each Paragraph pause. */
