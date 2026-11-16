@@ -115,7 +115,12 @@ Open the settings panel (`,`) to change:
 - the top and bottom margins, which stay blank
 - the minimum time each line stays up, so a line of one or two words does not pass before you can read it
 - mirroring, for use behind beam-splitter glass
+- Spoken only, for markdown Scripts (see below)
 - the countdown, and whether it runs only at the start
+
+### Spoken only
+
+When the Script is markdown, **Spoken only** shows only the words you read aloud. It is on by default. It hides headings, italics, inline code and code blocks, frontmatter, HTML comments, and Obsidian callouts. Bold text and link text stay, without their markdown symbols. List and quote markers are removed. Each heading becomes a thin dimmed divider. Turn it off to see the markdown as written. The Prompter stays on the words you were reading when you switch. The Script itself does not change, so the Editor still shows the full markdown.
 
 Settings are saved in your browser. The Script is saved by the server, so every open Prompter and Editor shows the same one.
 
@@ -159,7 +164,7 @@ pnpm test:e2e
 1. Prompter: done.
 2. Local server, Push API, the `tp` command, and a Claude Code plugin: done.
 3. Editor window with undo, Script history, and live sync to the Prompter: done.
-4. Spoken-only mode for markdown, which hides headings, italics, and code.
+4. Spoken-only mode for markdown, which hides headings, italics, and code: done.
 5. Obsidian plugin to send selected text to the Prompter.
 6. Follow mode: scrolls as you speak, using a local Whisper server.
 7. Azure Speech as an optional speech-to-text service.
