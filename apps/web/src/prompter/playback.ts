@@ -100,6 +100,8 @@ const FOLLOW_BACK_TAU_MS = 300;
  * a step with the arrow keys, instead of scrolling through the words between.
  */
 const FOLLOW_JUMP_WORDS = 8;
+/** How far behind the reader's estimated place Follow aims while keeping up with them, in words. */
+const FOLLOW_TRAIL_WORDS = 0.75;
 /**
  * A match this many words before where the reader was last heard is them going back to reread. A match closer
  * behind is the same speech heard again late.
@@ -177,11 +179,20 @@ const heard = (state: PlaybackState, matched: number, position: number, pace: nu
   const reread = matched < last - FOLLOW_REREAD_WORDS;
   // Nothing new: carrying on as before keeps the cursor from coasting on stale speech.
   if (!reread && matched <= last) return state;
-  // The time the match took is allowed for only up to the end of the sentence, where the reader may have paused.
-  const allowed = Math.min(position, Math.max(matched, nextPausePoint(state, matched)));
-  // A new match behind the cursor means the cursor ran ahead: it waits there for the reader.
-  const next = allowed < target && !reread ? target : clampCursor(state, allowed);
-  const jumped = next - (state.animTarget ?? state.cursor) > FOLLOW_JUMP_WORDS;
+  const aimAt = (estimate: number) => {
+    // The time the match took is allowed for only up to the end of the sentence, where the reader may have paused.
+    const allowed = Math.min(estimate, Math.max(matched, nextPausePoint(state, matched)));
+    // A new match behind the cursor means the cursor ran ahead: it waits there for the reader.
+    return allowed < target && !reread ? target : clampCursor(state, allowed);
+  };
+  const reader = aimAt(position);
+  const jumped = reader - (state.animTarget ?? state.cursor) > FOLLOW_JUMP_WORDS;
+  // Trailing keeps the wobble of a second-old estimate behind the reader. A cursor gliding to catch up with a reader
+  // far ahead cannot get ahead of them, so trailing would only slow it down. The trail comes back because the target
+  // stands still during the glide, 0.4 to 0.5 s, while the reader reads on; below about 1.5 to 1.9 words a second,
+  // depending on how far the jump is, it comes back only partly, as pace times glide, until the cursor next waits at a
+  // sentence end.
+  const next = jumped ? reader : aimAt(Math.max(matched, position - FOLLOW_TRAIL_WORDS));
   return {
     ...state,
     animTarget: jumped ? next : state.animTarget,

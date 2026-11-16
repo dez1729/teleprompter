@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendText, guessFormat, PushRequestSchema } from "./index.ts";
+import { appendText, guessFormat, normalizeWord, PushRequestSchema } from "./index.ts";
 
 describe("appendText", () => {
   it("joins with a blank line and drops trailing whitespace", () => {
@@ -32,5 +32,13 @@ describe("PushRequestSchema", () => {
 
   it("accepts a minimal request", () => {
     expect(PushRequestSchema.safeParse({ kind: "append", text: "a" }).success).toBe(true);
+  });
+});
+
+describe("normalizeWord", () => {
+  it("keeps only lowercase letters and digits, folding accents", () => {
+    expect(normalizeWord("Delivery,")).toBe("delivery");
+    expect(normalizeWord("Café")).toBe("cafe");
+    expect(normalizeWord("—")).toBe("");
   });
 });

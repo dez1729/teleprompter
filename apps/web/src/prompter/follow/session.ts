@@ -7,8 +7,6 @@ import { openMicrophone, QUIET_MS, type Microphone } from "./microphone";
 /** The least time between clips, so Whisper is not asked about the same half second over and over. */
 const INTERVAL_MS = 600;
 const QUIET_CHECK_MS = 100;
-/** How far behind the reader's estimated place Follow aims, in words. */
-const TRAIL_WORDS = 0.75;
 /** Faster than anyone reads aloud, in words per ms; a larger jump between matches is a skip, not pace. */
 const MAX_PACE = 8 / 1000;
 /** The reader's pace is measured over the matches in this much time. One gap between clips is too noisy. */
@@ -131,8 +129,8 @@ export class FollowSession {
     this.#recent = wentBack ? [] : this.#recent.filter((match) => match.at > started - PACE_WINDOW_MS);
     this.#recent.push({ position: matched, at: started });
     this.#pace = paceOver(this.#recent, this.#pace);
-    // Aimed a little behind, so the wobble of a second-old estimate stays behind the reader, not ahead.
-    const position = Math.max(matched, matched + this.#pace * (performance.now() - started) - TRAIL_WORDS);
+    // The clip ended when it was sent; the reader has kept reading since.
+    const position = matched + this.#pace * (performance.now() - started);
     this.#host.dispatch({ type: "HEARD", matched, position, pace: this.#pace });
   }
 }

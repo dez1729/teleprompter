@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch } from "react";
 import type { PlaybackEvent, PlaybackMode } from "../playback";
 import type { Word } from "../script";
-import { normalize } from "./align";
+import { normalizeWord } from "@teleprompter/protocol";
 import { FollowSession, type FollowPlace, type FollowStatus } from "./session";
 
 const OFF: FollowStatus = { kind: "off" };
@@ -17,7 +17,7 @@ export const useFollow = (mode: PlaybackMode, words: readonly Word[], expectedWp
     setWasFollowing(following);
     if (following) setStatus({ kind: "starting" });
   }
-  const script = useMemo(() => words.map((word) => normalize(word.text)), [words]);
+  const script = useMemo(() => words.map((word) => normalizeWord(word.text)), [words]);
   const place = useRef<FollowPlace>({ script, target: 0 });
   place.current = { script, target: mode.kind === "following" ? mode.target : 0 };
   const expectedPace = useRef(expectedWpm / 60000);
