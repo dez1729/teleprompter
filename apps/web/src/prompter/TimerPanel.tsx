@@ -1,6 +1,7 @@
 import { isNil } from "es-toolkit";
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { ChevronDown, Pause, Play, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { FieldGroup } from "@/components/ui/field";
 import { PopoverDescription, PopoverHeader, PopoverTitle } from "@/components/ui/popover";
 import { SettingField } from "./SettingField";
@@ -51,16 +52,35 @@ export const TimerPanel = ({ timer, remainingWords, settings, onChange }: Props)
           Reset
         </Button>
       </div>
-      <FieldGroup className="pt-1">
-        {TIMER_KEYS.map((key) => (
-          <SettingField
-            key={key}
-            setting={key}
-            settings={settings}
-            onChange={onChange}
+      <Collapsible>
+        <CollapsibleTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="group w-full justify-between"
+            />
+          }
+        >
+          Settings
+          <ChevronDown
+            data-icon="inline-end"
+            className="transition-transform group-data-[panel-open]:rotate-180"
           />
-        ))}
-      </FieldGroup>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <FieldGroup className="pt-3">
+            {TIMER_KEYS.map((key) => (
+              <SettingField
+                key={key}
+                setting={key}
+                settings={settings}
+                onChange={onChange}
+              />
+            ))}
+          </FieldGroup>
+        </CollapsibleContent>
+      </Collapsible>
     </>
   );
 };
