@@ -1,10 +1,12 @@
 import {
   ScriptChangeSchema,
   ScriptSchema,
+  TranscribersSchema,
   VersionSummarySchema,
   type PushRequest,
   type Script,
   type ScriptChange,
+  type TranscriberId,
   type VersionSummary,
 } from "@teleprompter/protocol";
 import { isNil, isString } from "es-toolkit";
@@ -98,9 +100,16 @@ export class ScriptStream {
   }
 }
 
+/** The Transcribers set up on the server. */
+export const fetchTranscribers = async (): Promise<TranscriberId[]> => {
+  const response = await fetch("/api/transcribers");
+  if (!response.ok) throw new Error(`The server answered ${response.status}.`);
+  return TranscribersSchema.parse(await response.json()).available;
+};
+
 /** What the Transcriber heard in a clip of the reader's speech. Rejects with the server's reason. */
-export const transcribe = async (clip: Blob): Promise<string> => {
-  const response = await fetch("/api/transcribe", { method: "POST", headers: { "content-type": clip.type }, body: clip });
+export const transcribe = async (clip: Blob, transcriber: TranscriberId): Promise<string> => {
+  const response = await fetch(`/api/transcribe?transcriber=${transcriber}`, { method: "POST", headers: { "content-type": clip.type }, body: clip });
   const body = (await response.json().catch(() => null)) as { text?: string; error?: string } | null;
   if (!response.ok || !isString(body?.text)) throw new Error(body?.error ?? `The server answered ${response.status}.`);
   return body.text;

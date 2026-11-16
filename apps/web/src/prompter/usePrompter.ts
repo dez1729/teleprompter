@@ -1,17 +1,19 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { EMPTY_SCRIPT, type PushRequest, type Script } from "@teleprompter/protocol";
+import { EMPTY_SCRIPT, TRANSCRIBER_NAMES, type PushRequest, type Script, type TranscriberId } from "@teleprompter/protocol";
 import { isNil } from "es-toolkit";
 import { placementFor } from "./anchor";
 import { commandForKey, type Command, type UiCommand } from "./keymap";
 import { useFollow } from "./follow/useFollow";
 import { initialPlayback, isScrolling, needsTick, playbackReducer } from "./playback";
-import { restoreVersion, ScriptStream, sendScript, type ScriptMessage } from "@/lib/scriptApi";
+import { fetchTranscribers, restoreVersion, ScriptStream, sendScript, type ScriptMessage } from "@/lib/scriptApi";
 import { EMPTY_TOKENS, tokenize } from "./script";
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from "./settings";
 import { useTimer } from "./useTimer";
 import { clearLegacyDraft, clearLegacyScript, loadLegacyScript, loadSettings, saveSettings } from "./storage";
 
 const MAX_FRAME_MS = 100;
+const WHISPER_ONLY: TranscriberId[] = ["whisper"];
 
 const NON_TEXT_INPUT_TYPES = new Set(["button", "checkbox", "color", "file", "image", "radio", "range", "reset", "submit"]);
 
@@ -79,7 +81,12 @@ export const usePrompter = (ui: UiBridge) => {
 
   const playbackRef = useRef(playback);
   playbackRef.current = playback;
-  const follow = useFollow(playback.mode, tokens.words, settings.speedWpm, dispatch);
+  // Until the server says otherwise, only Whisper is known to be there.
+  const available = useQuery({ queryKey: ["transcribers"], queryFn: fetchTranscribers }).data ?? WHISPER_ONLY;
+  const transcriber = available.includes(settings.transcriber) ? settings.transcriber : "whisper";
+  const transcriberRef = useRef(transcriber);
+  transcriberRef.current = transcriber;
+  const follow = useFollow(playback.mode, tokens.words, settings.speedWpm, transcriber, dispatch);
 
   const timer = useTimer(isScrolling(playback.mode), settings.timerFollowsPlayback);
   const { rewind } = timer;
@@ -242,7 +249,9 @@ export const usePrompter = (ui: UiBridge) => {
             dispatch(scrollMode === "follow" ? { type: "FOLLOW" } : { type: "PLAY", countdownSec: 0, countdownAtStartOnly });
           }
 
-          return showReadout(`Scroll mode: ${scrollMode === "follow" ? "Follow" : "Auto"}`);
+          return showReadout(
+            scrollMode === "follow" ? `Scroll mode: Follow, through ${TRANSCRIBER_NAMES[transcriberRef.current]}` : "Scroll mode: Auto"
+          );
         }
       }
     },
@@ -279,6 +288,8 @@ export const usePrompter = (ui: UiBridge) => {
 
   return {
     script,
+    transcriber,
+    availableTranscribers: available,
     connected,
     tokens,
     settings,

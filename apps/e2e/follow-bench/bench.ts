@@ -1,12 +1,12 @@
 // Measures how closely Follow keeps up with a voice. Kokoro speaks a paragraph, Whisper times each word, and the
 // recording, cut to start at a chosen word, is Chromium's microphone while the Prompter follows it.
-// Usage: node follow-bench/bench.ts [--from 62 --from 30 --from 0] [--runs 5] [--trace]
+// Usage: node follow-bench/bench.ts [--from 62 --from 30 --from 0] [--runs 5] [--transcriber whisper|azure] [--trace]
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import { normalizeWord, type PushRequest } from "@teleprompter/protocol";
+import { normalizeWord, TranscriberIdSchema, type PushRequest, type TranscriberId } from "@teleprompter/protocol";
 import { optionsFromEnv, startServer } from "@teleprompter/server";
 import { isNil } from "es-toolkit";
 
@@ -51,6 +51,9 @@ interface RunResult {
   catchUp: number;
   medianLag: number;
   ahead: number;
+  behind: number;
+  // How often the cursor moved back half a word or more between samples.
+  backtracks: number;
   pastSentenceEnd: number;
 }
 
@@ -195,12 +198,15 @@ const score = (points: readonly Point[], sentenceEnds: readonly number[], wordCo
     catchUp: caught?.since ?? NaN,
     medianLag: median(reading.map((p) => p.spoken - p.cursor)),
     ahead: reading.length === 0 ? NaN : Math.max(...reading.map((p) => p.cursor - p.spoken)),
+    behind: reading.length === 0 ? NaN : Math.max(...reading.map((p) => p.spoken - p.cursor)),
+    backtracks: reading.filter((p, i) => i > 0 && p.cursor <= reading.at(i - 1)!.cursor - 0.5).length,
     pastSentenceEnd: reading.length === 0 ? NaN : Math.max(0, ...reading.map((p) => p.cursor - nextEnd(p.spoken))),
   };
 };
 
 interface FollowOptions {
   from: number;
+  transcriber: TranscriberId;
   timing: readonly TimedWord[];
   trace: boolean;
 }
@@ -209,7 +215,7 @@ interface RunOptions extends FollowOptions {
   clipPath: string;
 }
 
-const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<RunOutcome> => {
+const runOnce = async ({ from, clipPath, timing, transcriber, trace }: RunOptions): Promise<RunOutcome> => {
   const dataDir = mkdtempSync(join(tmpdir(), "tp-follow-bench-"));
 
   try {
@@ -221,7 +227,7 @@ const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<R
       });
 
       try {
-        return await follow(server.url, browser, { from, timing, trace });
+        return await follow(server.url, browser, { from, timing, transcriber, trace });
       }
       finally {
         await browser.close();
@@ -243,7 +249,7 @@ const micState = () => {
   return (window as unknown as { micOpenedAt?: number }).micOpenedAt === undefined ? null : "open";
 };
 
-const follow = async (url: string, browser: Browser, { from, timing, trace }: FollowOptions): Promise<RunOutcome> => {
+const follow = async (url: string, browser: Browser, { from, timing, transcriber, trace }: FollowOptions): Promise<RunOutcome> => {
   const pushed = await fetch(`${url}/api/script`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -254,6 +260,7 @@ const follow = async (url: string, browser: Browser, { from, timing, trace }: Fo
 
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await page.addInitScript(watchCursor, SAMPLE_MS);
+  await page.addInitScript((id) => localStorage.setItem("teleprompter.settings", JSON.stringify({ transcriber: id })), transcriber);
   await page.goto(url);
   await page.locator("[data-word]").first().waitFor();
   await page.keyboard.press("f");
@@ -293,6 +300,7 @@ const { values } = parseArgs({
   options: {
     from: { type: "string", multiple: true, default: ["62", "30", "0"] },
     runs: { type: "string", default: "5" },
+    transcriber: { type: "string", default: "whisper" },
     trace: { type: "boolean", default: false },
   },
 });
@@ -303,6 +311,7 @@ const wholeNumber = (option: string, value: string, min: number, max: number) =>
 };
 const starts = values.from.map((value) => wholeNumber("--from", value, 0, SCRIPT_WORDS.length - 1));
 const runs = wholeNumber("--runs", values.runs, 1, 999);
+const transcriber = TranscriberIdSchema.parse(values.transcriber);
 
 const recording = await speak(PARAGRAPH);
 const timing = await timeWords(recording, SCRIPT_WORDS);
@@ -317,7 +326,7 @@ try {
     let stopped = 0;
 
     for (let run = 1; run <= runs; run++) {
-      const r = await runOnce({ from, clipPath, timing, trace: values.trace });
+      const r = await runOnce({ from, clipPath, timing, transcriber, trace: values.trace });
 
       if ("stopped" in r) {
         stopped++;
@@ -329,7 +338,7 @@ try {
 
       console.log(
         `from ${from} run ${run}: catch-up ${show(r.catchUp)} s, median lag ${show(r.medianLag)} words, ` +
-          `max ahead ${show(r.ahead)}, past sentence end ${show(r.pastSentenceEnd)}`
+          `max ahead ${show(r.ahead)}, max behind ${show(r.behind)}, past sentence end ${show(r.pastSentenceEnd)}, backtracks ${r.backtracks}`
       );
     }
 

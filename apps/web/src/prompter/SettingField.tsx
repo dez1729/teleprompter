@@ -8,16 +8,19 @@ import { SETTING_DEFS, type DisplaySettings, type SettingKey } from "./settings"
 interface Props {
   setting: SettingKey;
   settings: DisplaySettings;
+  /** Shown in place of the description when the setting cannot be changed now. */
+  lockedBecause?: string;
   onChange: <K extends SettingKey>(key: K, value: DisplaySettings[K]) => void;
 }
 
 // One setting as its control, label and description.
-export const SettingField = ({ setting, settings, onChange }: Props) => {
+export const SettingField = ({ setting, settings, lockedBecause, onChange }: Props) => {
   const def = SETTING_DEFS[setting];
   const value: unknown = settings[setting];
   const set = (next: unknown) => onChange(setting, next as never);
   const id = `setting-${setting}`;
-  const description = <FieldDescription id={`${id}-description`}>{def.description}</FieldDescription>;
+  const locked = !isNil(lockedBecause);
+  const description = <FieldDescription id={`${id}-description`}>{lockedBecause ?? def.description}</FieldDescription>;
   const describedBy = `${id}-description`;
 
   switch (def.kind) {
@@ -45,7 +48,7 @@ export const SettingField = ({ setting, settings, onChange }: Props) => {
       );
     case "choice":
       return (
-        <Field>
+        <Field data-disabled={locked}>
           <FieldLabel>{def.label}</FieldLabel>
           {description}
           <ToggleGroup
@@ -53,6 +56,7 @@ export const SettingField = ({ setting, settings, onChange }: Props) => {
             aria-describedby={describedBy}
             variant="outline"
             spacing={0}
+            disabled={locked}
             value={[value as string]}
             onValueChange={(next) => !isNil(next.at(0)) && set(next.at(0))}
           >

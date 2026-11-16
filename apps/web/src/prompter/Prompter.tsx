@@ -1,3 +1,4 @@
+import { TRANSCRIBER_NAMES, type TranscriberId } from "@teleprompter/protocol";
 import { SquarePen } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type WheelEvent } from "react";
 import { isNil } from "es-toolkit";
@@ -37,22 +38,38 @@ export const Prompter = () => {
     saveTimerPinned(pinned);
   };
 
-  const { script, connected, tokens, settings, playback, follow, readout, replaced, timer, connect, undoReplace, dispatch, updateSetting, run } =
-    usePrompter({
-      helpOpen,
-      onUiCommand: (command) => {
-        switch (command.type) {
-          case "toggleHelp":
-            return setHelpOpen((open) => !open);
-          case "toggleTimer":
-            return setTimerOpen((open) => !open);
-          case "openSettings":
-            return setSettingsOpen(true);
-          case "openEditor":
-            return openEditor();
-        }
-      },
-    });
+  const {
+    script,
+    transcriber,
+    availableTranscribers,
+    connected,
+    tokens,
+    settings,
+    playback,
+    follow,
+    readout,
+    replaced,
+    timer,
+    connect,
+    undoReplace,
+    dispatch,
+    updateSetting,
+    run,
+  } = usePrompter({
+    helpOpen,
+    onUiCommand: (command) => {
+      switch (command.type) {
+        case "toggleHelp":
+          return setHelpOpen((open) => !open);
+        case "toggleTimer":
+          return setTimerOpen((open) => !open);
+        case "openSettings":
+          return setSettingsOpen(true);
+        case "openEditor":
+          return openEditor();
+      }
+    },
+  });
 
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT);
   const [recentMouse, setRecentMouse] = useState(true);
@@ -295,7 +312,10 @@ export const Prompter = () => {
               mirror={settings.mirror}
             />
           )}
-          <FollowStatusLine status={follow} />
+          <FollowStatusLine
+            status={follow}
+            transcriber={transcriber}
+          />
         </div>
 
         {connected === false && (
@@ -340,7 +360,8 @@ export const Prompter = () => {
       <SettingsSheet
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        settings={settings}
+        settings={{ ...settings, transcriber }}
+        locked={availableTranscribers.includes("azure") ? {} : AZURE_NOT_SET_UP}
         onChange={updateSetting}
       />
       <UndoToast
@@ -351,13 +372,20 @@ export const Prompter = () => {
   );
 };
 
+const AZURE_NOT_SET_UP = {
+  transcriber:
+    "Azure Speech is not set up on the server, so Follow uses Whisper. Set TELEPROMPTER_AZURE_SPEECH_KEY and TELEPROMPTER_AZURE_SPEECH_REGION, then restart the server.",
+};
+
 interface FollowStatusLineProps {
   status: FollowStatus;
+  transcriber: TranscriberId;
 }
 
-const FollowStatusLine = ({ status }: FollowStatusLineProps) => {
+const FollowStatusLine = ({ status, transcriber }: FollowStatusLineProps) => {
   if (status.kind === "off") return null;
-  const text = status.kind === "error" ? status.message : status.kind === "starting" ? "Opening the microphone…" : "Following your voice";
+  const listening = `Following your voice through ${TRANSCRIBER_NAMES[transcriber]}`;
+  const text = status.kind === "error" ? status.message : status.kind === "starting" ? "Opening the microphone…" : listening;
 
   return (
     <p

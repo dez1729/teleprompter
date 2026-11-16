@@ -1,3 +1,4 @@
+import { TRANSCRIBER_NAMES } from "@teleprompter/protocol";
 import { isBoolean, isNumber, isPlainObject, isString } from "es-toolkit";
 
 export interface NumberField {
@@ -85,6 +86,13 @@ export const SETTING_DEFS = {
     choice("Scroll mode", "auto", [
       { value: "auto", label: "Auto" },
       { value: "follow", label: "Follow" },
+    ])
+  ),
+  transcriber: about(
+    "What turns your voice into words in Follow. Whisper runs on your computer. Azure Speech is a Microsoft service and needs a key set on the server.",
+    choice("Listen through", "whisper", [
+      { value: "whisper", label: TRANSCRIBER_NAMES.whisper },
+      { value: "azure", label: TRANSCRIBER_NAMES.azure },
     ])
   ),
   spokenOnly: about(

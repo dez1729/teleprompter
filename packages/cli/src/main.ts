@@ -1,4 +1,4 @@
-import { optionsFromEnv, startServer } from "@teleprompter/server";
+import { ConfigError, loadDotEnv, optionsFromEnv, startServer } from "@teleprompter/server";
 import { run } from "./cli.ts";
 import { CliError } from "./send.ts";
 
@@ -14,10 +14,15 @@ const code = await run(process.argv.slice(2), {
   err: (line) => console.error(line),
   serve: async () => {
     try {
-      const server = await startServer(optionsFromEnv());
+      loadDotEnv();
+      const options = optionsFromEnv();
+      const server = await startServer(options);
       console.log(`Teleprompter listening on ${server.url}`);
+      console.log(`Follow can listen through ${options.transcribersLabel}.`);
     }
     catch (error) {
+      if (error instanceof ConfigError) throw new CliError(error.message);
+
       if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
         throw new CliError("That port is already in use. Set PORT to use another.");
       }

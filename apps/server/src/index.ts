@@ -6,14 +6,21 @@ import { fileURLToPath } from "node:url";
 import { DEFAULT_PORT } from "@teleprompter/protocol";
 import { createApp } from "./app.ts";
 import { ScriptStore } from "./store.ts";
-import { whisperTranscriber, type Transcriber } from "./transcriber.ts";
+import { transcribersFromEnv, whisperTranscriber, type Transcribers } from "./transcriber.ts";
+
+export { ConfigError } from "./transcriber.ts";
 
 export interface ServerOptions {
   host?: string;
   port?: number;
   dataDir?: string;
   webDir?: string;
-  transcriber?: Transcriber;
+  transcribers?: Transcribers;
+}
+
+export interface EnvServerOptions extends ServerOptions {
+  /** Which Transcribers Follow can listen through, for the server to say at startup. */
+  transcribersLabel: string;
 }
 
 export interface RunningServer {
@@ -29,21 +36,40 @@ export const defaultDataDir = (env: NodeJS.ProcessEnv = process.env): string => 
 
 const BUILT_WEB_DIR = fileURLToPath(new URL("../../web/dist", import.meta.url));
 
-export const optionsFromEnv = (env: NodeJS.ProcessEnv = process.env): ServerOptions => {
+/** Adds the settings in `.env` in the current directory to process.env. Variables already set in the shell win. */
+export const loadDotEnv = (): void => {
+  try {
+    process.loadEnvFile();
+  }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+};
+
+export const optionsFromEnv = (env: NodeJS.ProcessEnv = process.env): EnvServerOptions => {
+  const { transcribers, label } = transcribersFromEnv(env);
+
   return {
     host: env.HOST || "127.0.0.1",
     port: env.PORT ? Number(env.PORT) : DEFAULT_PORT,
     dataDir: defaultDataDir(env),
-    transcriber: whisperTranscriber({ url: env.TELEPROMPTER_WHISPER_URL || undefined, model: env.TELEPROMPTER_WHISPER_MODEL || undefined }),
+    transcribers,
+    transcribersLabel: label,
   };
 };
 
 export const startServer = (options: ServerOptions = {}): Promise<RunningServer> => {
-  const { host = "127.0.0.1", port = DEFAULT_PORT, dataDir = defaultDataDir(), webDir = BUILT_WEB_DIR, transcriber = whisperTranscriber() } = options;
+  const {
+    host = "127.0.0.1",
+    port = DEFAULT_PORT,
+    dataDir = defaultDataDir(),
+    webDir = BUILT_WEB_DIR,
+    transcribers = { whisper: whisperTranscriber() },
+  } = options;
   const store = new ScriptStore(dataDir);
   const hasWeb = existsSync(join(webDir, "index.html"));
   let boundPort = port;
-  const app = createApp({ store, port: () => boundPort, webDir: hasWeb ? webDir : undefined, transcriber });
+  const app = createApp({ store, port: () => boundPort, webDir: hasWeb ? webDir : undefined, transcribers });
 
   return new Promise((resolve, reject) => {
     const server = serve({ fetch: app.fetch, hostname: host, port }, (info) => {

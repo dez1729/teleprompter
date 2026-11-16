@@ -94,3 +94,13 @@ export const normalizeWord = (word: string): string => {
     .normalize("NFKD")
     .replace(/[^\p{L}\p{N}]/gu, "");
 };
+
+/** The speech-to-text services Follow can listen through. */
+export const TranscriberIdSchema = z.enum(["whisper", "azure"]);
+export type TranscriberId = z.infer<typeof TranscriberIdSchema>;
+
+export const TRANSCRIBER_NAMES = { whisper: "Whisper", azure: "Azure Speech" } as const satisfies Record<TranscriberId, string>;
+
+/** What `GET /api/transcribers` answers: the Transcribers set up on the server. Whisper is always there. */
+export const TranscribersSchema = z.object({ available: z.array(TranscriberIdSchema) });
+export type TranscribersAnswer = z.infer<typeof TranscribersSchema>;

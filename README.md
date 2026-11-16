@@ -2,7 +2,7 @@
 
 A local teleprompter that runs in your browser. Write or paste a Script in the Editor and the Prompter scrolls it at a steady pace. The lines you are reading stay bright inside the Reading window, and the text above and below it is dimmed.
 
-A local server holds the Script and its recent history, so other tools can send text to the Prompter. The `tp` command, a Claude Code plugin, and an Obsidian plugin do that today. Follow scrolls the Prompter as you read aloud, using a Whisper server on your machine.
+A local server holds the Script and its recent history, so other tools can send text to the Prompter. The `tp` command, a Claude Code plugin, and an Obsidian plugin do that today. Follow scrolls the Prompter as you read aloud, using a Whisper server on your machine or Azure Speech.
 
 ## Run it
 
@@ -16,7 +16,9 @@ pnpm start
 
 Open http://localhost:4747, then press `p` to open the Editor and write or paste a Script. One process serves the app and the API on port 4747.
 
-Follow needs a Whisper server as well. See [Follow your voice](#follow-your-voice).
+Follow needs a Whisper server or an Azure Speech key as well. See [Follow your voice](#follow-your-voice).
+
+The server reads settings from environment variables. It also reads a `.env` file in the directory you start it from, which for `pnpm start` and `pnpm dev` is the root of this checkout. A variable set in your shell wins over the same one in `.env`. Git ignores `.env`, so it is a safe place for a key.
 
 Set `PORT` or `HOST` to change where it listens. It binds `127.0.0.1` by default, so only your machine can reach it. The server stores the Script in `script.json` and the Script history in `history.json`. Both are in `$TELEPROMPTER_DATA_DIR`, which defaults to `${XDG_DATA_HOME:-~/.local/share}/teleprompter/`.
 
@@ -87,15 +89,16 @@ If your vault is on Windows and the server runs in WSL, give the Windows path in
 
 The server has no login. It rejects requests whose `Host` is not `localhost` or `127.0.0.1`, and writes from a browser page on another origin. Requests with no `Origin` header, such as from `tp`, are allowed, and so are requests from Obsidian (`app://obsidian.md`). Bodies over 2 MB are refused.
 
-| Request                         | Result                                                                                                                                                             |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /api/script`               | The current Script: `{ text, format, source, revision }`.                                                                                                          |
-| `POST /api/script`              | Changes the Script and returns it. The body is `{ kind, text, format?, source? }`.                                                                                 |
-| `GET /api/events`               | A server-sent event stream. It sends the current Script as a `script` event, then one `change` event per change: `{ kind, script, previousVersionId }`.            |
-| `POST /api/transcribe`          | Sends a WAV clip to the Whisper server and returns `{ text }`. Follow uses it. It answers 502 with `{ error }` when the Whisper server cannot be reached or fails. |
-| `GET /api/history`              | The Script history, newest first. Each entry is `{ id, revision, savedAt, reason, source, wordCount, preview }`.                                                   |
-| `GET /api/history/:id`          | One Version with its full `text` and `format`.                                                                                                                     |
-| `POST /api/history/:id/restore` | Makes that Version the Script again, as a Replace, and returns the Script.                                                                                         |
+| Request                         | Result                                                                                                                                                                                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/script`               | The current Script: `{ text, format, source, revision }`.                                                                                                                                                                                                    |
+| `POST /api/script`              | Changes the Script and returns it. The body is `{ kind, text, format?, source? }`.                                                                                                                                                                           |
+| `GET /api/events`               | A server-sent event stream. It sends the current Script as a `script` event, then one `change` event per change: `{ kind, script, previousVersionId }`.                                                                                                      |
+| `GET /api/transcribers`         | The Transcribers set up on the server: `{ available }`, such as `["whisper", "azure"]`.                                                                                                                                                                      |
+| `POST /api/transcribe`          | Sends a WAV clip to the Transcriber named by `?transcriber=whisper` or `azure` and returns `{ text }`. Without it, Whisper. Follow uses it. It answers 503 when that Transcriber is not set up, and 502 with `{ error }` when it cannot be reached or fails. |
+| `GET /api/history`              | The Script history, newest first. Each entry is `{ id, revision, savedAt, reason, source, wordCount, preview }`.                                                                                                                                             |
+| `GET /api/history/:id`          | One Version with its full `text` and `format`.                                                                                                                                                                                                               |
+| `POST /api/history/:id/restore` | Makes that Version the Script again, as a Replace, and returns the Script.                                                                                                                                                                                   |
 
 `kind` is `replace`, `append` or `edit`. Replace and Append are Pushes, and their `text` must not be empty. Edit is a change made in the Editor: it carries the whole text, may be empty, and each Prompter keeps its place on the same words. `format` is `markdown` or `text`. When you omit it, a Push detects it and an Edit keeps the Script's format. `revision` goes up by one on every change.
 
@@ -131,14 +134,30 @@ The Prompter has two Scroll modes, chosen with **Auto | Follow** next to the pla
 
 Choose Follow, then press `Space` or the play button and start reading. Press `Space` again to stop. Speed does not apply in Follow, so it is greyed out. Pressing `f` while scrolling switches to the other mode from the same place.
 
-Follow sends what the microphone hears to a Whisper server on your computer, through the Teleprompter server. Nothing leaves your machine. The browser asks for the microphone the first time.
+Follow sends what the microphone hears to a Transcriber, through the Teleprompter server. The Transcriber is a Whisper server on your computer, or Azure Speech. With Whisper, nothing leaves your machine. The browser asks for the microphone the first time.
 
-Any Whisper server with the OpenAI transcription API works. [Speaches](https://speaches.ai) is the default, at http://127.0.0.1:2022, which is also where VoiceMode runs it. To use another server or model, set these before you start the Teleprompter server:
+Choose between them with **Listen through: Whisper | Azure Speech** in the display settings. The choice is saved in your browser, and Whisper is the default. Azure Speech can be chosen only when it is set up on the server. Until then, the choice is locked to Whisper. While Follow listens, the top right corner says which one it uses, such as "Following your voice through Azure Speech". When the server starts, it says which ones are set up.
+
+#### Whisper
+
+Whisper is the default. Any Whisper server with the OpenAI transcription API works. [Speaches](https://speaches.ai) is the default, at http://127.0.0.1:2022, which is also where VoiceMode runs it. To use another server or model, set these in `.env` or your shell:
 
 - `TELEPROMPTER_WHISPER_URL`, such as `http://127.0.0.1:8080` for whisper.cpp's server.
 - `TELEPROMPTER_WHISPER_MODEL`. The default is `Systran/faster-whisper-small`. A larger model, such as `deepdml/faster-whisper-large-v3-turbo-ct2`, hears better but answers more slowly.
 
-If the Whisper server cannot be reached, Follow stops and the top right corner says why.
+#### Azure Speech
+
+To set up Azure Speech, create a Speech resource in the Azure portal. Then set these in `.env` or your shell, start the server, and choose Azure Speech under **Listen through**:
+
+- `TELEPROMPTER_AZURE_SPEECH_KEY`, one of the resource's keys.
+- `TELEPROMPTER_AZURE_SPEECH_REGION`, the resource's region, such as `westeurope`.
+- `TELEPROMPTER_AZURE_SPEECH_LANGUAGE`, the language you read in. The default is `en-US`.
+
+If the resource has a custom domain, set `TELEPROMPTER_AZURE_SPEECH_ENDPOINT` to its endpoint, such as `https://name.cognitiveservices.azure.com/`, in place of the region.
+
+While you speak, Follow sends the last four seconds of audio as soon as the previous answer comes back, at most every 0.6 seconds. Each second you read is sent several times, so Azure bills several times as much audio as you read. The server does not start if the key is set without a region or endpoint.
+
+If the Transcriber cannot be reached, or refuses the key, Follow stops and the top right corner says why.
 
 Follow aims about a word behind your voice, so it does not get ahead of you. In testing with a recorded voice, it stayed within about one to two words behind it during steady reading, never ran past the end of a sentence the voice had not finished, and stopped about three words past it at a pause in the middle of a sentence. It picked the voice up about two seconds after it started again, or after it started 30 words further on. If you start reading somewhere else, Follow jumps there. Within about 60 words of where you are, it needs two or three words to find you. Further away, it needs about five words in a row. It waits at the end of each sentence until it hears you start the next one, so it does not run on into a sentence you have not started. If it runs ahead of you, it waits rather than moving back. It moves back only when you go back to reread. Until it has heard enough to measure your pace, it assumes the Speed setting. You can also move there yourself with the arrow keys, the mouse wheel, or by dragging the text, and Follow carries on from there, unless you turned off **Keep playing when you move**. If your voice is clearly somewhere else, Follow goes back to it.
 
@@ -171,6 +190,7 @@ When a Replace arrives, the Prompter shows **Undo** at the top of the window for
 
 Open the settings panel (`,`) to change:
 
+- which Transcriber Follow listens through, Whisper or Azure Speech
 - Spoken-only
 - the font, text size, line spacing, and colors
 - Read words, which colors the words you have already read, karaoke style, and their color

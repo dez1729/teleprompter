@@ -1,4 +1,5 @@
 import { isNil } from "es-toolkit";
+import type { TranscriberId } from "@teleprompter/protocol";
 import { transcribe } from "@/lib/scriptApi";
 import type { PlaybackEvent } from "../playback";
 import { align, heardWords } from "./align";
@@ -28,6 +29,7 @@ export interface FollowPlace {
 export interface FollowHost {
   // Read at each clip, so an Edit or a move by hand is seen at once.
   place: () => FollowPlace;
+  transcriber: () => TranscriberId;
   dispatch: (event: PlaybackEvent) => void;
   onStatus: (status: FollowStatus) => void;
 }
@@ -111,7 +113,7 @@ export class FollowSession {
 
       if (!isNil(clip)) {
         try {
-          this.#heard(await transcribe(clip), started);
+          this.#heard(await transcribe(clip, this.#host.transcriber()), started);
         }
         catch (error) {
           this.#fail(error instanceof Error ? error.message : String(error));

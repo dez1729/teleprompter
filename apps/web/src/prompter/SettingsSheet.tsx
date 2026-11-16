@@ -10,13 +10,15 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   settings: DisplaySettings;
+  /** Settings that cannot be changed now, with why. */
+  locked?: Partial<Record<SettingKey, string>>;
   onChange: <K extends SettingKey>(key: K, value: DisplaySettings[K]) => void;
 }
 
 type Page = Exclude<SettingsPage, "timer">;
 
 /** The main page holds the everyday settings; Advanced settings replaces it in the same panel, with Back to return. */
-export const SettingsSheet = ({ open, onOpenChange, settings, onChange }: Props) => {
+export const SettingsSheet = ({ open, onOpenChange, settings, locked = {}, onChange }: Props) => {
   const [page, setPage] = useState<Page>("main");
   const advanced = page === "advanced";
   const changeOpen = (next: boolean) => {
@@ -51,6 +53,7 @@ export const SettingsSheet = ({ open, onOpenChange, settings, onChange }: Props)
               key={key}
               setting={key}
               settings={settings}
+              lockedBecause={locked[key]}
               onChange={onChange}
             />
           ))}
