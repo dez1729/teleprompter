@@ -1,10 +1,10 @@
 import { formatDuration } from "./timer";
-import { useTimerReading, type Timer } from "./useTimer";
+import { useTimerReading, type TimerReader } from "./useTimer";
 
 const OVER_TARGET_COLOR = "#f87171";
 
 interface Props {
-  timer: Timer;
+  timer: TimerReader;
   // 0 means no target.
   targetMin: number;
   mirror: boolean;

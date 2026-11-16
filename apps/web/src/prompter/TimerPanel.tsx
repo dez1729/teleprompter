@@ -6,12 +6,12 @@ import { PopoverDescription, PopoverHeader, PopoverTitle } from "@/components/ui
 import { SettingField } from "./SettingField";
 import { keysOnPage, type DisplaySettings, type SettingKey } from "./settings";
 import { formatDuration, remainingMs } from "./timer";
-import { useTimerReading, type Timer } from "./useTimer";
+import { useTimerReading, type TimerControls } from "./useTimer";
 
 const TIMER_KEYS = keysOnPage("timer");
 
 interface Props {
-  timer: Timer;
+  timer: TimerControls;
   // Null when there is no Script to estimate.
   remainingWords: number | null;
   settings: DisplaySettings;
@@ -20,6 +20,7 @@ interface Props {
 
 export const TimerPanel = ({ timer, remainingWords, settings, onChange }: Props) => {
   const { elapsedMs, running } = useTimerReading(timer);
+
   return (
     <>
       <PopoverHeader>

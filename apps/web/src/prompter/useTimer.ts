@@ -41,6 +41,8 @@ const createTimerStore = () => {
 
   return {
     subscribe: (listener: () => void) => {
+      // Nothing redrew while unwatched, so a running timer's clock is stale until it is read again.
+      if (listeners.size === 0 && !isNil(snapshot.timer.startedAt)) snapshot = { ...snapshot, now: performance.now() };
       listeners.add(listener);
       schedule();
 
@@ -67,6 +69,10 @@ const createTimerStore = () => {
 
 export type Timer = ReturnType<typeof createTimerStore>;
 
+// What a view of the timer may use: read it, and start, pause or reset it. Coupling it to playback stays with usePrompter.
+export type TimerReader = Pick<Timer, "subscribe" | "getSnapshot">;
+export type TimerControls = TimerReader & Pick<Timer, "start" | "pause" | "reset">;
+
 // With `followsPlayback` it runs while `scrolling` is true, so a countdown or a pause is not counted.
 export const useTimer = (scrolling: boolean, followsPlayback: boolean): Timer => {
   const [timer] = useState(createTimerStore);
@@ -76,7 +82,7 @@ export const useTimer = (scrolling: boolean, followsPlayback: boolean): Timer =>
 };
 
 // Only the parts that show the time subscribe, so a redraw re-renders them and not the whole Prompter.
-export const useTimerReading = (timer: Timer) => {
+export const useTimerReading = (timer: TimerReader) => {
   const { timer: state, now } = useSyncExternalStore(timer.subscribe, timer.getSnapshot);
 
   return { elapsedMs: elapsedMs(state, now), running: !isNil(state.startedAt) };
