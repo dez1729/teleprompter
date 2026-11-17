@@ -166,10 +166,11 @@ describe("kokoroNarrator limits", () => {
 
 describe("POST /api/speak over HTTP", () => {
   it("aborts the Narrator when the browser cancels the request", async () => {
-    let aborted: (() => void) | undefined;
-    const narratorAborted = new Promise<void>((resolve) => (aborted = resolve));
+    const called = Promise.withResolvers<void>();
+    const aborted = Promise.withResolvers<void>();
     const narrator = narrating((_request, signal) => {
-      signal?.addEventListener("abort", () => aborted?.());
+      signal?.addEventListener("abort", () => aborted.resolve());
+      called.resolve();
       return new Promise(() => {});
     });
 
@@ -184,10 +185,10 @@ describe("POST /api/speak over HTTP", () => {
         signal: browser.signal,
       }).catch(() => {});
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await called.promise;
       browser.abort();
       await sent;
-      await narratorAborted;
+      await aborted.promise;
     }
     finally {
       await server.close();
