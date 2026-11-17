@@ -20,6 +20,29 @@ Follow needs a Whisper server as well. See [Follow your voice](#follow-your-voic
 
 Set `PORT` or `HOST` to change where it listens. It binds `127.0.0.1` by default, so only your machine can reach it. The server stores the Script in `script.json` and the Script history in `history.json`. Both are in `$TELEPROMPTER_DATA_DIR`, which defaults to `${XDG_DATA_HOME:-~/.local/share}/teleprompter/`.
 
+### Run it in Docker
+
+You need Docker with Compose. From this checkout:
+
+```bash
+docker compose up -d --build
+```
+
+Open http://localhost:4747. The container restarts with Docker, and `docker compose down` stops it. The Script and the Script history are kept in the `teleprompter-data` volume, so they survive a rebuild.
+
+The port is published on `127.0.0.1` only. The server accepts requests for `localhost` and `127.0.0.1` on its own port, so the host port must be the same as `PORT`. To use another port, such as 8080, set `PORT: 8080` under `environment` and publish `127.0.0.1:8080:8080`.
+
+`tp` and the plugins on your machine reach the container at http://127.0.0.1:4747, as they would reach `tp serve`.
+
+Follow reaches a Whisper server on your machine at http://host.docker.internal:2022. To use another one, set `TELEPROMPTER_WHISPER_URL` under `environment`. A Whisper server that listens on `127.0.0.1` only cannot be reached from the container on Linux. Make it listen on `0.0.0.0` instead.
+
+Without Compose:
+
+```bash
+docker build -t teleprompter .
+docker run -d --name teleprompter -p 127.0.0.1:4747:4747 -v teleprompter-data:/data --add-host host.docker.internal:host-gateway teleprompter
+```
+
 ### Develop
 
 ```bash
@@ -215,6 +238,7 @@ If two Editor windows are typing at the same moment, the last one to send wins. 
 - `plugins/teleprompter` is the Claude Code plugin.
 - `apps/obsidian` is the Obsidian plugin.
 - `apps/e2e` holds the Playwright smoke test and the Follow benchmark.
+- `Dockerfile` and `compose.yaml` build and run the server, with the built web app, in a container.
 - [GLOSSARY.md](./GLOSSARY.md) defines the project's terms, such as Script, Reading window, and Push.
 - [docs/adr](./docs/adr) records design decisions.
 
@@ -239,7 +263,7 @@ pnpm test:e2e
 5. Obsidian plugin to send selected text to the Prompter: done.
 6. Follow mode: scrolls as you speak, using a local Whisper server: done.
 7. ~~Azure Speech as an optional speech-to-text service.~~ (performed worse than using Whisper)
-8. Docker image.
+8. Docker image: done.
 9. Read aloud: the computer speaks the Script with text-to-speech, to test pacing. The voice has its own words per minute, separate from Speed. With Follow on, the Prompter follows the voice.
 
 ## License
