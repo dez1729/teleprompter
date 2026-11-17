@@ -27,6 +27,9 @@ export const defaultDataDir = (env: NodeJS.ProcessEnv = process.env): string => 
   return join(env.XDG_DATA_HOME || join(homedir(), ".local", "share"), "teleprompter");
 };
 
+/** A wildcard address listens on every interface, but the host guard answers only loopback names. */
+const WILDCARD_HOSTS = new Set(["0.0.0.0", "::"]);
+
 const BUILT_WEB_DIR = fileURLToPath(new URL("../../web/dist", import.meta.url));
 
 export const optionsFromEnv = (env: NodeJS.ProcessEnv = process.env): ServerOptions => {
@@ -51,7 +54,7 @@ export const startServer = (options: ServerOptions = {}): Promise<RunningServer>
       server.off("error", reject);
 
       resolve({
-        url: `http://${host}:${info.port}`,
+        url: `http://${WILDCARD_HOSTS.has(host) ? "localhost" : host}:${info.port}`,
         port: info.port,
         close: () =>
           new Promise<void>((done) => {
@@ -64,4 +67,27 @@ export const startServer = (options: ServerOptions = {}): Promise<RunningServer>
     server.once("error", reject);
     if (!hasWeb) console.warn(`The web app is not built (${webDir}). Run "pnpm build" to serve it; the API still works.`);
   });
+};
+
+/**
+ * Runs the server for `tp serve` and the container, set up from the environment.
+ * Stops cleanly on SIGTERM and SIGINT, which Node ignores when it runs as PID 1 in a container.
+ */
+export const serveFromEnv = async (env: NodeJS.ProcessEnv = process.env): Promise<void> => {
+  let server: RunningServer;
+
+  try {
+    server = await startServer(optionsFromEnv(env));
+  }
+  catch (error) {
+    const { code } = error as NodeJS.ErrnoException;
+    console.error(code === "EADDRINUSE" ? "That port is already in use. Set PORT to use another." : String(error));
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log(`Teleprompter listening on ${server.url}`);
+  const stop = () => void server.close().then(() => process.exit(0));
+  process.once("SIGTERM", stop);
+  process.once("SIGINT", stop);
 };
