@@ -58,9 +58,12 @@ const startProcess = async () => {
   let stderr = "";
   child.stderr.on("data", (chunk) => (stderr += String(chunk)));
 
-  const first = await Promise.race([once(child.stdout, "data").then(([chunk]) => String(chunk)), once(child, "close").then(([code]) => ({ code }))]);
+  const first = await Promise.race([
+    once(child.stdout, "data").then(([chunk]) => String(chunk)),
+    once(child, "close").then(([code, signal]) => ({ status: code ?? signal })),
+  ]);
 
-  if (!isString(first)) throw new Error(`The server exited with ${first.code} before it was listening.\n${stderr}`);
+  if (!isString(first)) throw new Error(`The server exited with ${first.status} before it was listening.\n${stderr}`);
   expect(first).toMatch(/^Teleprompter listening on /);
   return child;
 };
@@ -75,6 +78,12 @@ describe("startServer", () => {
   it.skipIf(!canBindIpv6Loopback)("gives a bracketed URL that the server answers on IPv6 loopback", async () => {
     const server = await start("::1");
     expect(server.url).toBe(`http://[::1]:${server.port}`);
+    expect((await fetch(new URL("/api/script", server.url))).status).toBe(200);
+  });
+
+  it.skipIf(!canBindIpv6Loopback)("gives a localhost URL that the server answers on another loopback address", async () => {
+    const server = await start("::ffff:127.0.0.1");
+    expect(server.url).toBe(`http://localhost:${server.port}`);
     expect((await fetch(new URL("/api/script", server.url))).status).toBe(200);
   });
 });

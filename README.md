@@ -30,7 +30,7 @@ docker compose up -d --build
 
 Open http://localhost:4747. The container restarts with Docker, and `docker compose down` stops it. The Script and the Script history are kept in the `teleprompter-data` volume, so they survive a rebuild.
 
-The port is published on `127.0.0.1` only. The server accepts requests for `localhost` and `127.0.0.1` on its own port, so the host port must be the same as `PORT`. To use another port, such as 8080, set `PORT: 8080` under `environment` and publish `127.0.0.1:8080:8080`.
+The port is published on `127.0.0.1` only. The server answers only requests addressed to its own port, so the host port must be the same as `PORT`. To use another port, such as 8080, set `PORT: 8080` under `environment` and publish `127.0.0.1:8080:8080`.
 
 `tp` and the plugins on your machine reach the container at http://127.0.0.1:4747, as they would reach `tp serve`.
 

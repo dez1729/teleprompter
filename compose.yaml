@@ -3,7 +3,7 @@ services:
     build: .
     image: teleprompter
     ports:
-      # Loopback only. The server refuses any Host but localhost or 127.0.0.1 on this port.
+      # Loopback only, over IPv4. The server answers only requests addressed to its own port.
       - "127.0.0.1:4747:4747"
     volumes:
       - teleprompter-data:/data

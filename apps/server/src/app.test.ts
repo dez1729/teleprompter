@@ -167,10 +167,10 @@ describe("Host and Origin guards", () => {
     }
   });
 
-  it("accepts localhost and 127.0.0.1 on the app port and the dev port", async () => {
+  it("accepts each loopback name on the app port and the dev port", async () => {
     const { app } = setup();
 
-    for (const host of ["localhost:4747", "127.0.0.1:4747", "[::1]:4747", "localhost:4748", "127.0.0.1:4748"]) {
+    for (const host of ["localhost:4747", "127.0.0.1:4747", "[::1]:4747", "localhost:4748", "127.0.0.1:4748", "[::1]:4748"]) {
       expect((await app.request("/api/script", { headers: { host } })).status, host).toBe(200);
     }
   });

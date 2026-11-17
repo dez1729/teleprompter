@@ -1,10 +1,12 @@
 import { serve } from "@hono/node-server";
 import { existsSync } from "node:fs";
 import { constants, homedir } from "node:os";
+import { BlockList, isIP } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_PORT } from "@teleprompter/protocol";
 import { createApp } from "./app.ts";
+import { LOOPBACK_NAMES } from "./guards.ts";
 import { ScriptStore } from "./store.ts";
 import { whisperTranscriber, type Transcriber } from "./transcriber.ts";
 
@@ -27,12 +29,25 @@ export const defaultDataDir = (env: NodeJS.ProcessEnv = process.env): string => 
   return join(env.XDG_DATA_HOME || join(homedir(), ".local", "share"), "teleprompter");
 };
 
-// A wildcard address listens on every interface, but the host guard answers only loopback names.
+// A wildcard address listens on every interface, loopback included.
 const WILDCARD_HOSTS = new Set(["0.0.0.0", "::"]);
 
+const LOOPBACK = new BlockList();
+LOOPBACK.addSubnet("127.0.0.0", 8, "ipv4");
+LOOPBACK.addAddress("::1", "ipv6");
+LOOPBACK.addSubnet("::ffff:127.0.0.0", 104, "ipv6");
+
+const isLoopback = (host: string): boolean => {
+  const family = isIP(host);
+  return family !== 0 && LOOPBACK.check(host, family === 4 ? "ipv4" : "ipv6");
+};
+
+// The host guard answers only its loopback names, so a URL for any other loopback or wildcard
+// address uses localhost, which clients try over both IPv4 and IPv6.
 const urlHost = (host: string): string => {
-  if (WILDCARD_HOSTS.has(host)) return "localhost";
-  return host.includes(":") ? `[${host}]` : host;
+  const bracketed = isIP(host) === 6 ? `[${host}]` : host;
+  if (LOOPBACK_NAMES.includes(bracketed)) return bracketed;
+  return WILDCARD_HOSTS.has(host) || isLoopback(host) ? "localhost" : bracketed;
 };
 
 const BUILT_WEB_DIR = fileURLToPath(new URL("../../web/dist", import.meta.url));
