@@ -304,7 +304,7 @@ test("the Timer runs with playback, not through the countdown, and Restart zeroe
   await expect(readout).toHaveText("0:00");
 });
 
-/** Silence, as the Narrator would send speech. */
+// Silence, as the Narrator would send speech.
 const silentWav = (seconds = 0.5): Buffer => {
   const rate = 24000;
   const bytes = Math.round(rate * seconds) * 2;

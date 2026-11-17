@@ -10,7 +10,7 @@ import {
   type ScriptChange,
   type VersionSummary,
 } from "@teleprompter/protocol";
-import { isNil, isString } from "es-toolkit";
+import { isNil, isPlainObject, isString } from "es-toolkit";
 
 /** Chrome refuses a keepalive request whose body is over 64 KiB. */
 const KEEPALIVE_MAX_CHARS = 20_000;
@@ -101,15 +101,21 @@ export class ScriptStream {
   }
 }
 
-/** What the Transcriber heard in a clip of the reader's speech. Rejects with the server's reason. */
-export const transcribe = async (clip: Blob): Promise<string> => {
-  const response = await fetch("/api/transcribe", { method: "POST", headers: { "content-type": clip.type }, body: clip });
-  const body = (await response.json().catch(() => null)) as { text?: string; error?: string } | null;
-  if (!response.ok || !isString(body?.text)) throw new Error(body?.error ?? `The server answered ${response.status}.`);
-  return body.text;
+// The server's reason for a failed request, such as Kokoro not running, or its status when it gave none.
+const failure = (response: Response, body: unknown): Error => {
+  const reason = isPlainObject(body) && isString(body.error) ? body.error : null;
+  return new Error(reason ?? `The server answered ${response.status}.`);
 };
 
-/** The Narrator speaking `text` at `speed` times its natural pace, as WAV audio. Rejects with the server's reason. */
+// What the Transcriber heard in a clip of the reader's speech. Rejects with the server's reason.
+export const transcribe = async (clip: Blob): Promise<string> => {
+  const response = await fetch("/api/transcribe", { method: "POST", headers: { "content-type": clip.type }, body: clip });
+  const body: unknown = await response.json().catch(() => null);
+  if (response.ok && isPlainObject(body) && isString(body.text)) return body.text;
+  throw failure(response, body);
+};
+
+// The Narrator speaking the request as WAV audio. Rejects with the server's reason.
 export const speak = async (request: SpeakRequest, signal: AbortSignal): Promise<ArrayBuffer> => {
   const response = await fetch("/api/speak", {
     method: "POST",
@@ -119,14 +125,13 @@ export const speak = async (request: SpeakRequest, signal: AbortSignal): Promise
   });
 
   if (response.ok) return response.arrayBuffer();
-  const body = (await response.json().catch(() => null)) as { error?: string } | null;
-  throw new Error(body?.error ?? `The server answered ${response.status}.`);
+  throw failure(response, await response.json().catch(() => null));
 };
 
-/** The Narrator's voices. Rejects with the server's reason, such as Kokoro not running. */
+// The Narrator's voices. Rejects with the server's reason.
 export const fetchVoices = async (): Promise<Voices> => {
   const response = await fetch("/api/voices");
   const body: unknown = await response.json().catch(() => null);
   if (response.ok) return VoicesSchema.parse(body);
-  throw new Error((body as { error?: string } | null)?.error ?? `The server answered ${response.status}.`);
+  throw failure(response, body);
 };

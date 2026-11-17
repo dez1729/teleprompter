@@ -44,7 +44,7 @@ export interface PlaybackState {
   cursor: number;
   /** Where a step animation is easing the cursor to. */
   animTarget: number | null;
-  /** Counts moves by hand, so what follows the reader's place, such as Read aloud's voice, can go there too. */
+  // Counts moves by hand, so what follows the reader's place, such as Read aloud's voice, can go there too.
   handMoves: number;
   wordCount: number;
   paragraphStarts: readonly number[];
@@ -270,7 +270,7 @@ const wordsPerMs = (state: PlaybackState, wpm: number, minLineMs: number): numbe
   return reading / line.stretch;
 };
 
-/** The first word of the line `position` is on, or `position` itself before the layout is known. */
+// The first word of the line `position` is on, or `position` itself before the layout is known.
 export const lineStartAt = (lines: readonly PacedLine[], position: number): number => {
   return lines.findLast((line) => line.start <= position + START_EPSILON)?.start ?? position;
 };

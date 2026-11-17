@@ -7,7 +7,7 @@ import { listenTo, openMicrophone } from "./follow/microphone";
 import { useFollow } from "./follow/useFollow";
 import { useReadAloud } from "./readAloud/useReadAloud";
 import { VoiceOutput } from "./readAloud/voiceOutput";
-import { initialPlayback, isScrolling, lineStartAt, needsTick, playbackReducer } from "./playback";
+import { initialPlayback, isScrolling, needsTick, playbackReducer } from "./playback";
 import { restoreVersion, ScriptStream, sendScript, type ScriptMessage } from "@/lib/scriptApi";
 import { EMPTY_TOKENS, tokenize } from "./script";
 import { nudgeSetting, SETTING_DEFS, formatSettingValue, type DisplaySettings, type SettingKey } from "./settings";
@@ -87,7 +87,8 @@ export const usePrompter = (ui: UiBridge) => {
   const narration = useReadAloud(
     {
       speaking: readingAloud,
-      place: lineStartAt(playback.lines, playback.animTarget ?? playback.cursor),
+      position: playback.animTarget ?? playback.cursor,
+      lines: playback.lines,
       handMoves: playback.handMoves,
       tokens,
       wpm: settings.voiceWpm,

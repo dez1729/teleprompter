@@ -1,3 +1,4 @@
+import { isNil } from "es-toolkit";
 import { useQuery } from "@tanstack/react-query";
 import { fetchVoices } from "@/lib/scriptApi";
 import { voiceGroups, voiceLabel } from "./voiceNames";
@@ -15,7 +16,7 @@ export const VoiceSelect = ({ id, describedBy, value, onChange }: Props) => {
   const listed = voices.data?.voices ?? [];
   // A saved voice that Kokoro no longer has, or that could not be listed, stays chosen until another is picked.
   const groups = voiceGroups(value === "" || listed.includes(value) ? listed : [value, ...listed]);
-  const defaultLabel = voices.data ? `Server default: ${voiceLabel(voices.data.default)}` : "Server default";
+  const defaultLabel = isNil(voices.data) ? "Server default" : `Server default: ${voiceLabel(voices.data.default)}`;
 
   return (
     <>

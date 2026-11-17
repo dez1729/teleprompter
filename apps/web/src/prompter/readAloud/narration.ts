@@ -1,3 +1,4 @@
+import type { SpeakRequest } from "@teleprompter/protocol";
 import { isNil } from "es-toolkit";
 import { speak } from "@/lib/scriptApi";
 import type { PlaybackEvent } from "../playback";
@@ -73,7 +74,7 @@ export class Narration {
       const voice = this.#host.voice();
       const pace = this.#paces.get(voice) ?? INITIAL_PACE;
       const speed = speedFor(pace, this.#host.wpm());
-      const request = { text: passage.text, speed, voice: voice === "" ? undefined : voice };
+      const request = { text: passage.text, speed, voice: voice === "" ? undefined : voice } satisfies SpeakRequest as SpeakRequest;
       const audio = await context.decodeAudioData(await speak(request, this.#abort.signal));
       if (this.#stopped) return;
 

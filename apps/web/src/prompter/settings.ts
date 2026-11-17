@@ -30,7 +30,7 @@ export interface BoolField {
   default: boolean;
 }
 
-/** One of the Narrator's voices, listed by the server. An empty name is the server's default voice. */
+// One of the Narrator's voices, listed by the server. An empty name is the server's default voice.
 export interface VoiceField {
   kind: "voice";
   label: string;
