@@ -108,7 +108,7 @@ If your vault is on Windows and the server runs in WSL, give the Windows path in
 
 ### API
 
-The server has no login. It rejects requests whose `Host` is not `localhost` or `127.0.0.1`, and writes from a browser page on another origin. Requests with no `Origin` header, such as from `tp`, are allowed, and so are requests from Obsidian (`app://obsidian.md`). Bodies over 2 MB are refused.
+The server has no login. It rejects requests whose `Host` is not `localhost`, `127.0.0.1` or `[::1]`, and writes from a browser page on another origin. Requests with no `Origin` header, such as from `tp`, are allowed, and so are requests from Obsidian (`app://obsidian.md`). Bodies over 2 MB are refused.
 
 | Request                         | Result                                                                                                                                                             |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

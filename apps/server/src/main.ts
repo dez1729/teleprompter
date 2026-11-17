@@ -4,6 +4,7 @@ try {
   await serveFromEnv();
 }
 catch (error) {
-  console.error(error instanceof PortInUseError ? error.message : String(error));
+  if (!(error instanceof PortInUseError)) throw error;
+  console.error(error.message);
   process.exitCode = 1;
 }

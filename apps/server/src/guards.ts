@@ -5,7 +5,7 @@ import type { MiddlewareHandler } from "hono";
 export const DEV_PORT = 4748;
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const LOOPBACK_NAMES = ["localhost", "127.0.0.1"];
+const LOOPBACK_NAMES = ["localhost", "127.0.0.1", "[::1]"];
 /** Obsidian desktop. A web page cannot send an app:// origin, so this opens nothing to browsers. */
 const OBSIDIAN_ORIGIN = "app://obsidian.md";
 
