@@ -1,6 +1,15 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { isString } from "es-toolkit";
+import { startServer } from "@teleprompter/server";
 import { run, type Io } from "./cli.ts";
+
+const TP = fileURLToPath(new URL("../bin/tp.js", import.meta.url));
 
 const script = { text: "hi", format: "text", source: null, revision: 4 };
 
@@ -96,6 +105,28 @@ describe("tp", () => {
     const serve = vi.fn(async () => {});
     expect(await run(["serve"], setup({ serve }).io)).toBe(0);
     expect(serve).toHaveBeenCalled();
+  });
+
+  it("exits 1 and says so when serve finds the port in use", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "tp-cli-"));
+    const server = await startServer({ port: 0, dataDir, webDir: dataDir });
+
+    try {
+      const child = spawn(process.execPath, [TP, "serve"], {
+        env: { ...process.env, HOST: "127.0.0.1", PORT: String(server.port), TELEPROMPTER_DATA_DIR: dataDir },
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+      let stderr = "";
+      child.stderr.on("data", (chunk) => (stderr += String(chunk)));
+      // "close" fires after stderr has drained, so the message is complete.
+      const [exitCode] = await once(child, "close");
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain("That port is already in use.");
+    }
+    finally {
+      await server.close();
+      rmSync(dataDir, { recursive: true, force: true });
+    }
   });
 
   it("rejects an unknown command", async () => {

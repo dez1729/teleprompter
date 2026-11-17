@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/test-results
+**/playwright-report
+.git
+.github
+.claude
+.vscode
+.env*
+**/*.test.ts

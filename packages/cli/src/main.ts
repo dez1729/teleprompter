@@ -1,4 +1,4 @@
-import { optionsFromEnv, startServer } from "@teleprompter/server";
+import { PortInUseError, serveFromEnv } from "@teleprompter/server";
 import { run } from "./cli.ts";
 import { CliError } from "./send.ts";
 
@@ -14,14 +14,10 @@ const code = await run(process.argv.slice(2), {
   err: (line) => console.error(line),
   serve: async () => {
     try {
-      const server = await startServer(optionsFromEnv());
-      console.log(`Teleprompter listening on ${server.url}`);
+      await serveFromEnv();
     }
     catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
-        throw new CliError("That port is already in use. Set PORT to use another.");
-      }
-
+      if (error instanceof PortInUseError) throw new CliError(error.message);
       throw error;
     }
   },
