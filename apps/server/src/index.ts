@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import { isNil } from "es-toolkit";
 import { existsSync } from "node:fs";
 import { constants, homedir } from "node:os";
 import { BlockList, isIP } from "node:net";
@@ -54,13 +55,30 @@ const urlHost = (host: string): string => {
 
 const BUILT_WEB_DIR = fileURLToPath(new URL("../../web/dist", import.meta.url));
 
+// An environment variable the server cannot use. Its message says which one and why.
+export class SettingError extends Error {}
+
+// A slow Kokoro, on a CPU or still loading its model, needs longer than the default. A value that is not a positive
+// number of milliseconds stops the server, rather than every passage failing later.
+const kokoroTimeoutMs = (raw: string | undefined): number | undefined => {
+  if (isNil(raw) || raw === "") return undefined;
+  const ms = Number(raw);
+  if (!Number.isFinite(ms) || ms <= 0)
+    throw new SettingError(`TELEPROMPTER_KOKORO_TIMEOUT_MS must be a number of milliseconds above 0, not "${raw}".`);
+  return ms;
+};
+
 export const optionsFromEnv = (env: NodeJS.ProcessEnv = process.env): ServerOptions => {
   return {
     host: env.HOST || "127.0.0.1",
     port: env.PORT ? Number(env.PORT) : DEFAULT_PORT,
     dataDir: defaultDataDir(env),
     transcriber: whisperTranscriber({ url: env.TELEPROMPTER_WHISPER_URL || undefined, model: env.TELEPROMPTER_WHISPER_MODEL || undefined }),
-    narrator: kokoroNarrator({ url: env.TELEPROMPTER_KOKORO_URL || undefined, voice: env.TELEPROMPTER_KOKORO_VOICE || undefined }),
+    narrator: kokoroNarrator({
+      url: env.TELEPROMPTER_KOKORO_URL || undefined,
+      voice: env.TELEPROMPTER_KOKORO_VOICE || undefined,
+      timeoutMs: kokoroTimeoutMs(env.TELEPROMPTER_KOKORO_TIMEOUT_MS),
+    }),
   };
 };
 

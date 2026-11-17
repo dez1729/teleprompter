@@ -1,13 +1,13 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
-import { createServer } from "node:net";
+import { createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isString } from "es-toolkit";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { PortInUseError, serveFromEnv, startServer, type RunningServer } from "./index.ts";
+import { optionsFromEnv, PortInUseError, serveFromEnv, SettingError, startServer, type RunningServer } from "./index.ts";
 
 const MAIN = fileURLToPath(new URL("./main.ts", import.meta.url));
 
@@ -93,6 +93,30 @@ describe("serveFromEnv", () => {
     const { port } = await start("127.0.0.1");
     const env = { HOST: "127.0.0.1", PORT: String(port), TELEPROMPTER_DATA_DIR: dir };
     await expect(serveFromEnv(env)).rejects.toThrow(PortInUseError);
+  });
+});
+
+describe("TELEPROMPTER_KOKORO_TIMEOUT_MS", () => {
+  it("sets how long the server waits for Kokoro", async () => {
+    // A Kokoro that takes the request and never answers.
+    const held: Socket[] = [];
+    const silent = createServer((socket) => held.push(socket));
+    await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
+    const { port } = silent.address() as { port: number };
+
+    try {
+      const { narrator } = optionsFromEnv({ TELEPROMPTER_KOKORO_URL: `http://127.0.0.1:${port}`, TELEPROMPTER_KOKORO_TIMEOUT_MS: "200" });
+      await expect(narrator!.speak({ text: "Hi.", speed: 1 })).rejects.toThrow(/did not answer within 0\.2 s/);
+    }
+    finally {
+      held.forEach((socket) => socket.destroy());
+      silent.close();
+    }
+  });
+
+  it.each(["soon", "0", "-5"])("refuses %s, saying what it needs", (value) => {
+    expect(() => optionsFromEnv({ TELEPROMPTER_KOKORO_TIMEOUT_MS: value })).toThrow(SettingError);
+    expect(() => optionsFromEnv({ TELEPROMPTER_KOKORO_TIMEOUT_MS: value })).toThrow(/a number of milliseconds above 0/);
   });
 });
 

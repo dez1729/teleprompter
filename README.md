@@ -183,6 +183,7 @@ Read aloud sends the text to a Kokoro text-to-speech server on your computer, th
 
 - `TELEPROMPTER_KOKORO_URL`, the server's address.
 - `TELEPROMPTER_KOKORO_VOICE`, the voice used when **Voice** is left on **Server default**. The default is `af_heart`.
+- `TELEPROMPTER_KOKORO_TIMEOUT_MS`, how long to wait for Kokoro, in milliseconds. By default it waits 20000 for a passage and 5000 for the list of voices. Set it higher if Kokoro runs on a CPU and Read aloud stops with "did not answer within 20 s".
 
 The voice measures its own pace as it reads and corrects it. In testing at 150, a 57-word Script came out at 152 words per minute overall, though single sentences ranged from about 125 to 190. If the Kokoro server cannot be reached, the Prompter pauses and the top right corner says why.
 
