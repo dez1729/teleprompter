@@ -8,3 +8,4 @@
 .claude
 .vscode
 .env*
+**/*.test.ts

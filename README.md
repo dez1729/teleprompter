@@ -34,7 +34,7 @@ The port is published on `127.0.0.1` only. The server accepts requests for `loca
 
 `tp` and the plugins on your machine reach the container at http://127.0.0.1:4747, as they would reach `tp serve`.
 
-Follow reaches a Whisper server on your machine at http://host.docker.internal:2022. To use another one, set `TELEPROMPTER_WHISPER_URL` under `environment`. A Whisper server that listens on `127.0.0.1` only cannot be reached from the container on Linux. Make it listen on `0.0.0.0` instead.
+Follow reaches a Whisper server on your machine at http://host.docker.internal:2022. To use another one, set `TELEPROMPTER_WHISPER_URL` under `environment`. A Whisper server that listens on `127.0.0.1` only cannot be reached from the container on Linux. Make it listen on the Docker bridge address as well, `172.17.0.1` by default (`ip -4 addr show docker0` shows it). Avoid `0.0.0.0`: it opens the Whisper server, which has no login, to your whole network.
 
 Without Compose:
 

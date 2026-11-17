@@ -38,5 +38,12 @@ jobs:
       - name: Serve the app and the API from the image
         run: |
           docker run -d --name teleprompter -p 127.0.0.1:4747:4747 teleprompter
-          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:4747/api/script && break; sleep 1; done
+          for try in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4747/api/script && break
+            if [ "$try" = 30 ]; then echo "The server did not answer in 30 seconds." && exit 1; fi
+            sleep 1
+          done
           curl -sf http://127.0.0.1:4747/ | grep -q '<div id="root">'
+      - name: Show the container's output
+        if: failure()
+        run: docker logs teleprompter
