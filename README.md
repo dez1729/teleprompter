@@ -4,6 +4,47 @@ A local teleprompter that runs in your browser. Write or paste a Script in the E
 
 A local server holds the Script and its recent history, so other tools can send text to the Prompter. The `tp` command, a Claude Code plugin, and an Obsidian plugin do that today. Follow scrolls the Prompter as you read aloud, using a Whisper server on your machine. Read aloud has the computer speak the Script, using a Kokoro server on your machine, so you can test the pacing.
 
+## Features
+
+### The Prompter
+
+- A Reading window that keeps the lines you are reading bright and dims the rest. Its size, position, and how dark the dimming is are all adjustable.
+- Auto scrolling at a Speed in words per minute, so changing the text size or line spacing does not change how fast you read.
+- Pacing that keeps short lines up for a minimum time and moves quickly through the space between paragraphs.
+- Read words, which colors the words you have already read, karaoke style.
+- Move by hand with the arrow keys, the mouse wheel, or by dragging the text, and keep playing from there.
+- A countdown before you start, mirroring for beam-splitter glass, and settings for the font, colors, margins, and column width. See [Display settings](#display-settings).
+- Keyboard shortcuts for everything, a `?` overlay that lists them, and a short on-screen readout when a key changes a setting. See [Use the Prompter](#use-the-prompter).
+- A [Timer](#timer) that counts your reading time, with an optional target length and an estimate of the time left.
+
+### Follow and Read aloud
+
+- [Follow](#follow-your-voice) scrolls as you read aloud, using a Whisper server on your machine. It keeps up with your pace, waits when you pause, and finds you again when you skip ahead or go back.
+- [Speaking rate](#speaking-rate) shows how fast you are speaking, in words per minute, while Follow listens.
+- [Read aloud](#read-aloud) has the computer speak the Script through a Kokoro server on your machine, with its own Voice speed and a choice of Voice. In Follow, the Prompter follows that voice, so you can see how Follow keeps up.
+- Nothing leaves your machine. The audio and the text go only to servers you run.
+
+### Markdown
+
+- [Spoken-only](#spoken-only) hides what you do not read aloud from a markdown Script: headings become Section markers, and italics, code, tables, comments, frontmatter, and callouts are hidden.
+- Obsidian syntax is understood: wikilinks show their alias, and `%%` comments, embeds, and callouts are hidden.
+
+### The Editor
+
+- An [Editor](#use-the-editor) window with markdown highlighting and a preview. It saves as you type, and every open Prompter updates.
+- Every Prompter stays on the word you were reading through an Edit.
+- [Script history](#use-the-editor) keeps the last 20 Versions, and any of them can be restored.
+- [Undo a Replace](#undo-a-replace) from the Prompter for 10 seconds after it arrives.
+
+### Push text from other tools
+
+- A local server holds the Script, so every Prompter and Editor shows the same one.
+- The [`tp` command](#send-text) Pushes text as a Replace or an Append, from an argument or stdin.
+- A [Claude Code plugin](#use-it-from-claude-code): `/teleprompter replace` and `/teleprompter append`, or ask Claude to "put that in the prompter".
+- An [Obsidian plugin](#use-it-from-obsidian) that Pushes the selection or the whole note, from the command palette or the right-click menu.
+- An [HTTP API](#api) with a live event stream, for anything else.
+- Runs on your machine only, with `pnpm start` or [in Docker](#run-it-in-docker).
+
 ## Run it
 
 You need Node 22.18 or later and pnpm.
@@ -286,18 +327,6 @@ pnpm test:e2e
 `pnpm bench:follow` measures how closely Follow keeps up with a voice. It needs a Whisper server and a Kokoro text-to-speech server running locally, at `http://127.0.0.1:2022` and `http://127.0.0.1:8880` unless `TELEPROMPTER_WHISPER_URL` or `KOKORO_URL` say otherwise. Kokoro speaks a 77-word paragraph, and the recording plays as Chromium's microphone, starting at word 62, 30 and 0 by default. For each run it prints how many seconds Follow takes to come within three words of the voice, how far it trails the voice while reading, and how far it ever gets ahead of the voice or past a sentence end. Choose the starting words and the number of runs with `pnpm bench:follow --from 62 --runs 3`, and add `--trace` to print every cursor sample.
 
 `pnpm bench:rate` checks the Speaking rate the same way. Kokoro speaks a 112-word passage at speeds 0.8, 1 and 1.3, and each second the bench prints the rate the Prompter shows beside the voice's true rate, fitted the same way through where each word started over the last ten seconds, then the mean and median error. Choose the speeds with `pnpm bench:rate --speed 1 --speed 1.5`.
-
-## Roadmap
-
-1. Prompter: done.
-2. Local server, Push API, the `tp` command, and a Claude Code plugin: done.
-3. Editor window with undo, Script history, and live sync to the Prompter: done.
-4. Spoken-only mode for markdown: done.
-5. Obsidian plugin to send selected text to the Prompter: done.
-6. Follow mode: scrolls as you speak, using a local Whisper server: done.
-7. ~~Azure Speech as an optional speech-to-text service.~~ (performed worse than using Whisper)
-8. Docker image: done.
-9. Read aloud: the computer speaks the Script with text-to-speech, to test pacing: done.
 
 ## License
 
