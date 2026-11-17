@@ -7,9 +7,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium } from "@playwright/test";
-import type { PushRequest } from "@teleprompter/protocol";
+import { fittedWpm, type PushRequest } from "@teleprompter/protocol";
 import { optionsFromEnv, startServer } from "@teleprompter/server";
-import { speakingWpm } from "../../web/src/prompter/follow/speakingRate.ts";
 import { parseWav, speak, timeWords, toWav } from "./audio.ts";
 
 const PASSAGE =
@@ -33,7 +32,7 @@ const withTail = (wav: ArrayBuffer): Buffer => {
 // rather than where Follow matched it, so the difference is only Follow's tracking.
 const trueWpm = (starts: readonly number[], sec: number): number | null => {
   const heard = starts.flatMap((start, position) => (start <= sec && start > sec - WINDOW_SEC ? [{ position, at: start * 1000 }] : []));
-  return speakingWpm({ heard, quietSince: null });
+  return fittedWpm(heard);
 };
 
 const run = async (speed: number, dir: string) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendText, guessFormat, normalizeWord, PushRequestSchema } from "./index.ts";
+import { appendText, fittedWpm, guessFormat, normalizeWord, PushRequestSchema } from "./index.ts";
 
 describe("appendText", () => {
   it("joins with a blank line and drops trailing whitespace", () => {
@@ -40,5 +40,25 @@ describe("normalizeWord", () => {
     expect(normalizeWord("Delivery,")).toBe("delivery");
     expect(normalizeWord("Café")).toBe("cafe");
     expect(normalizeWord("—")).toBe("");
+  });
+});
+
+describe("fittedWpm", () => {
+  const steady = (count: number) => Array.from({ length: count }, (_, i) => ({ position: i * 2.5, at: i * 1000 }));
+
+  it("is the words per minute along the points", () => {
+    expect(fittedWpm(steady(5))).toBe(150);
+  });
+
+  it("waits for three points over two seconds", () => {
+    expect(fittedWpm(steady(2))).toBeNull();
+    expect(fittedWpm(steady(3))).toBe(150);
+    expect(fittedWpm(steady(3).map((point) => ({ ...point, at: point.at / 2 })))).toBeNull();
+  });
+
+  it("evens out one point a couple of words off", () => {
+    const points = steady(8).map((point, i) => (i === 4 ? { ...point, position: point.position + 2 } : point));
+    expect(fittedWpm(points)).toBeGreaterThan(140);
+    expect(fittedWpm(points)).toBeLessThan(160);
   });
 });

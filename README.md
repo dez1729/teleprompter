@@ -174,7 +174,7 @@ While Follow listens, the top right corner shows how fast the voice it hears is 
 
 The number comes from where in the Script Follow matched your voice over the last ten seconds, fitted as a straight line so that no one match decides it. Going back to reread, or skipping ahead, starts the count again. Words you say that are not in the Script do not count.
 
-This is an experiment. In three runs with recorded voices at about 145, 185 and 225 wpm, the number was within about 5 to 10 wpm of the voice's true rate over the same ten seconds half the time, and read about 2 to 3 wpm low on average. It was never more than 27 wpm off. To try it yourself, turn on Read aloud in Follow. Follow then hears the voice, which reads at about the Voice speed.
+This is an experiment. In three runs with recorded voices at about 145, 185 and 225 wpm, the number was within about 5 to 10 wpm of the voice's true rate over the same ten seconds half the time, and read about 2 to 3 wpm low on average. It was never more than about 30 wpm off. To try it yourself, turn on Read aloud in Follow. Follow then hears the voice, which reads at about the Voice speed.
 
 ### Read aloud
 

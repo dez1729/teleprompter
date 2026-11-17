@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { NO_STRETCH, speakingWpm, withMatch, withVoice, type Heard, type Stretch } from "./speakingRate";
+import type { Heard } from "@teleprompter/protocol";
+import { NO_STRETCH, speakingWpm, withMatch, withVoice, type Stretch } from "./speakingRate";
 
 // A reader at `wpm`, matched every `everyMs` from word `from` on.
 const reading = (wpm: number, everyMs: number, count: number, from = 0, startAt = 0): Heard[] =>

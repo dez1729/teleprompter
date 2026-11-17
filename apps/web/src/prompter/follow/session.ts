@@ -1,9 +1,10 @@
+import type { Heard } from "@teleprompter/protocol";
 import { isNil } from "es-toolkit";
 import { transcribe } from "@/lib/scriptApi";
 import type { PlaybackEvent } from "../playback";
 import { align, heardWords } from "./align";
 import { QUIET_MS, type Microphone } from "./microphone";
-import { MAX_PACE, NO_STRETCH, speakingWpm, withMatch, withVoice, type Heard, type Stretch } from "./speakingRate";
+import { MAX_PACE, NO_STRETCH, speakingWpm, withMatch, withVoice, type Stretch } from "./speakingRate";
 
 /** The least time between clips, so Whisper is not asked about the same half second over and over. */
 const INTERVAL_MS = 600;
