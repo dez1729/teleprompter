@@ -9,6 +9,7 @@ import { parseArgs } from "node:util";
 import { chromium } from "@playwright/test";
 import type { PushRequest } from "@teleprompter/protocol";
 import { optionsFromEnv, startServer } from "@teleprompter/server";
+import { speakingWpm } from "../../web/src/prompter/follow/speakingRate.ts";
 import { parseWav, speak, timeWords, toWav } from "./audio.ts";
 
 const PASSAGE =
@@ -28,11 +29,11 @@ const withTail = (wav: ArrayBuffer): Buffer => {
   return toWav(pcm, Buffer.concat([pcm.data, Buffer.alloc(TAIL_SEC * pcm.rate * pcm.blockAlign)]));
 };
 
-// The true rate at `sec`: words started in the last WINDOW_SEC, over the time since the first of them.
+// The true rate at `sec`: the same fit the Prompter makes, through where each word started in the last WINDOW_SEC
+// rather than where Follow matched it, so the difference is only Follow's tracking.
 const trueWpm = (starts: readonly number[], sec: number): number | null => {
-  const recent = starts.filter((s) => s <= sec && s > sec - WINDOW_SEC);
-  if (recent.length < 2) return null;
-  return ((recent.length - 1) / (recent.at(-1)! - recent.at(0)!)) * 60;
+  const heard = starts.flatMap((start, position) => (start <= sec && start > sec - WINDOW_SEC ? [{ position, at: start * 1000 }] : []));
+  return speakingWpm({ heard, quietSince: null });
 };
 
 const run = async (speed: number, dir: string) => {

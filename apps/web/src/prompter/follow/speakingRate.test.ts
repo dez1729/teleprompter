@@ -84,6 +84,11 @@ describe("withVoice", () => {
     expect(speakingWpm(after)).toBe(200);
   });
 
+  it("leaves an ended stretch as it is through the rest of the quiet", () => {
+    const ended = voice(steady, false, 4000, 6000);
+    expect(withVoice(ended, false, 6100)).toBe(ended);
+  });
+
   it("starts timing the quiet again after the voice speaks", () => {
     const breaths = voice(voice(voice(steady, false, 4000, 5000), true, 5100, 5100), false, 5200, 6200);
     expect(speakingWpm(breaths)).toBe(150);

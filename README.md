@@ -174,7 +174,7 @@ While Follow listens, the top right corner shows how fast the voice it hears is 
 
 The number comes from where in the Script Follow matched your voice over the last ten seconds, fitted as a straight line so that no one match decides it. Going back to reread, or skipping ahead, starts the count again. Words you say that are not in the Script do not count.
 
-This is an experiment. In three runs with recorded voices at about 145, 185 and 225 wpm, the number was within about 7 to 10 wpm of the voice's true rate over the same ten seconds half the time, and read about 5 to 7 wpm low on average. It was never more than 33 wpm off. To try it yourself, turn on Read aloud in Follow. Follow then hears the voice, which reads at about the Voice speed.
+This is an experiment. In three runs with recorded voices at about 145, 185 and 225 wpm, the number was within about 5 to 10 wpm of the voice's true rate over the same ten seconds half the time, and read about 2 to 3 wpm low on average. It was never more than 27 wpm off. To try it yourself, turn on Read aloud in Follow. Follow then hears the voice, which reads at about the Voice speed.
 
 ### Read aloud
 
@@ -285,7 +285,7 @@ pnpm test:e2e
 
 `pnpm bench:follow` measures how closely Follow keeps up with a voice. It needs a Whisper server and a Kokoro text-to-speech server running locally, at `http://127.0.0.1:2022` and `http://127.0.0.1:8880` unless `TELEPROMPTER_WHISPER_URL` or `KOKORO_URL` say otherwise. Kokoro speaks a 77-word paragraph, and the recording plays as Chromium's microphone, starting at word 62, 30 and 0 by default. For each run it prints how many seconds Follow takes to come within three words of the voice, how far it trails the voice while reading, and how far it ever gets ahead of the voice or past a sentence end. Choose the starting words and the number of runs with `pnpm bench:follow --from 62 --runs 3`, and add `--trace` to print every cursor sample.
 
-`pnpm bench:rate` checks the Speaking rate the same way. Kokoro speaks a 112-word passage at speeds 0.8, 1 and 1.3, and each second the bench prints the rate the Prompter shows beside the voice's true rate over the last ten seconds, then the mean and median error. Choose the speeds with `pnpm bench:rate --speed 1 --speed 1.5`.
+`pnpm bench:rate` checks the Speaking rate the same way. Kokoro speaks a 112-word passage at speeds 0.8, 1 and 1.3, and each second the bench prints the rate the Prompter shows beside the voice's true rate, fitted the same way through where each word started over the last ten seconds, then the mean and median error. Choose the speeds with `pnpm bench:rate --speed 1 --speed 1.5`.
 
 ## Roadmap
 

@@ -40,8 +40,9 @@ export const withMatch = (stretch: Stretch, match: Heard): Stretch => {
 // The stretch after checking, at `now`, whether the voice is speaking. A long enough quiet ends it.
 export const withVoice = (stretch: Stretch, speaking: boolean, now: number): Stretch => {
   if (speaking) return stretch.quietSince === null ? stretch : { ...stretch, quietSince: null };
-  const quietSince = stretch.quietSince ?? now;
-  return now - quietSince >= STRETCH_GAP_MS ? { heard: [], quietSince } : { ...stretch, quietSince };
+  if (stretch.quietSince === null) return { ...stretch, quietSince: now };
+  const ended = stretch.heard.length > 0 && now - stretch.quietSince >= STRETCH_GAP_MS;
+  return ended ? { ...stretch, heard: [] } : stretch;
 };
 
 // Words per minute across the stretch, rounded: the least-squares slope through its matches, so no one match decides

@@ -57,6 +57,8 @@ export class FollowSession {
   #pace: number;
   // The stretch of speech the Speaking rate is measured over.
   #stretch: Stretch = NO_STRETCH;
+  // The rate last sent, so it is sent again only when it changes.
+  #wpm: number | null = null;
   #stopped = false;
   #opening: Promise<Microphone> | null = null;
   #quietCheck: ReturnType<typeof setInterval> | undefined;
@@ -127,10 +129,14 @@ export class FollowSession {
   }
 
   #updateStretch(stretch: Stretch): void {
-    const before = speakingWpm(this.#stretch);
+    // Most quiet checks leave the matches as they were, and the rate with them.
+    const refit = stretch.heard !== this.#stretch.heard;
     this.#stretch = stretch;
-    const after = speakingWpm(stretch);
-    if (after !== before) this.#host.onWpm(after);
+    if (!refit) return;
+    const wpm = speakingWpm(stretch);
+    if (wpm === this.#wpm) return;
+    this.#wpm = wpm;
+    this.#host.onWpm(wpm);
   }
 
   // `started` is when the clip ended: the reader has kept reading since.
