@@ -3,6 +3,7 @@ import { transcribe } from "@/lib/scriptApi";
 import type { PlaybackEvent } from "../playback";
 import { align, heardWords } from "./align";
 import { QUIET_MS, type Microphone } from "./microphone";
+import { speakingWpm, withMatch, type Heard } from "./speakingRate";
 
 /** The least time between clips, so Whisper is not asked about the same half second over and over. */
 const INTERVAL_MS = 600;
@@ -11,6 +12,8 @@ const QUIET_CHECK_MS = 100;
 const MAX_PACE = 8 / 1000;
 /** The reader's pace is measured over the matches in this much time. One gap between clips is too noisy. */
 const PACE_WINDOW_MS = 3000;
+/** Quiet this long, after the reader stops, ends a stretch of speech: the speaking rate shows nothing until they go on. */
+const RATE_RESET_MS = 1500;
 
 export type FollowStatus = { kind: "off" } | { kind: "starting" } | { kind: "listening" } | { kind: "error"; message: string };
 
@@ -32,6 +35,8 @@ export interface FollowHost {
   place: () => FollowPlace;
   dispatch: (event: PlaybackEvent) => void;
   onStatus: (status: FollowStatus) => void;
+  // The voice's words per minute, or null while it is quiet or not yet measured.
+  onWpm: (wpm: number | null) => void;
 }
 
 /** Words per ms across the recent matches, or `fallback` when they span too little time, such as after a pause. */
@@ -59,6 +64,9 @@ export class FollowSession {
   #recent: Match[] = [];
   // Words per ms, starting from the expected pace until the reader's own is measured.
   #pace: number;
+  // The matches the speaking rate is measured over, since the voice last went quiet.
+  #speech: Heard[] = [];
+  #quietSince: number | null = null;
   #stopped = false;
   #opening: Promise<Microphone> | null = null;
   #quietCheck: ReturnType<typeof setInterval> | undefined;
@@ -104,7 +112,9 @@ export class FollowSession {
     // Checked often, apart from the slower transcription loop, so the cursor stops soon after the reader does.
     this.#quietCheck = setInterval(() => {
       this.#host.dispatch({ type: "VOICE", speaking: mic.voiced() });
-      if (!mic.speaking()) this.#host.dispatch({ type: "QUIET", forMs: QUIET_MS });
+      const speaking = mic.speaking();
+      if (!speaking) this.#host.dispatch({ type: "QUIET", forMs: QUIET_MS });
+      this.#checkSpeechEnded(speaking);
     }, QUIET_CHECK_MS);
 
     while (!this.#stopped) {
@@ -124,6 +134,14 @@ export class FollowSession {
     }
   }
 
+  #checkSpeechEnded(speaking: boolean): void {
+    const now = performance.now();
+    this.#quietSince = speaking ? null : (this.#quietSince ?? now);
+    if (isNil(this.#quietSince) || now - this.#quietSince < RATE_RESET_MS || this.#speech.length === 0) return;
+    this.#speech = [];
+    this.#host.onWpm(null);
+  }
+
   // `started` is when the clip ended: the reader has kept reading since.
   #heard(text: string, started: number): void {
     const { script, target } = this.#host.place();
@@ -135,6 +153,8 @@ export class FollowSession {
     this.#recent = wentBack ? [] : this.#recent.filter((match) => match.at > started - PACE_WINDOW_MS);
     this.#recent.push({ position: matched, at: started });
     this.#pace = paceOver(this.#recent, this.#pace);
+    this.#speech = withMatch(this.#speech, { position: matched, at: started });
+    this.#host.onWpm(speakingWpm(this.#speech));
     // The clip ended when it was sent; the reader has kept reading since.
     const position = matched + this.#pace * (performance.now() - started);
     this.#host.dispatch({ type: "HEARD", matched, position, pace: this.#pace });

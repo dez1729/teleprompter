@@ -12,6 +12,7 @@ import { readCount, useReadWords } from "./readWords";
 import { ScriptText } from "./ScriptText";
 import { SettingsSheet } from "./SettingsSheet";
 import { TimerPanel } from "./TimerPanel";
+import { SpeakingRateReadout } from "./SpeakingRateReadout";
 import { TimerReadout } from "./TimerReadout";
 import { UndoToast } from "./UndoToast";
 import { FONT_STACKS, GAP_PACES } from "./settings";
@@ -45,6 +46,7 @@ export const Prompter = () => {
     settings,
     playback,
     follow,
+    speakingWpm,
     narration,
     readout,
     replaced,
@@ -311,6 +313,12 @@ export const Prompter = () => {
               mirror={settings.mirror}
             />
           )}
+          {follow.kind === "listening" && (
+            <SpeakingRateReadout
+              wpm={speakingWpm}
+              mirror={settings.mirror}
+            />
+          )}
           <NarrationStatusLine
             status={narration}
             wpm={settings.voiceWpm}
@@ -336,6 +344,7 @@ export const Prompter = () => {
             playing={playing || playback.mode.kind === "countdown"}
             scrollMode={settings.scrollMode}
             readAloud={settings.readAloud}
+            speakingWpm={speakingWpm}
             speedWpm={settings.speedWpm}
             fontSize={settings.fontSize}
             hasScript={!isNil(script)}
