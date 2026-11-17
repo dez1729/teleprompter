@@ -110,16 +110,17 @@ If your vault is on Windows and the server runs in WSL, give the Windows path in
 
 The server has no login. It rejects requests whose `Host` is not `localhost`, `127.0.0.1` or `[::1]`, and writes from a browser page on another origin. Requests with no `Origin` header, such as from `tp`, are allowed, and so are requests from Obsidian (`app://obsidian.md`). Bodies over 2 MB are refused.
 
-| Request                         | Result                                                                                                                                                             |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /api/script`               | The current Script: `{ text, format, source, revision }`.                                                                                                          |
-| `POST /api/script`              | Changes the Script and returns it. The body is `{ kind, text, format?, source? }`.                                                                                 |
-| `GET /api/events`               | A server-sent event stream. It sends the current Script as a `script` event, then one `change` event per change: `{ kind, script, previousVersionId }`.            |
-| `POST /api/transcribe`          | Sends a WAV clip to the Whisper server and returns `{ text }`. Follow uses it. It answers 502 with `{ error }` when the Whisper server cannot be reached or fails. |
-| `POST /api/speak`               | Sends `{ text, speed }` to the Kokoro server and returns the speech as WAV. Read aloud uses it. `speed` is from 0.25 to 4. It answers 502 like `/api/transcribe`.  |
-| `GET /api/history`              | The Script history, newest first. Each entry is `{ id, revision, savedAt, reason, source, wordCount, preview }`.                                                   |
-| `GET /api/history/:id`          | One Version with its full `text` and `format`.                                                                                                                     |
-| `POST /api/history/:id/restore` | Makes that Version the Script again, as a Replace, and returns the Script.                                                                                         |
+| Request                         | Result                                                                                                                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/script`               | The current Script: `{ text, format, source, revision }`.                                                                                                                 |
+| `POST /api/script`              | Changes the Script and returns it. The body is `{ kind, text, format?, source? }`.                                                                                        |
+| `GET /api/events`               | A server-sent event stream. It sends the current Script as a `script` event, then one `change` event per change: `{ kind, script, previousVersionId }`.                   |
+| `POST /api/transcribe`          | Sends a WAV clip to the Whisper server and returns `{ text }`. Follow uses it. It answers 502 with `{ error }` when the Whisper server cannot be reached or fails.        |
+| `POST /api/speak`               | Sends `{ text, speed, voice? }` to the Kokoro server and returns the speech as WAV. Read aloud uses it. `speed` is from 0.25 to 4. It answers 502 like `/api/transcribe`. |
+| `GET /api/voices`               | The Kokoro server's voices and the default one: `{ voices, default }`. It answers 502 like `/api/transcribe`.                                                             |
+| `GET /api/history`              | The Script history, newest first. Each entry is `{ id, revision, savedAt, reason, source, wordCount, preview }`.                                                          |
+| `GET /api/history/:id`          | One Version with its full `text` and `format`.                                                                                                                            |
+| `POST /api/history/:id/restore` | Makes that Version the Script again, as a Replace, and returns the Script.                                                                                                |
 
 `kind` is `replace`, `append` or `edit`. Replace and Append are Pushes, and their `text` must not be empty. Edit is a change made in the Editor: it carries the whole text, may be empty, and each Prompter keeps its place on the same words. `format` is `markdown` or `text`. When you omit it, a Push detects it and an Edit keeps the Script's format. `revision` goes up by one on every change.
 
@@ -171,17 +172,17 @@ Follow aims about a word behind your voice, so it does not get ahead of you. In 
 
 Read aloud has the computer speak the Script while the Prompter scrolls, so you can hear how it sounds at a pace before you read it yourself. Turn it on with `r` or the speaker button next to **Auto | Follow**, then press `Space` or the play button.
 
-The voice starts from the Current line each time you press play, and stops when you pause. It speaks what the Prompter shows, so Spoken-only applies. It has its own pace, **Voice speed** in the display settings, in words per minute. 150 is the default.
+The voice starts from the Current line each time you press play, and stops when you pause. It speaks what the Prompter shows, so Spoken-only applies. It has its own pace, **Voice speed** in the display settings, in words per minute. 150 is the default. **Voice** in the display settings chooses who reads, from the voices your Kokoro server has, grouped by language.
 
 - In Auto, the Prompter scrolls at Speed and the voice reads at Voice speed, so you can hear and see whether the two agree.
 - In Follow, the Prompter follows the voice instead of your microphone, as it would follow you. This shows how Follow keeps up with a reader at a known pace.
 
-Moving by hand does not move the voice. Pause and play again to start it from the new place.
+When you move by hand while it plays, with the arrow keys, the mouse wheel, or by dragging the text, the voice stops and starts again from the beginning of the new Current line once you stop moving.
 
 Read aloud sends the text to a Kokoro text-to-speech server on your computer, through the Teleprompter server. Nothing leaves your machine. [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) is the default, at http://127.0.0.1:8880, which is also where VoiceMode runs it. To use another server or voice, set these before you start the Teleprompter server:
 
 - `TELEPROMPTER_KOKORO_URL`, the server's address.
-- `TELEPROMPTER_KOKORO_VOICE`. The default is `af_heart`.
+- `TELEPROMPTER_KOKORO_VOICE`, the voice used when **Voice** is left on **Server default**. The default is `af_heart`.
 
 The voice measures its own pace as it reads and corrects it. In testing at 150, a 57-word Script came out at 152 words per minute overall, though single sentences ranged from about 125 to 190. If the Kokoro server cannot be reached, the Prompter pauses and the top right corner says why.
 
@@ -221,7 +222,7 @@ Open the settings panel (`,`) to change:
 - column or full width
 - mirroring, for use behind beam-splitter glass
 - the speed
-- Read aloud and the Voice speed
+- Read aloud, the Voice speed, and the Voice
 - the countdown: At start, before the first play and after you go back to the top; Every play; or Off
 
 **Advanced settings**, at the bottom of the panel, opens the rest in its place. **Back** returns.

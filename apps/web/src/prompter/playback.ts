@@ -44,6 +44,8 @@ export interface PlaybackState {
   cursor: number;
   /** Where a step animation is easing the cursor to. */
   animTarget: number | null;
+  /** Counts moves by hand, so what follows the reader's place, such as Read aloud's voice, can go there too. */
+  handMoves: number;
   wordCount: number;
   paragraphStarts: readonly number[];
   /** Where a reader usually pauses: after a sentence, and at the end of a paragraph. Follow does not coast past them. */
@@ -127,6 +129,7 @@ export const initialPlayback: PlaybackState = {
   countdownArmed: true,
   cursor: 0,
   animTarget: null,
+  handMoves: 0,
   wordCount: 0,
   paragraphStarts: [],
   pausePoints: [],
@@ -242,7 +245,7 @@ const stepTarget = (starts: readonly number[], from: number, delta: 1 | -1): num
 const step = (state: PlaybackState, starts: readonly number[], delta: 1 | -1, keepPlaying: boolean): PlaybackState => {
   const target = stepTarget(starts, state.animTarget ?? state.cursor, delta);
   if (isNil(target)) return state;
-  return { ...state, animTarget: target, mode: afterMove(state.mode, target, keepPlaying) };
+  return { ...state, animTarget: target, mode: afterMove(state.mode, target, keepPlaying), handMoves: state.handMoves + 1 };
 };
 
 /** Where scrolling stands after the reader moved to `position` by hand. */
@@ -265,6 +268,11 @@ const wordsPerMs = (state: PlaybackState, wpm: number, minLineMs: number): numbe
   const words = (lines.at(index + 1)?.start ?? state.wordCount) - line.start;
   const reading = words > 0 ? Math.min(base, words / minLineMs) : base;
   return reading / line.stretch;
+};
+
+/** The first word of the line `position` is on, or `position` itself before the layout is known. */
+export const lineStartAt = (lines: readonly PacedLine[], position: number): number => {
+  return lines.findLast((line) => line.start <= position + START_EPSILON)?.start ?? position;
 };
 
 /** The first place after `position` where a reader usually pauses, or the end of the Script. */
@@ -373,7 +381,7 @@ export const playbackReducer = (state: PlaybackState, event: PlaybackEvent): Pla
       return { ...state, cursor: 0, animTarget: null, mode: { kind: "paused" }, countdownArmed: true };
     case "SCRUB": {
       const cursor = clampCursor(state, event.cursor);
-      return { ...state, cursor, animTarget: null, mode: afterMove(state.mode, cursor, event.keepPlaying) };
+      return { ...state, cursor, animTarget: null, mode: afterMove(state.mode, cursor, event.keepPlaying), handMoves: state.handMoves + 1 };
     }
     case "SET_SCRIPT": {
       const pausePoints = [...new Set([...event.sentenceEnds, ...event.paragraphStarts])].sort((a, b) => a - b);

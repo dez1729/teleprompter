@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { FOLLOW_COAST_MS, initialPlayback, keepPlace, needsTick, playbackReducer, type PlaybackEvent, type PlaybackState } from "./playback";
+import {
+  FOLLOW_COAST_MS,
+  initialPlayback,
+  keepPlace,
+  lineStartAt,
+  needsTick,
+  playbackReducer,
+  type PlaybackEvent,
+  type PlaybackState,
+} from "./playback";
 
 const run = (state: PlaybackState, ...events: PlaybackEvent[]) => events.reduce(playbackReducer, state);
 const rows = (...starts: number[]) => starts.map((start) => ({ start, stretch: 1 }));
@@ -392,6 +401,18 @@ describe("moving by hand in Auto", () => {
     expect(run(playing, { type: "SCRUB", cursor: 30, keepPlaying: false })).toMatchObject({ cursor: 30, mode: { kind: "paused" } });
     expect(run(playing, { type: "STEP_LINE", delta: 1, keepPlaying: false }).mode.kind).toBe("paused");
   });
+
+  it("counts each move by hand, and nothing else", () => {
+    const moved = run(
+      playing,
+      { type: "SCRUB", cursor: 30, keepPlaying: true },
+      { type: "STEP_LINE", delta: 1, keepPlaying: true },
+      { type: "STEP_PARAGRAPH", delta: -1, keepPlaying: true }
+    );
+
+    expect(moved.handMoves - playing.handMoves).toBe(3);
+    expect(run(moved, { type: "TICK", dtMs: 500, wpm: 300 }, { type: "PAUSE" }).handMoves).toBe(moved.handMoves);
+  });
 });
 
 describe("Follow at the end of a sentence", () => {
@@ -436,5 +457,17 @@ describe("Follow at the end of a sentence", () => {
 
   it("stops at the end of a paragraph too", () => {
     expect(settle(run(script, heardAt(25))).cursor).toBe(30);
+  });
+});
+
+describe("lineStartAt", () => {
+  it("finds the first word of the line a place is on", () => {
+    expect(lineStartAt(rows(0, 10, 20), 14.6)).toBe(10);
+    expect(lineStartAt(rows(0, 10, 20), 20)).toBe(20);
+    expect(lineStartAt(rows(0, 10, 20), 19.9995)).toBe(20);
+  });
+
+  it("keeps the place before the layout is known", () => {
+    expect(lineStartAt([], 7.5)).toBe(7.5);
   });
 });

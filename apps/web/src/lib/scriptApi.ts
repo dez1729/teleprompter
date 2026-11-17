@@ -2,9 +2,11 @@ import {
   ScriptChangeSchema,
   ScriptSchema,
   VersionSummarySchema,
+  VoicesSchema,
   type PushRequest,
   type Script,
   type SpeakRequest,
+  type Voices,
   type ScriptChange,
   type VersionSummary,
 } from "@teleprompter/protocol";
@@ -119,4 +121,12 @@ export const speak = async (request: SpeakRequest, signal: AbortSignal): Promise
   if (response.ok) return response.arrayBuffer();
   const body = (await response.json().catch(() => null)) as { error?: string } | null;
   throw new Error(body?.error ?? `The server answered ${response.status}.`);
+};
+
+/** The Narrator's voices. Rejects with the server's reason, such as Kokoro not running. */
+export const fetchVoices = async (): Promise<Voices> => {
+  const response = await fetch("/api/voices");
+  const body: unknown = await response.json().catch(() => null);
+  if (response.ok) return VoicesSchema.parse(body);
+  throw new Error((body as { error?: string } | null)?.error ?? `The server answered ${response.status}.`);
 };

@@ -18,8 +18,9 @@ describe("voice pace", () => {
     expect(measured(pace, 30, 10, 1.5).wpmAtSpeedOne).toBe(140);
   });
 
-  it("ignores a passage with no words or no sound", () => {
+  it("ignores a passage of a few words, or with no sound", () => {
     expect(measured(INITIAL_PACE, 0, 3, 1)).toBe(INITIAL_PACE);
+    expect(measured(INITIAL_PACE, 1, 0.8, 1)).toBe(INITIAL_PACE);
     expect(measured(INITIAL_PACE, 5, 0, 1)).toBe(INITIAL_PACE);
   });
 });

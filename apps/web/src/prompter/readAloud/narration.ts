@@ -11,6 +11,8 @@ export interface NarrationHost {
   // Read at each passage, so an Edit is spoken once the voice gets there.
   passageAt: (from: number, minWords?: number) => Passage | null;
   wpm: () => number;
+  // A voice name, or "" for the server's default. Read at each passage, so a new choice is heard soon.
+  voice: () => string;
   dispatch: (event: PlaybackEvent) => void;
   onStatus: (status: NarrationStatus) => void;
 }
@@ -28,18 +30,14 @@ export class Narration {
   readonly #from: number;
   readonly #abort = new AbortController();
   readonly #playing = new Set<AudioBufferSourceNode>();
-  // Carried from one Narration to the next, so the voice keeps its measured pace.
-  #pace: VoicePace;
+  // Each voice's measured pace, shared from one Narration to the next, so a voice keeps the pace it has learned.
+  readonly #paces: Map<string, VoicePace>;
 
-  constructor(host: NarrationHost, voice: VoiceOutput, from: number, pace: VoicePace = INITIAL_PACE) {
+  constructor(host: NarrationHost, voice: VoiceOutput, from: number, paces: Map<string, VoicePace>) {
     this.#host = host;
     this.#voice = voice;
     this.#from = from;
-    this.#pace = pace;
-  }
-
-  get pace(): VoicePace {
-    return this.#pace;
+    this.#paces = paces;
   }
 
   start(): void {
@@ -72,8 +70,11 @@ export class Narration {
 
     // The first passage is one sentence, however short, so the voice starts soon.
     for (let passage = this.#host.passageAt(this.#from, 1); !isNil(passage); passage = this.#host.passageAt(passage.end)) {
-      const speed = speedFor(this.#pace, this.#host.wpm());
-      const audio = await context.decodeAudioData(await speak({ text: passage.text, speed }, this.#abort.signal));
+      const voice = this.#host.voice();
+      const pace = this.#paces.get(voice) ?? INITIAL_PACE;
+      const speed = speedFor(pace, this.#host.wpm());
+      const request = { text: passage.text, speed, voice: voice === "" ? undefined : voice };
+      const audio = await context.decodeAudioData(await speak(request, this.#abort.signal));
       if (this.#stopped) return;
 
       const source = context.createBufferSource();
@@ -84,7 +85,7 @@ export class Narration {
       const startsAt = Math.max(ends, context.currentTime);
       source.start(startsAt);
       ends = startsAt + audio.duration;
-      this.#pace = measured(this.#pace, passage.end - passage.start, audio.duration, speed);
+      this.#paces.set(voice, measured(pace, passage.end - passage.start, audio.duration, speed));
       this.#host.onStatus({ kind: "speaking" });
 
       // Fetching the next passage once this one starts keeps one passage ahead, and a change of pace is heard soon.

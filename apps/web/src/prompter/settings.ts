@@ -1,3 +1,4 @@
+import { VoiceNameSchema } from "@teleprompter/protocol";
 import { isBoolean, isNumber, isPlainObject, isString } from "es-toolkit";
 
 export interface NumberField {
@@ -29,6 +30,13 @@ export interface BoolField {
   default: boolean;
 }
 
+/** One of the Narrator's voices, listed by the server. An empty name is the server's default voice. */
+export interface VoiceField {
+  kind: "voice";
+  label: string;
+  default: string;
+}
+
 // The panels that show settings. The settings sheet's main page is the default; the Timer popover lists its own.
 export type SettingsPage = "main" | "advanced" | "timer";
 
@@ -42,14 +50,14 @@ interface Described {
   description: string;
 }
 
-export type Field = (NumberField | ChoiceField | ColorField | BoolField) & Placement & Described;
+export type Field = (NumberField | ChoiceField | ColorField | BoolField | VoiceField) & Placement & Described;
 
 const onPage =
   <P extends Exclude<SettingsPage, "main">>(page: P) =>
   <F extends Field>(field: F): F & { page: P } => ({ ...field, page });
 const advanced = onPage("advanced");
 const timerPanel = onPage("timer");
-const about = <F extends NumberField | ChoiceField | ColorField | BoolField>(description: string, field: F): F & Described => ({
+const about = <F extends NumberField | ChoiceField | ColorField | BoolField | VoiceField>(description: string, field: F): F & Described => ({
   ...field,
   description,
 });
@@ -92,6 +100,11 @@ export const SETTING_DEFS = {
     bool("Read aloud", false)
   ),
   voiceWpm: about("How fast Read aloud's voice reads, in words per minute. Separate from Speed.", num("Voice speed", 150, 80, 300, 5, "wpm")),
+  voice: about("Who reads aloud: any voice the Kokoro server has.", {
+    kind: "voice",
+    label: "Voice",
+    default: "",
+  } satisfies VoiceField as VoiceField),
   spokenOnly: about(
     "Hides what you don't say in a markdown Script: headings, italic stage directions, code, tables, comments and frontmatter.",
     bool("Spoken-only", true)
@@ -209,6 +222,8 @@ const parseField = (def: Field, raw: unknown): unknown => {
       return isString(raw) && /^#[0-9a-f]{6}$/i.test(raw) ? raw : def.default;
     case "bool":
       return isBoolean(raw) ? raw : def.default;
+    case "voice":
+      return raw === "" || VoiceNameSchema.safeParse(raw).success ? raw : def.default;
   }
 };
 

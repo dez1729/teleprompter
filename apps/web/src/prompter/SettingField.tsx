@@ -3,6 +3,7 @@ import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { VoiceSelect } from "./readAloud/VoiceSelect";
 import { SETTING_DEFS, type DisplaySettings, type SettingKey } from "./settings";
 
 interface Props {
@@ -96,6 +97,19 @@ export const SettingField = ({ setting, settings, onChange }: Props) => {
             aria-describedby={describedBy}
             checked={value as boolean}
             onCheckedChange={(next) => set(next)}
+          />
+        </Field>
+      );
+    case "voice":
+      return (
+        <Field>
+          <FieldLabel htmlFor={id}>{def.label}</FieldLabel>
+          {description}
+          <VoiceSelect
+            id={id}
+            describedBy={describedBy}
+            value={value as string}
+            onChange={set}
           />
         </Field>
       );
