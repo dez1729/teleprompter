@@ -6,9 +6,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import { normalizeWord, type PushRequest } from "@teleprompter/protocol";
+import type { PushRequest } from "@teleprompter/protocol";
 import { optionsFromEnv, startServer } from "@teleprompter/server";
 import { isNil } from "es-toolkit";
+import { parseWav, speak, timeWords, toWav, type Pcm, type TimedWord } from "./audio.ts";
 
 // Each word is one Whisper word ("streetlights" would come back as two), so word timestamps line up with the Script.
 const PARAGRAPH =
@@ -17,28 +18,12 @@ const PARAGRAPH =
   "from the restaurants arrive with lists and cash. Nobody haggles for long, because the tide waits for no one. By " +
   "noon the boats are scrubbed, the nets are mended, and the harbor falls quiet again until evening.";
 const SCRIPT_WORDS = PARAGRAPH.split(/\s+/);
-const KOKORO_URL = process.env.KOKORO_URL ?? "http://127.0.0.1:8880";
-const WHISPER_URL = process.env.TELEPROMPTER_WHISPER_URL ?? "http://127.0.0.1:2022";
-const WHISPER_MODEL = process.env.TELEPROMPTER_WHISPER_MODEL ?? "Systran/faster-whisper-small";
 const WEB_DIR = join(import.meta.dirname, "../../web/dist");
 const LEAD_IN_SEC = 1;
 // Chromium loops the file; the trailing silence keeps the speech from starting over while the run is measured.
 const TAIL_SEC = 4;
 const SAMPLE_MS = 50;
 const CAUGHT_UP_WORDS = 3;
-
-interface TimedWord {
-  word: string;
-  start: number;
-  end: number;
-}
-
-interface Pcm {
-  fmt: Buffer;
-  data: Buffer;
-  rate: number;
-  blockAlign: number;
-}
 
 interface Point {
   // Seconds since the reader's first word.
@@ -60,74 +45,6 @@ interface StoppedRun {
 }
 
 type RunOutcome = RunResult | StoppedRun;
-
-const speak = async (text: string): Promise<ArrayBuffer> => {
-  const response = await fetch(new URL("/v1/audio/speech", KOKORO_URL), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model: "kokoro", input: text, voice: "af_heart", response_format: "wav", speed: 1 }),
-  });
-
-  if (!response.ok) throw new Error(`Kokoro at ${KOKORO_URL} answered ${response.status}: ${await response.text()}`);
-  return response.arrayBuffer();
-};
-
-const timeWords = async (audio: ArrayBuffer, scriptWords: readonly string[]): Promise<TimedWord[]> => {
-  const form = new FormData();
-  form.append("file", new Blob([audio], { type: "audio/wav" }), "speech.wav");
-  form.append("model", WHISPER_MODEL);
-  form.append("response_format", "verbose_json");
-  form.append("timestamp_granularities[]", "word");
-  const response = await fetch(new URL("/v1/audio/transcriptions", WHISPER_URL), { method: "POST", body: form });
-  if (!response.ok) throw new Error(`Whisper at ${WHISPER_URL} answered ${response.status}: ${await response.text()}`);
-  const { words } = (await response.json()) as { words: { word: string; start: number; end: number }[] };
-  const heard = words.filter((w) => normalizeWord(w.word) !== "");
-
-  if (heard.length !== scriptWords.length) {
-    throw new Error(`Whisper heard ${heard.length} words in a Script of ${scriptWords.length}; reword the paragraph`);
-  }
-
-  return heard.map((w, i) => ({ word: scriptWords.at(i)!, start: w.start, end: w.end }));
-};
-
-const parseWav = (wav: Buffer): Pcm => {
-  let offset = 12;
-  let fmt: Buffer | undefined;
-  let data: Buffer | undefined;
-
-  while (offset + 8 <= wav.length) {
-    const id = wav.toString("ascii", offset, offset + 4);
-    let size = wav.readUInt32LE(offset + 4);
-    // A streamed WAV may leave the data size unset.
-    if (id === "data" && (size === 0 || size === 0xffffffff || offset + 8 + size > wav.length)) size = wav.length - offset - 8;
-    const body = wav.subarray(offset + 8, offset + 8 + size);
-    if (id === "fmt ") fmt = body;
-    if (id === "data") data = body;
-    offset += 8 + size + (size % 2);
-  }
-
-  // Chromium's fake microphone plays 16-bit PCM; anything else would make every run silent.
-  if (isNil(fmt) || isNil(data) || fmt.readUInt16LE(0) !== 1 || fmt.readUInt16LE(14) !== 16) {
-    throw new Error("Kokoro did not send a 16-bit PCM WAV");
-  }
-
-  return { fmt, data, rate: fmt.readUInt32LE(4), blockAlign: fmt.readUInt16LE(12) };
-};
-
-const chunk = (id: string, body: Buffer) => {
-  const header = Buffer.alloc(8);
-  header.write(id, 0, "ascii");
-  header.writeUInt32LE(body.length, 4);
-  return Buffer.concat([header, body]);
-};
-
-const toWav = ({ fmt }: Pcm, data: Buffer) => {
-  const riff = Buffer.alloc(12);
-  riff.write("RIFF", 0, "ascii");
-  riff.writeUInt32LE(4 + 8 + fmt.length + 8 + data.length, 4);
-  riff.write("WAVE", 8, "ascii");
-  return Buffer.concat([riff, chunk("fmt ", fmt), chunk("data", data)]);
-};
 
 // Halfway through the silence before the word, so none of it is lost.
 const cutBefore = (timing: readonly TimedWord[], from: number) => (from === 0 ? 0 : (timing.at(from - 1)!.end + timing.at(from)!.start) / 2);

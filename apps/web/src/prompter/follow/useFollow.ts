@@ -49,5 +49,5 @@ export const useFollow = (mode: PlaybackMode, words: readonly Word[], options: F
     return () => session.stop();
   }, [following, listen, dispatch]);
 
-  return { status: following || status.kind === "error" ? status : OFF, wpm: following ? wpm : null };
+  return { status: following || status.kind === "error" ? status : OFF, wpm };
 };
