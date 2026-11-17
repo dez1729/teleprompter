@@ -1,13 +1,13 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
-import { createServer } from "node:net";
+import { createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isString } from "es-toolkit";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { PortInUseError, serveFromEnv, startServer, type RunningServer } from "./index.ts";
+import { optionsFromEnv, PortInUseError, serveFromEnv, SettingError, startServer, type RunningServer } from "./index.ts";
 
 const MAIN = fileURLToPath(new URL("./main.ts", import.meta.url));
 
@@ -93,6 +93,35 @@ describe("serveFromEnv", () => {
     const { port } = await start("127.0.0.1");
     const env = { HOST: "127.0.0.1", PORT: String(port), TELEPROMPTER_DATA_DIR: dir };
     await expect(serveFromEnv(env)).rejects.toThrow(PortInUseError);
+  });
+});
+
+describe("TELEPROMPTER_KOKORO_TIMEOUT_MS", () => {
+  it("sets how long the server waits for Kokoro", async () => {
+    // A Kokoro that takes the request and never answers.
+    const held: Socket[] = [];
+    const silent = createServer((socket) => held.push(socket));
+    await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
+    const { port } = silent.address() as { port: number };
+
+    try {
+      const { narrator } = optionsFromEnv({ TELEPROMPTER_KOKORO_URL: `http://127.0.0.1:${port}`, TELEPROMPTER_KOKORO_TIMEOUT_MS: "200" });
+      await expect(narrator!.speak({ text: "Hi.", speed: 1 })).rejects.toThrow(/did not answer within 0\.2 s/);
+    }
+    finally {
+      held.forEach((socket) => socket.destroy());
+      silent.close();
+    }
+  });
+
+  // Fractions and values past Node's longest timer would break every request, or end it at once.
+  it.each(["soon", "0", "-5", "1500.5", "3000000000", "5000000000"])("refuses %s, saying what it needs", (value) => {
+    expect(() => optionsFromEnv({ TELEPROMPTER_KOKORO_TIMEOUT_MS: value })).toThrow(SettingError);
+    expect(() => optionsFromEnv({ TELEPROMPTER_KOKORO_TIMEOUT_MS: value })).toThrow(/a whole number of milliseconds from 1 to 2147483647/);
+  });
+
+  it("takes the longest timer Node keeps", () => {
+    expect(() => optionsFromEnv({ TELEPROMPTER_KOKORO_TIMEOUT_MS: "2147483647" })).not.toThrow();
   });
 });
 

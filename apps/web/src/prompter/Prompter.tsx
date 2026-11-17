@@ -16,6 +16,7 @@ import { TimerReadout } from "./TimerReadout";
 import { UndoToast } from "./UndoToast";
 import { FONT_STACKS, GAP_PACES } from "./settings";
 import type { FollowStatus } from "./follow/session";
+import type { NarrationStatus } from "./readAloud/narration";
 import { isScrolling } from "./playback";
 import { loadTimerPinned, saveTimerPinned } from "./storage";
 import { usePrompter } from "./usePrompter";
@@ -37,22 +38,37 @@ export const Prompter = () => {
     saveTimerPinned(pinned);
   };
 
-  const { script, connected, tokens, settings, playback, follow, readout, replaced, timer, connect, undoReplace, dispatch, updateSetting, run } =
-    usePrompter({
-      helpOpen,
-      onUiCommand: (command) => {
-        switch (command.type) {
-          case "toggleHelp":
-            return setHelpOpen((open) => !open);
-          case "toggleTimer":
-            return setTimerOpen((open) => !open);
-          case "openSettings":
-            return setSettingsOpen(true);
-          case "openEditor":
-            return openEditor();
-        }
-      },
-    });
+  const {
+    script,
+    connected,
+    tokens,
+    settings,
+    playback,
+    follow,
+    narration,
+    readout,
+    replaced,
+    timer,
+    connect,
+    undoReplace,
+    dispatch,
+    updateSetting,
+    run,
+  } = usePrompter({
+    helpOpen,
+    onUiCommand: (command) => {
+      switch (command.type) {
+        case "toggleHelp":
+          return setHelpOpen((open) => !open);
+        case "toggleTimer":
+          return setTimerOpen((open) => !open);
+        case "openSettings":
+          return setSettingsOpen(true);
+        case "openEditor":
+          return openEditor();
+      }
+    },
+  });
 
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT);
   const [recentMouse, setRecentMouse] = useState(true);
@@ -295,7 +311,14 @@ export const Prompter = () => {
               mirror={settings.mirror}
             />
           )}
-          <FollowStatusLine status={follow} />
+          <NarrationStatusLine
+            status={narration}
+            wpm={settings.voiceWpm}
+          />
+          <FollowStatusLine
+            status={follow}
+            hearsVoice={settings.readAloud}
+          />
         </div>
 
         {connected === false && (
@@ -312,6 +335,7 @@ export const Prompter = () => {
             visible={!playing || recentMouse || timerOpen}
             playing={playing || playback.mode.kind === "countdown"}
             scrollMode={settings.scrollMode}
+            readAloud={settings.readAloud}
             speedWpm={settings.speedWpm}
             fontSize={settings.fontSize}
             hasScript={!isNil(script)}
@@ -353,16 +377,44 @@ export const Prompter = () => {
 
 interface FollowStatusLineProps {
   status: FollowStatus;
+  // Read aloud is on, so Follow listens to the computer's voice.
+  hearsVoice: boolean;
 }
 
-const FollowStatusLine = ({ status }: FollowStatusLineProps) => {
+const followText = (status: Exclude<FollowStatus, { kind: "off" }>, hearsVoice: boolean): string => {
+  if (status.kind === "error") return status.message;
+  if (hearsVoice) return "Following the voice";
+  return status.kind === "starting" ? "Opening the microphone…" : "Following your voice";
+};
+
+const FollowStatusLine = ({ status, hearsVoice }: FollowStatusLineProps) => {
   if (status.kind === "off") return null;
-  const text = status.kind === "error" ? status.message : status.kind === "starting" ? "Opening the microphone…" : "Following your voice";
+  const text = followText(status, hearsVoice);
 
   return (
     <p
       role="status"
       data-follow-status={status.kind}
+      className="text-right text-xs opacity-60"
+    >
+      {text}
+    </p>
+  );
+};
+
+interface NarrationStatusLineProps {
+  status: NarrationStatus;
+  wpm: number;
+}
+
+const NarrationStatusLine = ({ status, wpm }: NarrationStatusLineProps) => {
+  if (status.kind === "off") return null;
+  const text = status.kind === "error" ? status.message : status.kind === "starting" ? "Getting the voice ready…" : `Reading aloud at ${wpm} wpm`;
+
+  return (
+    <p
+      role="status"
+      data-read-aloud-status={status.kind}
       className="text-right text-xs opacity-60"
     >
       {text}

@@ -95,3 +95,14 @@ _Avoid_: Clock, stopwatch
 **Speed**:
 The Auto pace, in words per minute. Independent of text size.
 _Avoid_: Scroll rate, px/s
+
+**Read aloud**:
+The computer speaks the Script from the Current line while the Prompter scrolls, to test pacing. In Follow, Follow listens to this voice instead of the microphone.
+_Avoid_: TTS mode, narration mode, playback voice
+
+**Voice speed**:
+Read aloud's pace, in words per minute. Separate from Speed.
+
+**Narrator**:
+The text-to-speech service Read aloud speaks through: a local Kokoro server.
+_Avoid_: TTS, synthesizer, speaker

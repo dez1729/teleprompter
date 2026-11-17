@@ -94,3 +94,28 @@ export const normalizeWord = (word: string): string => {
     .normalize("NFKD")
     .replace(/[^\p{L}\p{N}]/gu, "");
 };
+
+// The most text Read aloud asks the Narrator to speak at once. It sends a sentence or two at a time.
+export const MAX_SPEAK_CHARS = 4000;
+
+// A Kokoro voice name, such as `af_heart`, or a mix such as `af_bella+af_sky`.
+export const VoiceNameSchema = z.string().regex(/^[\w.+()-]{1,100}$/);
+
+// Text for the Narrator to speak. `speed` multiplies the voice's natural pace. Without `voice`, the server's default speaks.
+export const SpeakRequestSchema = z
+  .object({
+    text: z.string().trim().min(1).max(MAX_SPEAK_CHARS),
+    speed: z.number().min(0.25).max(4),
+    voice: VoiceNameSchema.optional(),
+  })
+  .strict();
+
+export type SpeakRequest = z.infer<typeof SpeakRequestSchema>;
+
+// The voices the Narrator has, and the one it uses when a request names none.
+export const VoicesSchema = z.object({
+  voices: z.array(z.string()),
+  default: z.string(),
+});
+
+export type Voices = z.infer<typeof VoicesSchema>;

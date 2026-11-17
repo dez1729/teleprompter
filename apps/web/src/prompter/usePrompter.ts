@@ -3,7 +3,10 @@ import { EMPTY_SCRIPT, type PushRequest, type Script } from "@teleprompter/proto
 import { isNil } from "es-toolkit";
 import { placementFor } from "./anchor";
 import { commandForKey, type Command, type UiCommand } from "./keymap";
+import { listenTo, openMicrophone } from "./follow/microphone";
 import { useFollow } from "./follow/useFollow";
+import { useReadAloud } from "./readAloud/useReadAloud";
+import { VoiceOutput } from "./readAloud/voiceOutput";
 import { initialPlayback, isScrolling, needsTick, playbackReducer } from "./playback";
 import { restoreVersion, ScriptStream, sendScript, type ScriptMessage } from "@/lib/scriptApi";
 import { EMPTY_TOKENS, tokenize } from "./script";
@@ -79,7 +82,34 @@ export const usePrompter = (ui: UiBridge) => {
 
   const playbackRef = useRef(playback);
   playbackRef.current = playback;
-  const follow = useFollow(playback.mode, tokens.words, settings.speedWpm, dispatch);
+  const [voice] = useState(() => new VoiceOutput());
+  const readingAloud = settings.readAloud && isScrolling(playback.mode);
+  const narration = useReadAloud(
+    {
+      speaking: readingAloud,
+      position: playback.animTarget ?? playback.cursor,
+      lines: playback.lines,
+      handMoves: playback.handMoves,
+      tokens,
+      wpm: settings.voiceWpm,
+      voiceName: settings.voice,
+      output: voice,
+    },
+    dispatch
+  );
+
+  const listenToVoice = useCallback(() => {
+    const { context, output } = voice.open();
+    return listenTo(context, output);
+  }, [voice]);
+
+  // Reading aloud, Follow hears the voice at its own pace instead of the reader through the microphone.
+  const follow = useFollow(
+    playback.mode,
+    tokens.words,
+    settings.readAloud ? { expectedWpm: settings.voiceWpm, listen: listenToVoice } : { expectedWpm: settings.speedWpm, listen: openMicrophone },
+    dispatch
+  );
 
   const timer = useTimer(isScrolling(playback.mode), settings.timerFollowsPlayback);
   const { rewind } = timer;
@@ -284,6 +314,7 @@ export const usePrompter = (ui: UiBridge) => {
     settings,
     playback,
     follow,
+    narration,
     readout,
     replaced,
     timer,

@@ -1,3 +1,5 @@
+import { isNil } from "es-toolkit";
+
 /** Long enough to hold several words for the aligner, short enough that Whisper answers quickly. */
 export const CLIP_MS = 4000;
 /** Whisper's native rate; anything higher only makes the upload bigger. */
@@ -11,12 +13,22 @@ export const QUIET_MS = 700;
 /** Short enough to notice the pause at the end of a sentence. */
 const VOICED_MS = 200;
 
+// Runs until it is told to stop: the voice's AudioContext outlives each capture, so it cannot be left to closing.
 const CAPTURE_WORKLET = `
 registerProcessor('tp-capture', class extends AudioWorkletProcessor {
+  constructor() {
+    super()
+    this.running = true
+    this.port.onmessage = () => {
+      this.running = false
+      this.port.close()
+    }
+  }
+
   process(inputs) {
     const channel = inputs[0] && inputs[0][0]
-    if (channel) this.port.postMessage(channel.slice(0))
-    return true
+    if (this.running && channel) this.port.postMessage(channel.slice(0))
+    return this.running
   }
 })`;
 
@@ -30,20 +42,25 @@ export interface Microphone {
   stop(): void;
 }
 
-export const openMicrophone = async (): Promise<Microphone> => {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-  });
+// Each AudioContext loads the capture worklet once; registering it a second time throws.
+const workletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 
-  const context = new AudioContext();
+const loadWorklet = (context: BaseAudioContext): Promise<void> => {
+  const loading = workletLoads.get(context);
+  if (!isNil(loading)) return loading;
+  const url = URL.createObjectURL(new Blob([CAPTURE_WORKLET], { type: "text/javascript" }));
+  const loaded = context.audioWorklet.addModule(url).finally(() => URL.revokeObjectURL(url));
+  workletLoads.set(context, loaded);
+  return loaded;
+};
 
+// Hears what `source` plays. `release` runs on stop, after the capture is disconnected.
+const capture = async (context: AudioContext, source: AudioNode, release: () => void): Promise<Microphone> => {
   try {
-    const url = URL.createObjectURL(new Blob([CAPTURE_WORKLET], { type: "text/javascript" }));
-    await context.audioWorklet.addModule(url).finally(() => URL.revokeObjectURL(url));
+    await loadWorklet(context);
   }
   catch (error) {
-    stream.getTracks().forEach((track) => track.stop());
-    void context.close();
+    release();
     throw error;
   }
 
@@ -51,7 +68,6 @@ export const openMicrophone = async (): Promise<Microphone> => {
   const ring = new Float32Array(Math.round((rate * CLIP_MS) / 1000));
   let written = 0;
 
-  const source = context.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(context, "tp-capture");
 
   node.port.onmessage = (event: MessageEvent<Float32Array>) => {
@@ -82,12 +98,29 @@ export const openMicrophone = async (): Promise<Microphone> => {
     },
     stop() {
       node.port.onmessage = null;
-      source.disconnect();
-      stream.getTracks().forEach((track) => track.stop());
-      void context.close();
+      node.port.postMessage("stop");
+      source.disconnect(node);
+      node.disconnect();
+      release();
     },
   };
 };
+
+export const openMicrophone = async (): Promise<Microphone> => {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+  });
+
+  const context = new AudioContext();
+
+  return capture(context, context.createMediaStreamSource(stream), () => {
+    stream.getTracks().forEach((track) => track.stop());
+    void context.close();
+  });
+};
+
+// Hears what plays through `output`, such as Read aloud's voice, as if it were the microphone.
+export const listenTo = (context: AudioContext, output: AudioNode): Promise<Microphone> => capture(context, output, () => {});
 
 const loud = (samples: Float32Array, rate: number): boolean => {
   const window = Math.round(rate / 10);

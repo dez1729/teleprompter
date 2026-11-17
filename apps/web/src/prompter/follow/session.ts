@@ -2,7 +2,7 @@ import { isNil } from "es-toolkit";
 import { transcribe } from "@/lib/scriptApi";
 import type { PlaybackEvent } from "../playback";
 import { align, heardWords } from "./align";
-import { openMicrophone, QUIET_MS, type Microphone } from "./microphone";
+import { QUIET_MS, type Microphone } from "./microphone";
 
 /** The least time between clips, so Whisper is not asked about the same half second over and over. */
 const INTERVAL_MS = 600;
@@ -26,6 +26,8 @@ export interface FollowPlace {
 }
 
 export interface FollowHost {
+  // What Follow hears: the microphone, or Read aloud's voice.
+  listen: () => Promise<Microphone>;
   // Read at each clip, so an Edit or a move by hand is seen at once.
   place: () => FollowPlace;
   dispatch: (event: PlaybackEvent) => void;
@@ -68,7 +70,7 @@ export class FollowSession {
 
   start(): void {
     this.#host.onStatus({ kind: "starting" });
-    this.#opening = openMicrophone();
+    this.#opening = this.#host.listen();
 
     void this.#opening.then(
       (mic) => this.#listen(mic),

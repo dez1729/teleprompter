@@ -24,7 +24,8 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=4747 \
     TELEPROMPTER_DATA_DIR=/data \
-    TELEPROMPTER_WHISPER_URL=http://host.docker.internal:2022
+    TELEPROMPTER_WHISPER_URL=http://host.docker.internal:2022 \
+    TELEPROMPTER_KOKORO_URL=http://host.docker.internal:8880
 WORKDIR /app
 COPY --from=deps /app ./
 COPY apps/server/src apps/server/src

@@ -303,3 +303,89 @@ test("the Timer runs with playback, not through the countdown, and Restart zeroe
   await page.keyboard.press("Home");
   await expect(readout).toHaveText("0:00");
 });
+
+// Silence, as the Narrator would send speech.
+const silentWav = (seconds = 0.5): Buffer => {
+  const rate = 24000;
+  const bytes = Math.round(rate * seconds) * 2;
+  const wav = Buffer.alloc(44 + bytes);
+  wav.write("RIFF", 0);
+  wav.writeUInt32LE(36 + bytes, 4);
+  wav.write("WAVEfmt ", 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(rate, 24);
+  wav.writeUInt32LE(rate * 2, 28);
+  wav.writeUInt16LE(2, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write("data", 36);
+  wav.writeUInt32LE(bytes, 40);
+  return wav;
+};
+
+test("Read aloud speaks the Script from the Current line as it scrolls", async ({ page }) => {
+  const spoken: string[] = [];
+
+  await page.route("**/api/speak", async (route) => {
+    spoken.push((route.request().postDataJSON() as { text: string }).text);
+    await route.fulfill({ contentType: "audio/wav", body: silentWav() });
+  });
+
+  await page.goto(url);
+  tp(["send", "--replace"], "Alpha bravo charlie. Delta echo foxtrot golf hotel india juliet.");
+  await expect(page.getByText("Alpha")).toBeVisible();
+
+  await page.keyboard.press("r");
+  await expect(page.getByRole("button", { name: "Read aloud", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press(" ");
+  await expect(page.locator('[data-read-aloud-status="speaking"]')).toHaveText("Reading aloud at 150 wpm");
+  await expect.poll(() => spoken).toEqual(["Alpha bravo charlie.", "Delta echo foxtrot golf hotel india juliet."]);
+
+  await page.keyboard.press(" ");
+  await expect(page.locator("[data-read-aloud-status]")).toHaveCount(0);
+});
+
+test("Read aloud pauses and says why when the Narrator fails", async ({ page }) => {
+  await page.route("**/api/speak", (route) => route.fulfill({ status: 502, json: { error: "Cannot reach the Kokoro server." } }));
+
+  await page.goto(url);
+  tp(["send", "--replace"], "alpha bravo charlie");
+  await expect(page.getByText("alpha")).toBeVisible();
+
+  await page.keyboard.press("r");
+  await page.keyboard.press(" ");
+  await expect(page.locator('[data-read-aloud-status="error"]')).toHaveText("Read aloud stopped. Cannot reach the Kokoro server.");
+  await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+});
+
+test("Read aloud speaks in the chosen voice and jumps where the reader moves by hand", async ({ page }) => {
+  const spoken: { text: string; voice?: string }[] = [];
+  await page.route("**/api/voices", (route) => route.fulfill({ json: { voices: ["af_heart", "bf_emma", "am_adam"], default: "af_heart" } }));
+
+  await page.route("**/api/speak", async (route) => {
+    spoken.push(route.request().postDataJSON() as { text: string; voice?: string });
+    // Long enough that only a move by hand reaches the third paragraph.
+    await route.fulfill({ contentType: "audio/wav", body: silentWav(20) });
+  });
+
+  await page.goto(url);
+  tp(["send", "--replace"], "Alpha bravo charlie delta.\n\nEcho foxtrot golf hotel.\n\nIndia juliet kilo lima.");
+  await expect(page.getByText("Alpha")).toBeVisible();
+
+  await page.keyboard.press(",");
+  const voice = page.getByLabel("Voice", { exact: true });
+  await expect(voice.locator("optgroup")).toHaveText(["Heart (female)Adam (male)", "Emma (female)"]);
+  await voice.selectOption("bf_emma");
+  await page.keyboard.press("Escape");
+
+  await page.keyboard.press("r");
+  await page.keyboard.press(" ");
+  await expect.poll(() => spoken.at(0)).toEqual({ text: "Alpha bravo charlie delta.", speed: expect.any(Number), voice: "bf_emma" });
+  // The next passage is fetched while one plays.
+  await expect.poll(() => spoken.map((request) => request.text)).toEqual(["Alpha bravo charlie delta.", "Echo foxtrot golf hotel."]);
+
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect.poll(() => spoken.map((request) => request.text).at(-1)).toBe("India juliet kilo lima.");
+});
