@@ -8,6 +8,7 @@ import { DEFAULT_PORT } from "@teleprompter/protocol";
 import { createApp } from "./app.ts";
 import { LOOPBACK_NAMES } from "./guards.ts";
 import { ScriptStore } from "./store.ts";
+import { kokoroNarrator, type Narrator } from "./narrator.ts";
 import { whisperTranscriber, type Transcriber } from "./transcriber.ts";
 
 export interface ServerOptions {
@@ -16,6 +17,7 @@ export interface ServerOptions {
   dataDir?: string;
   webDir?: string;
   transcriber?: Transcriber;
+  narrator?: Narrator;
 }
 
 export interface RunningServer {
@@ -58,15 +60,23 @@ export const optionsFromEnv = (env: NodeJS.ProcessEnv = process.env): ServerOpti
     port: env.PORT ? Number(env.PORT) : DEFAULT_PORT,
     dataDir: defaultDataDir(env),
     transcriber: whisperTranscriber({ url: env.TELEPROMPTER_WHISPER_URL || undefined, model: env.TELEPROMPTER_WHISPER_MODEL || undefined }),
+    narrator: kokoroNarrator({ url: env.TELEPROMPTER_KOKORO_URL || undefined, voice: env.TELEPROMPTER_KOKORO_VOICE || undefined }),
   };
 };
 
 export const startServer = (options: ServerOptions = {}): Promise<RunningServer> => {
-  const { host = "127.0.0.1", port = DEFAULT_PORT, dataDir = defaultDataDir(), webDir = BUILT_WEB_DIR, transcriber = whisperTranscriber() } = options;
+  const {
+    host = "127.0.0.1",
+    port = DEFAULT_PORT,
+    dataDir = defaultDataDir(),
+    webDir = BUILT_WEB_DIR,
+    transcriber = whisperTranscriber(),
+    narrator = kokoroNarrator(),
+  } = options;
   const store = new ScriptStore(dataDir);
   const hasWeb = existsSync(join(webDir, "index.html"));
   let boundPort = port;
-  const app = createApp({ store, port: () => boundPort, webDir: hasWeb ? webDir : undefined, transcriber });
+  const app = createApp({ store, port: () => boundPort, webDir: hasWeb ? webDir : undefined, transcriber, narrator });
 
   return new Promise((resolve, reject) => {
     const server = serve({ fetch: app.fetch, hostname: host, port }, (info) => {

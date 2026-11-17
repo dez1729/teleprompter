@@ -94,3 +94,16 @@ export const normalizeWord = (word: string): string => {
     .normalize("NFKD")
     .replace(/[^\p{L}\p{N}]/gu, "");
 };
+
+/** The most text Read aloud asks the Narrator to speak at once. It sends a sentence or two at a time. */
+export const MAX_SPEAK_CHARS = 4000;
+
+/** Text for the Narrator to speak. `speed` multiplies the voice's natural pace. */
+export const SpeakRequestSchema = z
+  .object({
+    text: z.string().trim().min(1).max(MAX_SPEAK_CHARS),
+    speed: z.number().min(0.25).max(4),
+  })
+  .strict();
+
+export type SpeakRequest = z.infer<typeof SpeakRequestSchema>;

@@ -3,11 +3,12 @@ import { bodyLimit } from "hono/body-limit";
 import { streamSSE } from "hono/streaming";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { relative } from "node:path";
-import { PushRequestSchema, type ScriptChange } from "@teleprompter/protocol";
+import { PushRequestSchema, SpeakRequestSchema, type ScriptChange } from "@teleprompter/protocol";
 import { isNil } from "es-toolkit";
 import { DEV_PORT, hostGuard, originGuard } from "./guards.ts";
 import { summarize } from "./history.ts";
 import type { ScriptStore } from "./store.ts";
+import { NarratorError, type Narrator } from "./narrator.ts";
 import { TranscriberError, type Transcriber } from "./transcriber.ts";
 
 export const MAX_BODY_BYTES = 2 * 1024 * 1024;
@@ -22,9 +23,11 @@ export interface AppOptions {
   heartbeatMs?: number;
   /** Where Follow sends the reader's speech. Without it, /api/transcribe answers 503. */
   transcriber?: Transcriber;
+  /** Who reads the Script aloud. Without it, /api/speak answers 503. */
+  narrator?: Narrator;
 }
 
-export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, transcriber }: AppOptions): Hono => {
+export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, transcriber, narrator }: AppOptions): Hono => {
   const ports = () => [port(), DEV_PORT];
   const app = new Hono();
 
@@ -68,6 +71,28 @@ export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
       }
       catch (error) {
         if (error instanceof TranscriberError) return c.json({ error: error.message }, 502);
+        throw error;
+      }
+    }
+  );
+
+  api.post(
+    "/speak",
+    bodyLimit({
+      maxSize: MAX_BODY_BYTES,
+      onError: (c) => c.json({ error: "Request body too large" }, 413),
+    }),
+    async (c) => {
+      if (isNil(narrator)) return c.json({ error: "No Narrator is set up." }, 503);
+      const parsed = SpeakRequestSchema.safeParse(await c.req.json().catch(() => undefined));
+      if (!parsed.success) return c.json({ error: "Invalid request" }, 400);
+
+      try {
+        const audio = await narrator(parsed.data.text, parsed.data.speed);
+        return c.body(audio.slice().buffer, 200, { "content-type": "audio/wav" });
+      }
+      catch (error) {
+        if (error instanceof NarratorError) return c.json({ error: error.message }, 502);
         throw error;
       }
     }
