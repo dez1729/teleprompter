@@ -13,12 +13,22 @@ export const QUIET_MS = 700;
 /** Short enough to notice the pause at the end of a sentence. */
 const VOICED_MS = 200;
 
+// Runs until it is told to stop: the voice's AudioContext outlives each capture, so it cannot be left to closing.
 const CAPTURE_WORKLET = `
 registerProcessor('tp-capture', class extends AudioWorkletProcessor {
+  constructor() {
+    super()
+    this.running = true
+    this.port.onmessage = () => {
+      this.running = false
+      this.port.close()
+    }
+  }
+
   process(inputs) {
     const channel = inputs[0] && inputs[0][0]
-    if (channel) this.port.postMessage(channel.slice(0))
-    return true
+    if (this.running && channel) this.port.postMessage(channel.slice(0))
+    return this.running
   }
 })`;
 
@@ -44,7 +54,7 @@ const loadWorklet = (context: BaseAudioContext): Promise<void> => {
   return loaded;
 };
 
-/** Hears what `source` plays. `release` runs on stop, after the capture is disconnected. */
+// Hears what `source` plays. `release` runs on stop, after the capture is disconnected.
 const capture = async (context: AudioContext, source: AudioNode, release: () => void): Promise<Microphone> => {
   try {
     await loadWorklet(context);
@@ -88,7 +98,9 @@ const capture = async (context: AudioContext, source: AudioNode, release: () => 
     },
     stop() {
       node.port.onmessage = null;
+      node.port.postMessage("stop");
       source.disconnect(node);
+      node.disconnect();
       release();
     },
   };
@@ -107,7 +119,7 @@ export const openMicrophone = async (): Promise<Microphone> => {
   });
 };
 
-/** Hears what plays through `output`, such as Read aloud's voice, as if it were the microphone. */
+// Hears what plays through `output`, such as Read aloud's voice, as if it were the microphone.
 export const listenTo = (context: AudioContext, output: AudioNode): Promise<Microphone> => capture(context, output, () => {});
 
 const loud = (samples: Float32Array, rate: number): boolean => {
