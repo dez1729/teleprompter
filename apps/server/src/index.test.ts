@@ -114,9 +114,14 @@ describe("TELEPROMPTER_KOKORO_TIMEOUT_MS", () => {
     }
   });
 
-  it.each(["soon", "0", "-5"])("refuses %s, saying what it needs", (value) => {
+  // Fractions and values past Node's longest timer would break every request, or end it at once.
+  it.each(["soon", "0", "-5", "1500.5", "3000000000", "5000000000"])("refuses %s, saying what it needs", (value) => {
     expect(() => optionsFromEnv({ TELEPROMPTER_KOKORO_TIMEOUT_MS: value })).toThrow(SettingError);
-    expect(() => optionsFromEnv({ TELEPROMPTER_KOKORO_TIMEOUT_MS: value })).toThrow(/a number of milliseconds above 0/);
+    expect(() => optionsFromEnv({ TELEPROMPTER_KOKORO_TIMEOUT_MS: value })).toThrow(/a whole number of milliseconds from 1 to 2147483647/);
+  });
+
+  it("takes the longest timer Node keeps", () => {
+    expect(() => optionsFromEnv({ TELEPROMPTER_KOKORO_TIMEOUT_MS: "2147483647" })).not.toThrow();
   });
 });
 

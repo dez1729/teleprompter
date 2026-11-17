@@ -58,13 +58,18 @@ const BUILT_WEB_DIR = fileURLToPath(new URL("../../web/dist", import.meta.url));
 // An environment variable the server cannot use. Its message says which one and why.
 export class SettingError extends Error {}
 
-// A slow Kokoro, on a CPU or still loading its model, needs longer than the default. A value that is not a positive
-// number of milliseconds stops the server, rather than every passage failing later.
+// The longest timer Node keeps: it cuts a longer one to 1 ms, and AbortSignal.timeout refuses fractions and more.
+const MAX_TIMER_MS = 2_147_483_647;
+
+// A slow Kokoro, on a CPU or still loading its model, needs longer than the default. A value that is not a whole number
+// of milliseconds Node can time stops the server, rather than every passage failing later.
 const kokoroTimeoutMs = (raw: string | undefined): number | undefined => {
   if (isNil(raw) || raw === "") return undefined;
   const ms = Number(raw);
-  if (!Number.isFinite(ms) || ms <= 0)
-    throw new SettingError(`TELEPROMPTER_KOKORO_TIMEOUT_MS must be a number of milliseconds above 0, not "${raw}".`);
+  if (!Number.isSafeInteger(ms) || ms <= 0 || ms > MAX_TIMER_MS) {
+    throw new SettingError(`TELEPROMPTER_KOKORO_TIMEOUT_MS must be a whole number of milliseconds from 1 to ${MAX_TIMER_MS}, not "${raw}".`);
+  }
+
   return ms;
 };
 
