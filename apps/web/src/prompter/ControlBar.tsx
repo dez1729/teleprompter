@@ -1,6 +1,6 @@
 import { isNil } from "es-toolkit";
 import { createContext, useContext, useState, type ReactElement, type ReactNode } from "react";
-import { Gauge, Keyboard, Mic, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen, Timer } from "lucide-react";
+import { Gauge, Keyboard, Mic, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen, Timer, Volume2, VolumeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -43,6 +43,7 @@ interface Props {
   /** Scrolling in either Scroll mode, or counting down to it. */
   playing: boolean;
   scrollMode: DisplaySettings["scrollMode"];
+  readAloud: boolean;
   speedWpm: number;
   fontSize: number;
   hasScript: boolean;
@@ -57,6 +58,7 @@ export const ControlBar = ({
   visible,
   playing,
   scrollMode,
+  readAloud,
   speedWpm,
   fontSize,
   hasScript,
@@ -69,6 +71,7 @@ export const ControlBar = ({
   const toggle: Command = { type: "toggle" };
   const switchScrollMode: Command = { type: "switchScrollMode" };
   const follows = scrollMode === "follow";
+  const flipReadAloud: Command = { type: "flip", setting: "readAloud" };
   const restart: Command = { type: "restart" };
   const openEditor: Command = { type: "openEditor" };
   const toggleTimer: Command = { type: "toggleTimer" };
@@ -125,6 +128,17 @@ export const ControlBar = ({
                   Follow
                 </ToggleGroupItem>
               </ToggleGroup>
+            </Hint>
+            <Hint command={flipReadAloud}>
+              <Button
+                size="icon"
+                variant={readAloud ? "default" : "ghost"}
+                aria-label="Read aloud"
+                aria-pressed={readAloud}
+                onClick={() => onCommand(flipReadAloud)}
+              >
+                {readAloud ? <Volume2 /> : <VolumeOff />}
+              </Button>
             </Hint>
             <Hint command={restart}>
               <Button

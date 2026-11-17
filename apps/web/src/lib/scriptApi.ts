@@ -4,6 +4,7 @@ import {
   VersionSummarySchema,
   type PushRequest,
   type Script,
+  type SpeakRequest,
   type ScriptChange,
   type VersionSummary,
 } from "@teleprompter/protocol";
@@ -104,4 +105,18 @@ export const transcribe = async (clip: Blob): Promise<string> => {
   const body = (await response.json().catch(() => null)) as { text?: string; error?: string } | null;
   if (!response.ok || !isString(body?.text)) throw new Error(body?.error ?? `The server answered ${response.status}.`);
   return body.text;
+};
+
+/** The Narrator speaking `text` at `speed` times its natural pace, as WAV audio. Rejects with the server's reason. */
+export const speak = async (request: SpeakRequest, signal: AbortSignal): Promise<ArrayBuffer> => {
+  const response = await fetch("/api/speak", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  });
+
+  if (response.ok) return response.arrayBuffer();
+  const body = (await response.json().catch(() => null)) as { error?: string } | null;
+  throw new Error(body?.error ?? `The server answered ${response.status}.`);
 };

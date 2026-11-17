@@ -87,6 +87,11 @@ export const SETTING_DEFS = {
       { value: "follow", label: "Follow" },
     ])
   ),
+  readAloud: about(
+    "The computer reads the Script aloud as the Prompter scrolls, to test pacing. In Follow, the Prompter follows its voice instead of the microphone.",
+    bool("Read aloud", false)
+  ),
+  voiceWpm: about("How fast Read aloud's voice reads, in words per minute. Separate from Speed.", num("Voice speed", 150, 80, 300, 5, "wpm")),
   spokenOnly: about(
     "Hides what you don't say in a markdown Script: headings, italic stage directions, code, tables, comments and frontmatter.",
     bool("Spoken-only", true)

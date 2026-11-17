@@ -71,6 +71,7 @@ export const KEYMAP: readonly Binding[] = [
   },
   { key: "s", label: "S", command: { type: "flip", setting: "spokenOnly" }, description: "Spoken-only on / off", group: "Display" },
   { key: "f", label: "F", command: { type: "switchScrollMode" }, description: "Switch between Auto and Follow", group: "Playback" },
+  { key: "r", label: "R", command: { type: "flip", setting: "readAloud" }, description: "Read aloud on / off", group: "Playback" },
   { key: "t", label: "T", command: { type: "toggleTimer" }, description: "Timer", group: "Panels" },
   { key: ",", label: ",", command: { type: "openSettings" }, description: "Display settings", group: "Panels" },
   { key: "p", label: "P", command: { type: "openEditor" }, description: "Open the Editor", group: "Panels" },
