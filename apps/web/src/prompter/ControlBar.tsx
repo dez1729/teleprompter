@@ -1,12 +1,13 @@
 import { isNil } from "es-toolkit";
 import { createContext, useContext, useState, type ReactElement, type ReactNode } from "react";
-import { Gauge, Keyboard, Mic, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen, Timer, Volume2, VolumeOff } from "lucide-react";
+import { AudioLines, Gauge, Keyboard, Mic, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen, Timer, Volume2, VolumeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { tooltipFor, type Command } from "./keymap";
+import { speakingRateText } from "./SpeakingRateReadout";
 import type { DisplaySettings } from "./settings";
 
 const TOOLTIP_DELAY_MS = 300;
@@ -44,6 +45,8 @@ interface Props {
   playing: boolean;
   scrollMode: DisplaySettings["scrollMode"];
   readAloud: boolean;
+  // What Follow hears, in words per minute, or null while nothing is heard.
+  speakingWpm: number | null;
   speedWpm: number;
   fontSize: number;
   hasScript: boolean;
@@ -59,6 +62,7 @@ export const ControlBar = ({
   playing,
   scrollMode,
   readAloud,
+  speakingWpm,
   speedWpm,
   fontSize,
   hasScript,
@@ -140,6 +144,14 @@ export const ControlBar = ({
                 {readAloud ? <Volume2 /> : <VolumeOff />}
               </Button>
             </Hint>
+            <span
+              data-speaking-rate
+              className="flex min-w-20 items-center justify-center gap-1 text-xs tabular-nums"
+              title="Speaking rate, as Follow hears it"
+            >
+              <AudioLines className="size-3.5 opacity-60" />
+              {speakingRateText(speakingWpm)}
+            </span>
             <Hint command={restart}>
               <Button
                 size="icon"

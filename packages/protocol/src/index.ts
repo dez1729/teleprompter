@@ -95,6 +95,30 @@ export const normalizeWord = (word: string): string => {
     .replace(/[^\p{L}\p{N}]/gu, "");
 };
 
+// Where a voice was in the Script, in words, and when, in ms.
+export interface Heard {
+  position: number;
+  at: number;
+}
+
+// Points closer together in time than this say too little about the rate.
+const MIN_FIT_SPAN_MS = 2000;
+// One point can be a word or two off; the rate is fitted through at least this many.
+const MIN_FIT_POINTS = 3;
+
+// Words per minute, rounded: the least-squares slope through the points, so no one point decides it. Null until they
+// span enough time. Follow's Speaking rate and the bench that checks it both measure with this.
+export const fittedWpm = (heard: readonly Heard[]): number | null => {
+  const first = heard.at(0);
+  const last = heard.at(-1);
+  if (first === undefined || last === undefined || heard.length < MIN_FIT_POINTS || last.at - first.at < MIN_FIT_SPAN_MS) return null;
+  const meanAt = heard.reduce((sum, h) => sum + h.at, 0) / heard.length;
+  const meanPosition = heard.reduce((sum, h) => sum + h.position, 0) / heard.length;
+  const covariance = heard.reduce((sum, h) => sum + (h.at - meanAt) * (h.position - meanPosition), 0);
+  const variance = heard.reduce((sum, h) => sum + (h.at - meanAt) ** 2, 0);
+  return Math.max(0, Math.round((covariance / variance) * 60_000));
+};
+
 // The most text Read aloud asks the Narrator to speak at once. It sends a sentence or two at a time.
 export const MAX_SPEAK_CHARS = 4000;
 

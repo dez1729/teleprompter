@@ -82,6 +82,19 @@ test("a Pushed Script appears, plays and pauses", async ({ page }) => {
   await expect(page.getByRole("button", { name: /^play/i })).toBeVisible();
 });
 
+test("the speaking rate shows no number while nothing is heard", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], "alpha bravo charlie delta echo foxtrot");
+  await expect(page.getByText("alpha")).toBeVisible();
+
+  await expect(page.locator("[data-speaking-rate]")).toHaveText("-- wpm");
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("button", { name: /^pause/i })).toBeVisible();
+  // Auto listens to no one: the control bar still shows no number, and the corner shows no Speaking rate at all.
+  await expect(page.locator("[data-speaking-rate]")).toHaveText("-- wpm");
+  await expect(page.getByLabel("Speaking rate")).toHaveCount(0);
+});
+
 test("the words before the reader are colored as read, unless Read words is off", async ({ page }) => {
   await page.goto(url);
   tp(["send", "--replace"], "alpha bravo\n\ncharlie delta");

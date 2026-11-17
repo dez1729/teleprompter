@@ -13,7 +13,8 @@
     "lint": "oxlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "bench:follow": "pnpm build && pnpm --filter @teleprompter/e2e bench:follow"
+    "bench:follow": "pnpm build && pnpm --filter @teleprompter/e2e bench:follow",
+    "bench:rate": "pnpm build && pnpm --filter @teleprompter/e2e bench:rate"
   },
   "engines": {
     "node": ">=22.18"

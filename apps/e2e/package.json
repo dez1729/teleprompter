@@ -6,7 +6,8 @@
   "scripts": {
     "typecheck": "tsc -p .",
     "test:e2e": "playwright test",
-    "bench:follow": "node follow-bench/bench.ts"
+    "bench:follow": "node follow-bench/bench.ts",
+    "bench:rate": "node follow-bench/rate.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",

@@ -104,7 +104,7 @@ export const usePrompter = (ui: UiBridge) => {
   }, [voice]);
 
   // Reading aloud, Follow hears the voice at its own pace instead of the reader through the microphone.
-  const follow = useFollow(
+  const { status: follow, wpm: speakingWpm } = useFollow(
     playback.mode,
     tokens.words,
     settings.readAloud ? { expectedWpm: settings.voiceWpm, listen: listenToVoice } : { expectedWpm: settings.speedWpm, listen: openMicrophone },
@@ -314,6 +314,7 @@ export const usePrompter = (ui: UiBridge) => {
     settings,
     playback,
     follow,
+    speakingWpm,
     narration,
     readout,
     replaced,

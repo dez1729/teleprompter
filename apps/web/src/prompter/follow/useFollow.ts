@@ -14,16 +14,24 @@ interface FollowOptions {
   listen: () => Promise<Microphone>;
 }
 
+export interface FollowReading {
+  status: FollowStatus;
+  // The voice's words per minute while Follow hears it, otherwise null.
+  wpm: number | null;
+}
+
 // Runs a FollowSession while the mode is following. An error stays shown after Follow stops, until it starts again.
-export const useFollow = (mode: PlaybackMode, words: readonly Word[], options: FollowOptions, dispatch: Dispatch<PlaybackEvent>): FollowStatus => {
+export const useFollow = (mode: PlaybackMode, words: readonly Word[], options: FollowOptions, dispatch: Dispatch<PlaybackEvent>): FollowReading => {
   const following = mode.kind === "following";
   const [status, setStatus] = useState<FollowStatus>(OFF);
+  const [wpm, setWpm] = useState<number | null>(null);
   // Turning Follow on starts from "starting", not from whatever the last session ended on.
   const [wasFollowing, setWasFollowing] = useState(following);
 
   if (wasFollowing !== following) {
     setWasFollowing(following);
     if (following) setStatus({ kind: "starting" });
+    setWpm(null);
   }
 
   const script = useMemo(() => words.map((word) => normalizeWord(word.text)), [words]);
@@ -36,10 +44,10 @@ export const useFollow = (mode: PlaybackMode, words: readonly Word[], options: F
   // The session holds the microphone and the async work; the effect only starts and stops it.
   useEffect(() => {
     if (!following) return;
-    const session = new FollowSession({ listen, place: () => place.current, dispatch, onStatus: setStatus }, expectedPace.current);
+    const session = new FollowSession({ listen, place: () => place.current, dispatch, onStatus: setStatus, onWpm: setWpm }, expectedPace.current);
     session.start();
     return () => session.stop();
   }, [following, listen, dispatch]);
 
-  return following || status.kind === "error" ? status : OFF;
+  return { status: following || status.kind === "error" ? status : OFF, wpm };
 };
