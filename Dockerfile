@@ -5,7 +5,7 @@ FROM node:24.22.3-slim AS base
 RUN npm install --global pnpm@12.18.0
 WORKDIR /app
 # Manifests first, so a source edit does not reinstall dependencies.
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY packages/protocol/package.json packages/protocol/

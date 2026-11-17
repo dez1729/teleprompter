@@ -36,6 +36,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: docker build -t teleprompter .
       - name: Serve the app and the API from the image
+        id: serve
         run: |
           docker run -d --name teleprompter -p 127.0.0.1:4747:4747 teleprompter
           for try in $(seq 1 30); do
@@ -45,5 +46,5 @@ jobs:
           done
           curl -sf http://127.0.0.1:4747/ | grep -q '<div id="root">'
       - name: Show the container's output
-        if: failure()
+        if: failure() && steps.serve.outcome == 'failure'
         run: docker logs teleprompter
