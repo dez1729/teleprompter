@@ -88,7 +88,7 @@ export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
       if (!parsed.success) return c.json({ error: "Invalid request" }, 400);
 
       try {
-        const audio = await narrator(parsed.data.text, parsed.data.speed);
+        const audio = await narrator.speak(parsed.data.text, parsed.data.speed, parsed.data.voice);
         return c.body(audio.slice().buffer, 200, { "content-type": "audio/wav" });
       }
       catch (error) {
@@ -97,6 +97,18 @@ export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
       }
     }
   );
+
+  api.get("/voices", async (c) => {
+    if (isNil(narrator)) return c.json({ error: "No Narrator is set up." }, 503);
+
+    try {
+      return c.json(await narrator.voices());
+    }
+    catch (error) {
+      if (error instanceof NarratorError) return c.json({ error: error.message }, 502);
+      throw error;
+    }
+  });
 
   api.get("/history", (c) => c.json(store.versions().map(summarize)));
 
