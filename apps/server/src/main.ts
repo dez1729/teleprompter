@@ -1,7 +1,7 @@
-import { PortInUseError, serveFromEnv, stopOnSignals } from "./index.ts";
+import { PortInUseError, serveFromEnv } from "./index.ts";
 
 try {
-  stopOnSignals(await serveFromEnv());
+  await serveFromEnv();
 }
 catch (error) {
   console.error(error instanceof PortInUseError ? error.message : String(error));

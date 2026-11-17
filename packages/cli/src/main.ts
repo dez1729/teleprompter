@@ -1,4 +1,4 @@
-import { PortInUseError, serveFromEnv, stopOnSignals } from "@teleprompter/server";
+import { PortInUseError, serveFromEnv } from "@teleprompter/server";
 import { run } from "./cli.ts";
 import { CliError } from "./send.ts";
 
@@ -14,7 +14,7 @@ const code = await run(process.argv.slice(2), {
   err: (line) => console.error(line),
   serve: async () => {
     try {
-      stopOnSignals(await serveFromEnv());
+      await serveFromEnv();
     }
     catch (error) {
       if (error instanceof PortInUseError) throw new CliError(error.message);

@@ -80,8 +80,19 @@ export class PortInUseError extends Error {
   }
 }
 
-// Starts the server set up from the environment, as `tp serve` and the container do.
-export const serveFromEnv = async (env: NodeJS.ProcessEnv = process.env): Promise<RunningServer> => {
+const STOP_SIGNALS = ["SIGTERM", "SIGINT"] as const;
+
+// Node ignores these signals when it runs as PID 1 in a container. Exits with 128 plus the
+// signal's number, as the signal itself would have, so an interrupted run does not look finished.
+const stopOnSignals = (server: RunningServer): void => {
+  for (const signal of STOP_SIGNALS) {
+    process.once(signal, () => void server.close().then(() => process.exit(128 + constants.signals[signal])));
+  }
+};
+
+// Runs the server set up from the environment, as `tp serve` and the container do. It stops on
+// signals before it says it is listening, so a signal sent at that moment cannot kill it outright.
+export const serveFromEnv = async (env: NodeJS.ProcessEnv = process.env): Promise<void> => {
   let server: RunningServer;
 
   try {
@@ -92,16 +103,6 @@ export const serveFromEnv = async (env: NodeJS.ProcessEnv = process.env): Promis
     throw error;
   }
 
+  stopOnSignals(server);
   console.log(`Teleprompter listening on ${server.url}`);
-  return server;
-};
-
-const STOP_SIGNALS = ["SIGTERM", "SIGINT"] as const;
-
-// Node ignores these signals when it runs as PID 1 in a container. Exits with 128 plus the
-// signal's number, as the signal itself would have, so an interrupted run does not look finished.
-export const stopOnSignals = (server: RunningServer): void => {
-  for (const signal of STOP_SIGNALS) {
-    process.once(signal, () => void server.close().then(() => process.exit(128 + constants.signals[signal])));
-  }
 };
