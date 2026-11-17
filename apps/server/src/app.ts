@@ -23,7 +23,7 @@ export interface AppOptions {
   heartbeatMs?: number;
   /** Where Follow sends the reader's speech. Without it, /api/transcribe answers 503. */
   transcriber?: Transcriber;
-  /** Who reads the Script aloud. Without it, /api/speak answers 503. */
+  // Who reads the Script aloud. Without it, /api/speak answers 503.
   narrator?: Narrator;
 }
 
@@ -88,11 +88,14 @@ export const createApp = ({ store, port, webDir, heartbeatMs = HEARTBEAT_MS, tra
       if (!parsed.success) return c.json({ error: "Invalid request" }, 400);
 
       try {
-        const audio = await narrator.speak(parsed.data.text, parsed.data.speed, parsed.data.voice);
-        return c.body(audio.slice().buffer, 200, { "content-type": "audio/wav" });
+        // Read aloud aborts a passage it no longer needs; Kokoro stops on it too, so the next one is not queued behind it.
+        const audio = await narrator.speak(parsed.data, c.req.raw.signal);
+        return c.body(audio, 200, { "content-type": "audio/wav" });
       }
       catch (error) {
         if (error instanceof NarratorError) return c.json({ error: error.message }, 502);
+        // The browser has gone, so nobody reads the answer.
+        if (c.req.raw.signal.aborted) return c.body(null);
         throw error;
       }
     }

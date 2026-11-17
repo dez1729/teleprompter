@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.ts";
+import { startServer } from "./index.ts";
 import { kokoroNarrator, NarratorError, type Narrator } from "./narrator.ts";
 import { ScriptStore } from "./store.ts";
 
@@ -35,7 +36,7 @@ const voices = (narrator: Narrator | undefined) => {
 
 describe("POST /api/speak", () => {
   it("answers with the Narrator's audio", async () => {
-    const res = await speak(narrating(async (text, speed, voice) => new TextEncoder().encode(`${text} at ${speed} by ${voice}`)));
+    const res = await speak(narrating(async ({ text, speed, voice }) => new TextEncoder().encode(`${text} at ${speed} by ${voice}`)));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("audio/wav");
     expect(await res.text()).toBe("Hello there. at 1.2 by bf_emma");
@@ -97,7 +98,7 @@ describe("kokoroNarrator", () => {
       },
     });
 
-    const wav = await narrator.speak("Hello.", 1.5);
+    const wav = await narrator.speak({ text: "Hello.", speed: 1.5 });
     const view = new DataView(wav.buffer);
     expect(sent).toEqual({
       url: "http://127.0.0.1:8880/v1/audio/speech",
@@ -111,12 +112,14 @@ describe("kokoroNarrator", () => {
 
   it("tells the reader how to fix an unreachable server", async () => {
     const narrator = kokoroNarrator({ fetch: () => Promise.reject(new TypeError("fetch failed")) });
-    await expect(narrator.speak("Hi.", 1)).rejects.toThrow(/Cannot reach the Kokoro server at http:\/\/127\.0\.0\.1:8880\..*TELEPROMPTER_KOKORO_URL/);
+    await expect(narrator.speak({ text: "Hi.", speed: 1 })).rejects.toThrow(
+      /Cannot reach the Kokoro server at http:\/\/127\.0\.0\.1:8880\..*TELEPROMPTER_KOKORO_URL/
+    );
   });
 
   it("reports an error answer with its status", async () => {
     const narrator = kokoroNarrator({ fetch: async () => new Response("voice not found", { status: 400 }) });
-    await expect(narrator.speak("Hi.", 1)).rejects.toThrow(/answered 400\. voice not found/);
+    await expect(narrator.speak({ text: "Hi.", speed: 1 })).rejects.toThrow(/answered 400\. voice not found/);
   });
 });
 
@@ -130,7 +133,7 @@ describe("kokoroNarrator voices", () => {
       },
     });
 
-    await narrator.speak("Hi.", 1, "am_adam");
+    await narrator.speak({ text: "Hi.", speed: 1, voice: "am_adam" });
     expect(voice).toBe("am_adam");
   });
 
@@ -138,5 +141,56 @@ describe("kokoroNarrator voices", () => {
     const listing = (voices: unknown[]) => kokoroNarrator({ voice: "bf_emma", fetch: async () => Response.json({ voices }) }).voices();
     expect(await listing(["af_heart", "bf_emma"])).toEqual({ voices: ["af_heart", "bf_emma"], default: "bf_emma" });
     expect(await listing([{ id: "af_heart", name: "af_heart" }, { name: "no id" }])).toEqual({ voices: ["af_heart"], default: "bf_emma" });
+  });
+});
+
+// Answers once `signal` aborts, as fetch does: with the signal's reason.
+const hang = (signal: AbortSignal | null | undefined): Promise<Response> =>
+  new Promise((_, reject) => signal?.addEventListener("abort", () => reject(signal.reason as Error)));
+
+describe("kokoroNarrator limits", () => {
+  it("gives up on a Kokoro that does not answer in time", async () => {
+    const narrator = kokoroNarrator({ timeoutMs: 50, fetch: (_url, init) => hang(init?.signal) });
+    await expect(narrator.speak({ text: "Hi.", speed: 1 })).rejects.toThrow(/did not answer within 0\.05 s/);
+    await expect(narrator.voices()).rejects.toThrow(/did not answer within 0\.05 s/);
+  });
+
+  it("stops asking Kokoro when the caller aborts, without calling it a Kokoro failure", async () => {
+    const caller = new AbortController();
+    const narrator = kokoroNarrator({ fetch: (_url, init) => hang(init?.signal) });
+    const speaking = narrator.speak({ text: "Hi.", speed: 1 }, caller.signal);
+    caller.abort(new Error("moved on"));
+    await expect(speaking).rejects.toThrow("moved on");
+  });
+});
+
+describe("POST /api/speak over HTTP", () => {
+  it("aborts the Narrator when the browser cancels the request", async () => {
+    let aborted: (() => void) | undefined;
+    const narratorAborted = new Promise<void>((resolve) => (aborted = resolve));
+    const narrator = narrating((_request, signal) => {
+      signal?.addEventListener("abort", () => aborted?.());
+      return new Promise(() => {});
+    });
+
+    const server = await startServer({ port: 0, dataDir: dir, webDir: dir, narrator });
+
+    try {
+      const browser = new AbortController();
+      const sent = fetch(`${server.url}/api/speak`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: "Hi.", speed: 1 }),
+        signal: browser.signal,
+      }).catch(() => {});
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      browser.abort();
+      await sent;
+      await narratorAborted;
+    }
+    finally {
+      await server.close();
+    }
   });
 });
