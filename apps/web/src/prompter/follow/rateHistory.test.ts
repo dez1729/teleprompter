@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { HOLD_MS, MAX_WINDOW_MS, NO_RATES, clearedRates, lastWpm, rateStats, segmentsIn, shownRate, withRate, type RateHistory } from "./rateHistory";
+import {
+  HOLD_MS,
+  MAX_RATE_WINDOW_SEC,
+  NO_RATES,
+  clearedRates,
+  lastWpm,
+  rateStats,
+  segmentsIn,
+  shownRate,
+  withRate,
+  type RateHistory,
+} from "./rateHistory";
 
 const history = (...changes: [at: number, wpm: number | null][]): RateHistory =>
   changes.reduce((rates, [at, wpm]) => withRate(rates, wpm, at), NO_RATES);
@@ -13,10 +24,10 @@ describe("withRate", () => {
   });
 
   it("forgets changes older than the longest window, but keeps the one in force when it starts", () => {
-    const rates = history([0, 120], [1000, 130], [MAX_WINDOW_MS + 5000, 140]);
+    const rates = history([0, 120], [1000, 130], [MAX_RATE_WINDOW_SEC * 1000 + 5000, 140]);
     expect(rates).toEqual([
       { at: 1000, wpm: 130 },
-      { at: MAX_WINDOW_MS + 5000, wpm: 140 },
+      { at: MAX_RATE_WINDOW_SEC * 1000 + 5000, wpm: 140 },
     ]);
   });
 });

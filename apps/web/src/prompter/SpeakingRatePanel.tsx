@@ -1,13 +1,12 @@
 import { isNil } from "es-toolkit";
 import { AudioLines, Eraser, Pin } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { PopoverDescription, PopoverHeader, PopoverTitle } from "@/components/ui/popover";
 import { Toggle } from "@/components/ui/toggle";
-import { HOLD_MS, lastWpm, rateStats, segmentsIn, shownRate, type RateHistory, type RateSegment } from "./follow/rateHistory";
+import { createRateClock, readRateClock, type RateReading } from "./follow/rateClock";
+import { lastWpm, rateStats, segmentsIn, shownRate, type RateHistory, type RateSegment } from "./follow/rateHistory";
 
-// Often enough for the graph to scroll smoothly and the held rate to clear on time.
-const TICK_MS = 500;
 const GRAPH_WIDTH = 200;
 const GRAPH_HEIGHT = 48;
 // The graph's span is never narrower than this, so a steady voice does not look jagged.
@@ -15,31 +14,18 @@ const MIN_SPAN_WPM = 40;
 
 export const speakingRateText = (wpm: number | null): string => `${wpm ?? "--"} wpm`;
 
-interface RateClock {
-  // Reads the held rate, so it clears on time even after Follow stops.
-  live: number;
-  // Reads the graph and stats. It stops at the last change once Follow stops, so they stay as they were.
-  frozen: number;
-}
-
-// Listening, the clock ticks. Stopped, it wakes once more when the held rate runs out.
-const useRateClock = (history: RateHistory, listening: boolean): RateClock => {
-  const [tick, setTick] = useState(() => performance.now());
+// Only the parts that show the rate subscribe to the clock, so a tick re-renders them and not the whole Prompter.
+const useRateClock = (history: RateHistory, listening: boolean): RateReading => {
+  const [clock] = useState(createRateClock);
   const lastChange = history.at(-1)?.at;
+  const tick = useSyncExternalStore(clock.subscribe, clock.getSnapshot);
 
   useEffect(() => {
-    if (listening) {
-      const interval = setInterval(() => setTick(performance.now()), TICK_MS);
-      return () => clearInterval(interval);
-    }
+    clock.follow(lastChange, listening);
+    return clock.stop;
+  }, [clock, lastChange, listening]);
 
-    if (isNil(lastChange)) return;
-    const holdEnds = setTimeout(() => setTick(performance.now()), Math.max(0, lastChange + HOLD_MS - performance.now()));
-    return () => clearTimeout(holdEnds);
-  }, [listening, lastChange]);
-
-  const live = Math.max(tick, lastChange ?? tick);
-  return { live, frozen: listening ? live : (lastChange ?? tick) };
+  return readRateClock(tick, lastChange, listening);
 };
 
 interface BadgeProps {

@@ -1,5 +1,6 @@
 import { VoiceNameSchema } from "@teleprompter/protocol";
 import { isBoolean, isNumber, isPlainObject, isString } from "es-toolkit";
+import { MAX_RATE_WINDOW_SEC } from "./follow/rateHistory";
 
 export interface NumberField {
   kind: "number";
@@ -142,7 +143,7 @@ export const SETTING_DEFS = {
   rateWindowSec: advanced(
     about(
       "How many seconds back the Speaking rate graph reaches, and its average, lowest and highest rates with it.",
-      num("Speaking rate window", 60, 10, 300, 10, "s")
+      num("Speaking rate window", 60, 10, MAX_RATE_WINDOW_SEC, 10, "s")
     )
   ),
   speedWpm: about("How fast Auto scrolls, in words per minute. Follow ignores it.", num("Speed", 140, 40, 400, 5, "wpm")),
