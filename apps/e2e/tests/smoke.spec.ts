@@ -111,6 +111,20 @@ test("the words before the reader are colored as read, unless Read words is off"
   await expect(read).toHaveCount(0);
 });
 
+test("a Replace leaves none of the new words read", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], "alpha bravo\n\ncharlie delta\n\necho foxtrot");
+  await expect(page.getByText("foxtrot")).toBeVisible();
+  const read = page.locator("[data-read]");
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(read).toHaveCount(4);
+
+  tp(["send", "--replace"], "golf hotel india");
+  await expect(page.getByText("golf")).toBeVisible();
+  await expect(read).toHaveCount(0);
+});
+
 test("the old browser-stored Script moves to the server once", async ({ page }) => {
   // Stored before the app's first load, as an earlier version left it.
   await page.addInitScript(() => localStorage.setItem("teleprompter.script", JSON.stringify({ source: "kept from before", format: "text" })));

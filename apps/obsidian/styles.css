@@ -1,0 +1,16 @@
+.teleprompter-push {
+  display: inline-flex;
+  margin-inline-start: var(--size-4-2);
+  padding: var(--size-2-1);
+  vertical-align: middle;
+  opacity: 0.5;
+}
+
+.teleprompter-push:hover {
+  opacity: 1;
+}
+
+.teleprompter-push svg {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}

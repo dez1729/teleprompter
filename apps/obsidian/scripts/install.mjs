@@ -9,5 +9,5 @@ if (!vault || !existsSync(join(vault, ".obsidian"))) {
 
 const target = resolve(vault, ".obsidian", "plugins", "teleprompter");
 mkdirSync(target, { recursive: true });
-for (const file of ["main.js", "manifest.json"]) copyFileSync(new URL(`../dist/${file}`, import.meta.url), join(target, file));
+for (const file of ["main.js", "manifest.json", "styles.css"]) copyFileSync(new URL(`../dist/${file}`, import.meta.url), join(target, file));
 console.log(`Installed in ${target}. In Obsidian, turn on Teleprompter under Settings → Community plugins.`);
