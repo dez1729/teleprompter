@@ -23,6 +23,9 @@ const ACTIONS: Record<PushKind, { command: string; menu: string; done: string }>
   },
 };
 
+/** How long after a note opens Obsidian may still reset its scroll. */
+const SETTLE_MS = 1000;
+
 const obsidianHttp: Http = async (request) => {
   const response = await requestUrl({ ...request, throw: false });
   return { status: response.status, text: response.text };
@@ -30,6 +33,8 @@ const obsidianHttp: Http = async (request) => {
 
 export default class TeleprompterPlugin extends Plugin {
   settings: Settings = { serverUrl: DEFAULT_SERVER_URL };
+  /** The note that just opened, so the tab becoming active right after can scroll it again. */
+  private opening: { path: string; at: number } | null = null;
 
   override async onload() {
     this.settings = { ...this.settings, ...((await this.loadData()) as Partial<Settings> | null) };
@@ -59,7 +64,23 @@ export default class TeleprompterPlugin extends Plugin {
     this.registerEditorExtension(editorButtons(pushBlock));
     this.registerMarkdownPostProcessor(readingButtons(pushBlock, (sourcePath) => this.app.vault.getFileByPath(sourcePath)?.basename ?? "Obsidian"));
 
-    this.registerEvent(this.app.workspace.on("file-open", () => this.showDefaultRange()));
+    this.registerEvent(
+      this.app.workspace.on("file-open", (file) => {
+        this.opening = isNil(file) ? null : { path: file.path, at: Date.now() };
+        this.showDefaultRange();
+      })
+    );
+
+    // Opening from the file list makes the tab active last, which scrolls the note back to the top.
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", (leaf) => {
+        const { opening } = this;
+        if (isNil(opening) || Date.now() - opening.at > SETTLE_MS) return;
+        if (!(leaf?.view instanceof MarkdownView) || leaf.view.file?.path !== opening.path) return;
+        this.opening = null;
+        this.showDefaultRange();
+      })
+    );
 
     this.addSettingTab(new TeleprompterSettingTab(this.app, this));
   }
