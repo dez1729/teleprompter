@@ -246,6 +246,12 @@ importers:
         specifier: 1.53.2
         version: 1.53.2
     devDependencies:
+      '@codemirror/state':
+        specifier: 6.7.6
+        version: 6.7.6
+      '@codemirror/view':
+        specifier: 6.43.13
+        version: 6.43.13
       '@teleprompter/server':
         specifier: workspace:*
         version: link:../server

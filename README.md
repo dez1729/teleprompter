@@ -41,7 +41,7 @@ A local server holds the Script and its recent history, so other tools can send 
 - A local server holds the Script, so every Prompter and Editor shows the same one.
 - The [`tp` command](#send-text) Pushes text as a Replace or an Append, from an argument or stdin.
 - A [Claude Code plugin](#use-it-from-claude-code): `/teleprompter replace` and `/teleprompter append`, or ask Claude to "put that in the prompter".
-- An [Obsidian plugin](#use-it-from-obsidian) that Pushes the selection or the whole note, from the command palette or the right-click menu.
+- An [Obsidian plugin](#use-it-from-obsidian) that Pushes the selection or the whole note, from the command palette, the right-click menu, or a button beside each heading and marked range.
 - An [HTTP API](#api) with a live event stream, for anything else.
 - Runs on your machine only, with `pnpm start` or [in Docker](#run-it-in-docker).
 
@@ -142,6 +142,16 @@ This builds the plugin and copies it into the vault's `.obsidian/plugins/telepro
 
 - **Teleprompter: Replace the Script with the selection or note** and **Teleprompter: Add the selection or note to the Script** are in the command palette. Assign them hotkeys under **Settings → Hotkeys**.
 - The same two actions are in the editor's right-click menu.
+- Every heading has a Teleprompter button. It Replaces the Script with that heading's section, down to the next heading at the same or a higher level.
+- Mark a range you read often with comments. It gets its own button, which Replaces the Script with the text between the markers. Comments are hidden in Reading view and in the Prompter.
+
+  ```markdown
+  %% tp %%
+  The part I want on the Teleprompter.
+  %% /tp %%
+  ```
+
+- Open the range with `%% tp-default %%` in place of `%% tp %%` to have it selected each time you open the note, so the commands and hotkeys send it. Only the first `tp-default` range in a note is selected.
 - The note's title becomes the Script's source, and the text is sent as markdown, so Spoken-only hides frontmatter, comments, and callouts.
 - If the server is not running, a notice tells you to run `tp serve`. To use another address, change **Server address** in the plugin's settings.
 

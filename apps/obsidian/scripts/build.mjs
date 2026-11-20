@@ -15,5 +15,5 @@ await build({
   external: ["obsidian", "electron", "@codemirror/*", "@lezer/*"],
   logLevel: "warning",
 });
-copyFileSync(new URL("manifest.json", root), new URL("manifest.json", out));
+for (const file of ["manifest.json", "styles.css"]) copyFileSync(new URL(file, root), new URL(file, out));
 console.log(`Built the Obsidian plugin in ${out.pathname}`);
