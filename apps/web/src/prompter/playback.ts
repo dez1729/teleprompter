@@ -65,9 +65,10 @@ export type PlaybackEvent =
   | { type: "FOLLOW" }
   /**
    * `matched` is the word just past what the reader's voice matched; `position` is where they are now, allowing
-   * for the time the match took; `pace` is how fast they have been reading, in words per ms.
+   * for the time the match took; `pace` is how fast they have been reading, in words per ms; `readMs` is how long
+   * they had to read on since the last match, or since Follow started listening.
    */
-  | { type: "HEARD"; matched: number; position: number; pace: number }
+  | { type: "HEARD"; matched: number; position: number; pace: number; readMs: number }
   /** Whether the microphone hears speech right now. */
   | { type: "VOICE"; speaking: boolean }
   /** The reader went quiet `forMs` ago: stop near where they stopped, until their voice is matched again. */
@@ -181,7 +182,7 @@ const movedTo = (mode: PlaybackMode, position: number): PlaybackMode => {
     : mode;
 };
 
-const heard = (state: PlaybackState, matched: number, position: number, pace: number): PlaybackState => {
+const heard = (state: PlaybackState, matched: number, position: number, pace: number, readMs: number): PlaybackState => {
   if (state.mode.kind !== "following") return state;
   const { target, heard: last } = state.mode;
   const reread = matched < last - FOLLOW_REREAD_WORDS;
@@ -195,13 +196,19 @@ const heard = (state: PlaybackState, matched: number, position: number, pace: nu
     return allowed < target && !reread ? target : clampCursor(state, allowed);
   };
   const reader = aimAt(position);
-  const jumped = reader - (state.animTarget ?? state.cursor) > FOLLOW_JUMP_WORDS;
+  // Only a match further than the reader could have read on to since the last one is a jump. A cursor that fell
+  // behind while Whisper was slow, or while it waited at the end of a sentence, scrolls to catch up instead.
+  const readOnTo = last + FOLLOW_JUMP_WORDS + pace * Math.min(readMs, FOLLOW_COAST_MS);
+  const jumped = matched > readOnTo && reader - (state.animTarget ?? state.cursor) > FOLLOW_JUMP_WORDS;
   // Trailing keeps the wobble of a second-old estimate behind the reader. A cursor gliding to catch up with a reader
   // far ahead cannot get ahead of them, so trailing would only slow it down. The trail comes back because the target
   // stands still during the glide, 0.4 to 0.5 s, while the reader reads on; below about 1.5 to 1.9 words a second,
   // depending on how far the jump is, it comes back only partly, as pace times glide, until the cursor next waits at a
   // sentence end.
   const next = jumped ? reader : aimAt(Math.max(matched, position - FOLLOW_TRAIL_WORDS));
+  const coastFrom = reread ? matched : Math.max(matched, state.mode.coastFrom);
+  // A late match from before the sentence end the cursor waits at leaves the pause heard there standing.
+  const sameEnd = !reread && nextPausePoint(state, coastFrom) === nextPausePoint(state, state.mode.coastFrom);
 
   return {
     ...state,
@@ -213,9 +220,9 @@ const heard = (state: PlaybackState, matched: number, position: number, pace: nu
       coastMs: 0,
       speed: jumped ? pace : state.mode.speed,
       heard: matched,
-      coastFrom: reread ? matched : Math.max(matched, state.mode.coastFrom),
-      pausedAtEnd: false,
-      heldMs: 0,
+      coastFrom,
+      pausedAtEnd: sameEnd && state.mode.pausedAtEnd,
+      heldMs: sameEnd ? state.mode.heldMs : 0,
     },
   };
 };
@@ -357,7 +364,7 @@ export const playbackReducer = (state: PlaybackState, event: PlaybackEvent): Pla
     case "FOLLOW":
       return follow(state);
     case "HEARD":
-      return heard(state, event.matched, event.position, event.pace);
+      return heard(state, event.matched, event.position, event.pace, event.readMs);
     case "VOICE":
       if (state.mode.kind !== "following") return state;
       if (event.speaking === state.mode.speaking) return state;
