@@ -1,6 +1,8 @@
 // Measures how closely Follow keeps up with a voice. Kokoro speaks a paragraph, Whisper times each word, and the
 // recording, cut to start at a chosen word, is Chromium's microphone while the Prompter follows it.
-// Usage: node follow-bench/bench.ts [--from 62 --from 30 --from 0] [--runs 5] [--trace]
+// Usage: node follow-bench/bench.ts [--from 62 --from 30 --from 0] [--runs 5] [--trace] [--cpu-slowdown 4] [--whisper-delay 1500]
+// --cpu-slowdown runs the page's main thread that many times slower, as on a machine busy with a video call.
+// --whisper-delay holds each transcription back that many ms, as a Whisper sharing its GPU or CPU answers.
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -37,6 +39,8 @@ interface RunResult {
   medianLag: number;
   ahead: number;
   pastSentenceEnd: number;
+  // The furthest the cursor moved between two samples, in words: a jump the reader sees, not a scroll.
+  maxStep: number;
 }
 
 // A run where Follow stopped partway, such as on a Whisper error, and why.
@@ -98,6 +102,8 @@ const watchCursor = (sampleMs: number) => {
 
 const readSamples = (page: Page) => page.evaluate(() => (window as unknown as { cursorSamples: [number, number][] }).cursorSamples);
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const median = (values: readonly number[]) => [...values].sort((a, b) => a - b).at(values.length >> 1) ?? NaN;
 
 // Seconds or words to two places; NaN when Follow never caught up while the voice was speaking.
@@ -113,6 +119,7 @@ const score = (points: readonly Point[], sentenceEnds: readonly number[], wordCo
     medianLag: median(reading.map((p) => p.spoken - p.cursor)),
     ahead: reading.length === 0 ? NaN : Math.max(...reading.map((p) => p.cursor - p.spoken)),
     pastSentenceEnd: reading.length === 0 ? NaN : Math.max(0, ...reading.map((p) => p.cursor - nextEnd(p.spoken))),
+    maxStep: Math.max(0, ...reading.slice(1).map((p, i) => Math.abs(p.cursor - reading.at(i)!.cursor))),
   };
 };
 
@@ -120,17 +127,22 @@ interface FollowOptions {
   from: number;
   timing: readonly TimedWord[];
   trace: boolean;
+  cpuSlowdown: number;
 }
 
 interface RunOptions extends FollowOptions {
   clipPath: string;
+  whisperDelayMs: number;
 }
 
-const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<RunOutcome> => {
+const runOnce = async ({ from, clipPath, whisperDelayMs, ...options }: RunOptions): Promise<RunOutcome> => {
   const dataDir = mkdtempSync(join(tmpdir(), "tp-follow-bench-"));
 
   try {
-    const server = await startServer({ ...optionsFromEnv(), port: 0, dataDir, webDir: WEB_DIR });
+    const env = optionsFromEnv();
+    const { transcriber } = env;
+    const delayed = isNil(transcriber) ? transcriber : async (audio: Blob) => (await Promise.all([transcriber(audio), sleep(whisperDelayMs)]))[0];
+    const server = await startServer({ ...env, transcriber: delayed, port: 0, dataDir, webDir: WEB_DIR });
 
     try {
       const browser = await chromium.launch({
@@ -138,7 +150,7 @@ const runOnce = async ({ from, clipPath, timing, trace }: RunOptions): Promise<R
       });
 
       try {
-        return await follow(server.url, browser, { from, timing, trace });
+        return await follow(server.url, browser, { from, ...options });
       }
       finally {
         await browser.close();
@@ -160,7 +172,7 @@ const micState = () => {
   return (window as unknown as { micOpenedAt?: number }).micOpenedAt === undefined ? null : "open";
 };
 
-const follow = async (url: string, browser: Browser, { from, timing, trace }: FollowOptions): Promise<RunOutcome> => {
+const follow = async (url: string, browser: Browser, { from, timing, trace, cpuSlowdown }: FollowOptions): Promise<RunOutcome> => {
   const pushed = await fetch(`${url}/api/script`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -171,6 +183,7 @@ const follow = async (url: string, browser: Browser, { from, timing, trace }: Fo
 
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   await page.addInitScript(watchCursor, SAMPLE_MS);
+  if (cpuSlowdown > 1) await (await page.context().newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate: cpuSlowdown });
   await page.goto(url);
   await page.locator("[data-word]").first().waitFor();
   await page.keyboard.press("f");
@@ -211,6 +224,8 @@ const { values } = parseArgs({
     from: { type: "string", multiple: true, default: ["62", "30", "0"] },
     runs: { type: "string", default: "5" },
     trace: { type: "boolean", default: false },
+    "cpu-slowdown": { type: "string", default: "1" },
+    "whisper-delay": { type: "string", default: "0" },
   },
 });
 const wholeNumber = (option: string, value: string, min: number, max: number) => {
@@ -220,6 +235,8 @@ const wholeNumber = (option: string, value: string, min: number, max: number) =>
 };
 const starts = values.from.map((value) => wholeNumber("--from", value, 0, SCRIPT_WORDS.length - 1));
 const runs = wholeNumber("--runs", values.runs, 1, 999);
+const cpuSlowdown = wholeNumber("--cpu-slowdown", values["cpu-slowdown"], 1, 20);
+const whisperDelayMs = wholeNumber("--whisper-delay", values["whisper-delay"], 0, 10000);
 
 const recording = await speak(PARAGRAPH);
 const timing = await timeWords(recording, SCRIPT_WORDS);
@@ -234,7 +251,7 @@ try {
     let stopped = 0;
 
     for (let run = 1; run <= runs; run++) {
-      const r = await runOnce({ from, clipPath, timing, trace: values.trace });
+      const r = await runOnce({ from, clipPath, timing, trace: values.trace, cpuSlowdown, whisperDelayMs });
 
       if ("stopped" in r) {
         stopped++;
@@ -246,7 +263,7 @@ try {
 
       console.log(
         `from ${from} run ${run}: catch-up ${show(r.catchUp)} s, median lag ${show(r.medianLag)} words, ` +
-          `max ahead ${show(r.ahead)}, past sentence end ${show(r.pastSentenceEnd)}`
+          `max ahead ${show(r.ahead)}, past sentence end ${show(r.pastSentenceEnd)}, max step ${show(r.maxStep)}`
       );
     }
 
