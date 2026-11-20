@@ -63,6 +63,7 @@ const run = async (speed: number, dir: string) => {
     await page.keyboard.press("f");
     await page.keyboard.press(" ");
     await page.waitForSelector('[data-follow-status="listening"]');
+    await page.keyboard.press("w");
     // The fake microphone starts playing about when it opens, so the recording's clock starts here.
     const opened = Date.now();
     const shown: string[] = [];
@@ -71,7 +72,9 @@ const run = async (speed: number, dir: string) => {
     while ((Date.now() - opened) / 1000 < starts.at(-1)! + TAIL_SEC - 0.5) {
       await page.waitForTimeout(1000);
       const sec = (Date.now() - opened) / 1000;
-      const text = (await page.getByLabel("Speaking rate").textContent()) ?? "";
+      // A held rate is the last one heard, not the current one.
+      const number = page.locator("[data-speaking-rate-now]:not([data-held])");
+      const text = (await number.count()) > 0 ? ((await number.textContent()) ?? "") : "-- wpm";
       const truth = trueWpm(starts, sec);
       const value = Number.parseInt(text, 10);
       if (Number.isFinite(value) && truth !== null && sec > 3) errors.push(value - truth);

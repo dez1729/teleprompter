@@ -90,9 +90,56 @@ test("the speaking rate shows no number while nothing is heard", async ({ page }
   await expect(page.locator("[data-speaking-rate]")).toHaveText("-- wpm");
   await page.keyboard.press("Space");
   await expect(page.getByRole("button", { name: /^pause/i })).toBeVisible();
-  // Auto listens to no one: the control bar still shows no number, and the corner shows no Speaking rate at all.
+  // Auto listens to no one, so the control bar still shows no number.
   await expect(page.locator("[data-speaking-rate]")).toHaveText("-- wpm");
-  await expect(page.getByLabel("Speaking rate")).toHaveCount(0);
+});
+
+test("the control bar hides while playing unless it is pinned", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], Array.from({ length: 200 }, (_, i) => `word${i}`).join(" "));
+  await expect(page.getByText("word0", { exact: true })).toBeVisible();
+  const pin = page.getByRole("button", { name: "Keep the control bar visible" });
+  const bar = page.locator("[data-control-bar]");
+
+  await page.keyboard.press("Space");
+  await expect(bar).toHaveCSS("opacity", "0", { timeout: 10_000 });
+  await page.keyboard.press("Space");
+  await expect(bar).toHaveCSS("opacity", "1");
+
+  await pin.click();
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("button", { name: /^pause/i })).toBeVisible();
+  // Longer than the bar waits before it hides.
+  await page.waitForTimeout(3000);
+  await expect(bar).toHaveCSS("opacity", "1");
+
+  await page.reload();
+  await expect(pin).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the Speaking rate opens above the control bar and stays open over the Script when pinned", async ({ page }) => {
+  await page.goto(url);
+  tp(["send", "--replace"], "alpha bravo charlie");
+  await expect(page.getByText("alpha")).toBeVisible();
+
+  await page.getByRole("button", { name: "Speaking rate" }).click();
+  const rateMenu = page.getByRole("dialog", { name: "Speaking rate" });
+  await expect(rateMenu.locator("[data-speaking-rate-now]")).toHaveText("-- wpm");
+  // Nothing heard yet, so there is nothing to clear.
+  await expect(rateMenu.getByRole("button", { name: "Clear" })).toBeDisabled();
+  await page.getByText("alpha").click();
+  await expect(rateMenu).toBeHidden();
+
+  await page.keyboard.press("w");
+  await rateMenu.getByRole("button", { name: "Keep the Speaking rate open" }).click();
+  await page.getByText("alpha").click();
+  await expect(rateMenu).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("alpha")).toBeVisible();
+  await page.keyboard.press("w");
+  await expect(rateMenu.getByRole("button", { name: "Keep the Speaking rate open" })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("the words before the reader are colored as read, unless Read words is off", async ({ page }) => {

@@ -139,6 +139,12 @@ export const SETTING_DEFS = {
   marginTop: advanced(about("Blank space at the top of the screen.", num("Top margin", 0, 0, 600, 8, "px"))),
   marginBottom: advanced(about("Blank space at the bottom of the screen.", num("Bottom margin", 0, 0, 600, 8, "px"))),
   mirror: about("Flips the text left to right, for beam-splitter glass.", bool("Mirror", false)),
+  rateWindowSec: advanced(
+    about(
+      "How many seconds back the Speaking rate graph reaches, and its average, lowest and highest rates with it.",
+      num("Speaking rate window", 60, 10, 300, 10, "s")
+    )
+  ),
   speedWpm: about("How fast Auto scrolls, in words per minute. Follow ignores it.", num("Speed", 140, 40, 400, 5, "wpm")),
   minLineSec: advanced(
     about(

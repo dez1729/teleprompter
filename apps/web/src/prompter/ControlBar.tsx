@@ -1,13 +1,15 @@
 import { isNil } from "es-toolkit";
 import { createContext, useContext, useState, type ReactElement, type ReactNode } from "react";
-import { AudioLines, Gauge, Keyboard, Mic, Minus, Pause, Play, Plus, RotateCcw, Settings, SquarePen, Timer, Volume2, VolumeOff } from "lucide-react";
+import { Gauge, Keyboard, Mic, Minus, Pause, Pin, Play, Plus, RotateCcw, Settings, SquarePen, Timer, Volume2, VolumeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { tooltipFor, type Command } from "./keymap";
-import { speakingRateText } from "./SpeakingRateReadout";
+import type { RateHistory } from "./follow/rateHistory";
+import { SpeakingRateBadge } from "./SpeakingRatePanel";
 import type { DisplaySettings } from "./settings";
 
 const TOOLTIP_DELAY_MS = 300;
@@ -45,8 +47,9 @@ interface Props {
   playing: boolean;
   scrollMode: DisplaySettings["scrollMode"];
   readAloud: boolean;
-  // What Follow hears, in words per minute, or null while nothing is heard.
-  speakingWpm: number | null;
+  // Every change in the Speaking rate Follow has heard.
+  speakingRates: RateHistory;
+  listening: boolean;
   speedWpm: number;
   fontSize: number;
   hasScript: boolean;
@@ -54,6 +57,13 @@ interface Props {
   onTimerOpenChange: (open: boolean) => void;
   timerPinned: boolean;
   timerPanel: ReactNode;
+  rateOpen: boolean;
+  onRateOpenChange: (open: boolean) => void;
+  ratePinned: boolean;
+  ratePanel: ReactNode;
+  // Pinned, the bar stays up while the Prompter plays.
+  barPinned: boolean;
+  onBarPinnedChange: (pinned: boolean) => void;
   onCommand: (command: Command) => void;
 }
 
@@ -62,7 +72,8 @@ export const ControlBar = ({
   playing,
   scrollMode,
   readAloud,
-  speakingWpm,
+  speakingRates,
+  listening,
   speedWpm,
   fontSize,
   hasScript,
@@ -70,6 +81,12 @@ export const ControlBar = ({
   onTimerOpenChange,
   timerPinned,
   timerPanel,
+  rateOpen,
+  onRateOpenChange,
+  ratePinned,
+  ratePanel,
+  barPinned,
+  onBarPinnedChange,
   onCommand,
 }: Props) => {
   const toggle: Command = { type: "toggle" };
@@ -79,6 +96,7 @@ export const ControlBar = ({
   const restart: Command = { type: "restart" };
   const openEditor: Command = { type: "openEditor" };
   const toggleTimer: Command = { type: "toggleTimer" };
+  const toggleSpeakingRate: Command = { type: "toggleSpeakingRate" };
   const openSettings: Command = { type: "openSettings" };
   const toggleHelp: Command = { type: "toggleHelp" };
 
@@ -86,6 +104,7 @@ export const ControlBar = ({
     <TooltipProvider delay={TOOLTIP_DELAY_MS}>
       <BarVisible.Provider value={visible}>
         <div
+          data-control-bar
           className={cn(
             "fixed inset-x-0 bottom-4 z-10 flex justify-center transition-opacity duration-300",
             visible ? "opacity-100" : "pointer-events-none opacity-0"
@@ -144,14 +163,29 @@ export const ControlBar = ({
                 {readAloud ? <Volume2 /> : <VolumeOff />}
               </Button>
             </Hint>
-            <span
-              data-speaking-rate
-              className="flex min-w-20 items-center justify-center gap-1 text-xs tabular-nums"
-              title="Speaking rate, as Follow hears it"
+            <PinnablePopover
+              open={rateOpen}
+              onOpenChange={onRateOpenChange}
+              pinned={ratePinned}
+              command={toggleSpeakingRate}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="min-w-24"
+                  aria-label="Speaking rate"
+                />
+              }
+              triggerContent={
+                <SpeakingRateBadge
+                  rates={speakingRates}
+                  listening={listening}
+                />
+              }
+              className="w-72 bg-popover/70 backdrop-blur-md"
             >
-              <AudioLines className="size-3.5 opacity-60" />
-              {speakingRateText(speakingWpm)}
-            </span>
+              {ratePanel}
+            </PinnablePopover>
             <Hint command={restart}>
               <Button
                 size="icon"
@@ -185,37 +219,23 @@ export const ControlBar = ({
                 <SquarePen />
               </Button>
             </Hint>
-            <Popover
+            <PinnablePopover
               open={timerOpen}
-              onOpenChange={(open, details) => {
-                // Pinned, the Timer stays up while you read, so clicking or dragging the Script leaves it open.
-                if (!open && timerPinned && (details.reason === "outside-press" || details.reason === "focus-out")) return;
-                onTimerOpenChange(open);
-              }}
+              onOpenChange={onTimerOpenChange}
+              pinned={timerPinned}
+              command={toggleTimer}
+              trigger={
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Timer"
+                />
+              }
+              triggerContent={<Timer />}
+              className="w-80"
             >
-              <Hint command={toggleTimer}>
-                <PopoverTrigger
-                  render={
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Timer"
-                    />
-                  }
-                >
-                  <Timer />
-                </PopoverTrigger>
-              </Hint>
-              <PopoverContent
-                side="top"
-                sideOffset={12}
-                className="w-80"
-                // The popover renders inside the Prompter's React tree, so a wheel over it would otherwise scroll the Script.
-                onWheel={(event) => event.stopPropagation()}
-              >
-                {timerPanel}
-              </PopoverContent>
-            </Popover>
+              {timerPanel}
+            </PinnablePopover>
             <Hint command={openSettings}>
               <Button
                 size="icon"
@@ -236,12 +256,56 @@ export const ControlBar = ({
                 <Keyboard />
               </Button>
             </Hint>
+            <Toggle
+              size="sm"
+              aria-label="Keep the control bar visible"
+              title={barPinned ? "Pinned: stays visible while you read" : "Pin to keep the bar visible"}
+              pressed={barPinned}
+              onPressedChange={onBarPinnedChange}
+            >
+              <Pin className={barPinned ? "fill-current" : undefined} />
+            </Toggle>
           </div>
         </div>
       </BarVisible.Provider>
     </TooltipProvider>
   );
 };
+
+interface PinnablePopoverProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  pinned: boolean;
+  command: Command;
+  trigger: ReactElement;
+  triggerContent: ReactNode;
+  className: string;
+  children: ReactNode;
+}
+
+// A panel above the bar. Pinned, it stays up while you read, so clicking or dragging the Script leaves it open.
+const PinnablePopover = ({ open, onOpenChange, pinned, command, trigger, triggerContent, className, children }: PinnablePopoverProps) => (
+  <Popover
+    open={open}
+    onOpenChange={(next, details) => {
+      if (!next && pinned && (details.reason === "outside-press" || details.reason === "focus-out")) return;
+      onOpenChange(next);
+    }}
+  >
+    <Hint command={command}>
+      <PopoverTrigger render={trigger}>{triggerContent}</PopoverTrigger>
+    </Hint>
+    <PopoverContent
+      side="top"
+      sideOffset={12}
+      className={className}
+      // The popover renders inside the Prompter's React tree, so a wheel over it would otherwise scroll the Script.
+      onWheel={(event) => event.stopPropagation()}
+    >
+      {children}
+    </PopoverContent>
+  </Popover>
+);
 
 interface StepperProps {
   label: string;

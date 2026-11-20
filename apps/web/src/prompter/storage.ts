@@ -4,7 +4,14 @@ import { DEFAULT_SETTINGS, parseSettings, type DisplaySettings } from "./setting
 const LEGACY_SCRIPT_KEY = "teleprompter.script";
 const LEGACY_DRAFT_KEY = "teleprompter.draft";
 const SETTINGS_KEY = "teleprompter.settings";
-const TIMER_PINNED_KEY = "teleprompter.timerPinned";
+// The panels with a pin, and where each pin is kept.
+const PINNED_KEYS = {
+  timer: "teleprompter.timerPinned",
+  speakingRate: "teleprompter.speakingRatePinned",
+  controlBar: "teleprompter.controlBarPinned",
+} as const;
+
+export type PinnedPanel = keyof typeof PINNED_KEYS;
 
 const read = (key: string): unknown => {
   try {
@@ -62,9 +69,9 @@ export const loadSettings = (): DisplaySettings => {
 export const saveSettings = (settings: DisplaySettings) => write(SETTINGS_KEY, settings);
 
 // Kept apart from the settings because the pin is its own control, not a field in a settings panel.
-export const loadTimerPinned = (): boolean => {
-  const raw = read(TIMER_PINNED_KEY);
+export const loadPinned = (panel: PinnedPanel): boolean => {
+  const raw = read(PINNED_KEYS[panel]);
   return isBoolean(raw) ? raw : false;
 };
 
-export const saveTimerPinned = (pinned: boolean) => write(TIMER_PINNED_KEY, pinned);
+export const savePinned = (panel: PinnedPanel, pinned: boolean) => write(PINNED_KEYS[panel], pinned);

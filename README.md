@@ -20,7 +20,7 @@ A local server holds the Script and its recent history, so other tools can send 
 ### Follow and Read aloud
 
 - [Follow](#follow-your-voice) scrolls as you read aloud, using a Whisper server on your machine. It keeps up with your pace, waits when you pause, and finds you again when you skip ahead or go back.
-- [Speaking rate](#speaking-rate) shows how fast you are speaking, in words per minute, while Follow listens.
+- [Speaking rate](#speaking-rate) shows how fast you are speaking, in words per minute, while Follow listens, with a graph of the last minute and its average, lowest, highest and last rates.
 - [Read aloud](#read-aloud) has the computer speak the Script through a Kokoro server on your machine, with its own Voice speed and a choice of Voice. In Follow, the Prompter follows that voice, so you can see how Follow keeps up.
 - Nothing leaves your machine. The audio and the text go only to servers you run.
 
@@ -179,6 +179,8 @@ The server saves a Version of the Script before every Push, and before an Edit t
 
 ## Use the Prompter
 
+The control bar at the bottom fades out two seconds after the mouse stops while the Prompter plays. To keep it on screen, click the pin at its right end. The pin is saved in your browser.
+
 Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it does and its shortcut. The common ones:
 
 | Key     | Action                                                                                                                     |
@@ -194,6 +196,7 @@ Press `?` to see every keyboard shortcut. Hover a toolbar button to see what it 
 | `p`     | Open the Editor.                                                                                                           |
 | `s`     | Turn Spoken-only on or off.                                                                                                |
 | `t`     | Open the Timer.                                                                                                            |
+| `w`     | Open the Speaking rate.                                                                                                    |
 | `,`     | Open the display settings.                                                                                                 |
 
 Scroll the mouse wheel or drag the text to move through the Script by hand. Scrolling, dragging, and the arrow keys keep playing from where you move to, in Auto or Follow. To have them pause instead, turn off **Keep playing when you move** in Advanced settings.
@@ -223,7 +226,13 @@ Follow is only as quick as the Whisper server. When Whisper answers slowly, for 
 
 #### Speaking rate
 
-While Follow listens, the top right corner shows how fast the voice it hears is going, in words per minute. The control bar shows the same number next to the speaker button. Both show `-- wpm` while nothing is heard: in Auto, before Follow has heard about two seconds of speech, and after about two seconds of quiet. A longer pause starts the count again, so it is the rate of your current stretch of speech, pauses within it included.
+While Follow listens, the control bar shows how fast the voice it hears is going, in words per minute, next to the speaker button. It shows `-- wpm` until Follow has heard about two seconds of speech.
+
+Click that number, or press `w`, to open the Speaking rate panel above the control bar. Like the Timer, it closes when you click the Script unless you pin it, and the pin is remembered. It is see-through, so the Script stays visible behind it.
+
+When you stop speaking, the number stays up for five more seconds, dimmed and marked _paused_, then shows `-- wpm`. A pause of about two seconds or more starts the count again, so it is the rate of your current stretch of speech, pauses within it included.
+
+Under the number, a graph shows the rate over the last minute, with gaps where you were quiet and a dashed line at the average. Below it are the average, lowest and highest rates over that minute, and the last rate heard. The average counts each rate for as long as it lasted. To look further back or less far, change **Speaking rate window** in Advanced settings, from 10 seconds to 5 minutes. Pausing Follow keeps the panel as it was, and the history carries on when Follow listens again. **Clear** wipes the graph and the numbers under it, for example before a new take. If you are speaking when you click it, the current rate stays up and the new history starts from it.
 
 The number comes from where in the Script Follow matched your voice over the last ten seconds, fitted as a straight line so that no one match decides it. Going back to reread, or skipping ahead, starts the count again. Words you say that are not in the Script do not count.
 
