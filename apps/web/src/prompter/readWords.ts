@@ -19,8 +19,10 @@ export const useReadWords = (textRef: RefObject<HTMLElement | null>, words: unkn
     let { current } = marked;
 
     if (current.words !== words) {
-      // New words are new elements, none of them marked yet.
-      current = { words, spans: [...text.querySelectorAll<HTMLElement>("[data-word]")], count: 0 };
+      // React keeps the elements of words at the same index, marks and all, so new words start with every mark cleared.
+      const spans = [...text.querySelectorAll<HTMLElement>("[data-word]")];
+      for (const span of spans) delete span.dataset.read;
+      current = { words, spans, count: 0 };
       marked.current = current;
     }
 
