@@ -60,6 +60,8 @@ export class FollowSession {
   #stretch: Stretch = NO_STRETCH;
   // The rate last sent, so it is sent again only when it changes.
   #wpm: number | null = null;
+  // When the clip of the last match ended, or when listening started.
+  #lastHeardAt = 0;
   #stopped = false;
   #opening: Promise<Microphone> | null = null;
   #quietCheck: ReturnType<typeof setInterval> | undefined;
@@ -103,6 +105,7 @@ export class FollowSession {
   async #listen(mic: Microphone): Promise<void> {
     if (this.#stopped) return;
     this.#host.onStatus({ kind: "listening" });
+    this.#lastHeardAt = performance.now();
 
     // Checked often, apart from the slower transcription loop, so the cursor stops soon after the reader does.
     this.#quietCheck = setInterval(() => {
@@ -154,6 +157,8 @@ export class FollowSession {
     this.#updateStretch(withMatch(this.#stretch, { position: matched, at: started }));
     // The clip ended when it was sent; the reader has kept reading since.
     const position = matched + this.#pace * (performance.now() - started);
-    this.#host.dispatch({ type: "HEARD", matched, position, pace: this.#pace });
+    const readMs = started - this.#lastHeardAt;
+    this.#lastHeardAt = started;
+    this.#host.dispatch({ type: "HEARD", matched, position, pace: this.#pace, readMs });
   }
 }
