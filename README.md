@@ -151,7 +151,7 @@ This builds the plugin and copies it into the vault's `.obsidian/plugins/telepro
   %% /tp %%
   ```
 
-- Open the range with `%% tp-default %%` in place of `%% tp %%` to have it selected each time you open the note, so the commands and hotkeys send it. Only the first `tp-default` range in a note is selected.
+- Open the range with `%% tp-default %%` in place of `%% tp %%` to have the note open scrolled to it, with the marker at the top. This works in Live Preview and Source mode. Only the first `tp-default` range in a note is used.
 - The note's title becomes the Script's source, and the text is sent as markdown, so Spoken-only hides frontmatter, comments, and callouts.
 - If the server is not running, a notice tells you to run `tp serve`. To use another address, change **Server address** in the plugin's settings.
 

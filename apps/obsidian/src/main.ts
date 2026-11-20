@@ -1,6 +1,7 @@
 import { type App, type Editor, type MarkdownFileInfo, MarkdownView, Notice, Plugin, PluginSettingTab, requestUrl, Setting } from "obsidian";
+import { EditorView } from "@codemirror/view";
 import { isNil } from "es-toolkit";
-import { blockText, findBlocks } from "./blocks.ts";
+import { findBlocks } from "./blocks.ts";
 import { editorButtons, readingButtons } from "./buttons.ts";
 import { DEFAULT_SERVER_URL, PushError, pushFor, sendPush, type Http, type PushKind } from "./push.ts";
 import type { PushRequest } from "@teleprompter/protocol";
@@ -58,26 +59,23 @@ export default class TeleprompterPlugin extends Plugin {
     this.registerEditorExtension(editorButtons(pushBlock));
     this.registerMarkdownPostProcessor(readingButtons(pushBlock, (sourcePath) => this.app.vault.getFileByPath(sourcePath)?.basename ?? "Obsidian"));
 
-    this.registerEvent(this.app.workspace.on("file-open", () => this.selectDefaultRange()));
+    this.registerEvent(this.app.workspace.on("file-open", () => this.showDefaultRange()));
 
     this.addSettingTab(new TeleprompterSettingTab(this.app, this));
   }
 
-  // Waits a tick so Obsidian restores the note's saved cursor first, and the selection wins.
-  selectDefaultRange() {
+  // Waits a tick so the note's text is in the editor.
+  showDefaultRange() {
     window.setTimeout(() => {
       const view = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (isNil(view) || view.getMode() !== "source") return;
 
-      const { editor } = view;
-      const text = editor.getValue();
-      const block = findBlocks(text).find((found) => found.kind === "default");
-      if (isNil(block) || blockText(text, block) === "") return;
+      const block = findBlocks(view.editor.getValue()).find((found) => found.kind === "default");
+      if (isNil(block)) return;
 
-      const lines = blockText(text, block).split("\n");
-      const to = { line: block.start + lines.length - 1, ch: lines.at(-1)!.length };
-      editor.setSelection({ line: block.start, ch: 0 }, to);
-      editor.scrollIntoView({ from: { line: block.start, ch: 0 }, to }, true);
+      // Obsidian's typings leave out the editor's CodeMirror view, which can put a line at the top.
+      const { cm } = view.editor as Editor & { cm: EditorView };
+      cm.dispatch({ effects: EditorView.scrollIntoView(cm.state.doc.line(block.buttonLine + 1).from, { y: "start" }) });
     }, 0);
   }
 
