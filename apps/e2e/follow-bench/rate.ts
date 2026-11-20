@@ -72,9 +72,10 @@ const run = async (speed: number, dir: string) => {
     while ((Date.now() - opened) / 1000 < starts.at(-1)! + TAIL_SEC - 0.5) {
       await page.waitForTimeout(1000);
       const sec = (Date.now() - opened) / 1000;
-      // A held rate is the last one heard, not the current one.
-      const number = page.locator("[data-speaking-rate-now]:not([data-held])");
-      const text = (await number.count()) > 0 ? ((await number.textContent()) ?? "") : "-- wpm";
+      // A held rate is the last one heard, not the current one. One read, so the rate cannot change between checks.
+      const text = await page
+        .locator("[data-speaking-rate-now]")
+        .evaluate((el) => (el.hasAttribute("data-held") ? "-- wpm" : (el.textContent ?? "")));
       const truth = trueWpm(starts, sec);
       const value = Number.parseInt(text, 10);
       if (Number.isFinite(value) && truth !== null && sec > 3) errors.push(value - truth);

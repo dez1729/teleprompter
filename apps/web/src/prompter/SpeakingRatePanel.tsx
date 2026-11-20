@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PopoverDescription, PopoverHeader, PopoverTitle } from "@/components/ui/popover";
 import { Toggle } from "@/components/ui/toggle";
-import { lastWpm, rateStats, segmentsIn, shownRate, type RateHistory, type RateSegment } from "./follow/rateHistory";
+import { HOLD_MS, lastWpm, rateStats, segmentsIn, shownRate, type RateHistory, type RateSegment } from "./follow/rateHistory";
 
 // Often enough for the graph to scroll smoothly and the held rate to clear on time.
 const TICK_MS = 500;
@@ -15,19 +15,31 @@ const MIN_SPAN_WPM = 40;
 
 export const speakingRateText = (wpm: number | null): string => `${wpm ?? "--"} wpm`;
 
-// The clock the rate is read at. Listening, it ticks; stopped, it rests on the last change, so the graph and the
-// held rate stay as they were when Follow stopped.
-const useRateClock = (history: RateHistory, listening: boolean): number => {
+interface RateClock {
+  // Reads the held rate, so it clears on time even after Follow stops.
+  live: number;
+  // Reads the graph and stats. It stops at the last change once Follow stops, so they stay as they were.
+  frozen: number;
+}
+
+// Listening, the clock ticks. Stopped, it wakes once more when the held rate runs out.
+const useRateClock = (history: RateHistory, listening: boolean): RateClock => {
   const [tick, setTick] = useState(() => performance.now());
+  const lastChange = history.at(-1)?.at;
 
   useEffect(() => {
-    if (!listening) return;
-    const interval = setInterval(() => setTick(performance.now()), TICK_MS);
-    return () => clearInterval(interval);
-  }, [listening]);
+    if (listening) {
+      const interval = setInterval(() => setTick(performance.now()), TICK_MS);
+      return () => clearInterval(interval);
+    }
 
-  const lastChange = history.at(-1)?.at ?? tick;
-  return listening ? Math.max(tick, lastChange) : lastChange;
+    if (isNil(lastChange)) return;
+    const holdEnds = setTimeout(() => setTick(performance.now()), Math.max(0, lastChange + HOLD_MS - performance.now()));
+    return () => clearTimeout(holdEnds);
+  }, [listening, lastChange]);
+
+  const live = Math.max(tick, lastChange ?? tick);
+  return { live, frozen: listening ? live : (lastChange ?? tick) };
 };
 
 interface BadgeProps {
@@ -37,11 +49,12 @@ interface BadgeProps {
 
 // The control bar's copy of the number, held after a pause the same way. It opens the panel.
 export const SpeakingRateBadge = ({ rates, listening }: BadgeProps) => {
-  const shown = shownRate(rates, useRateClock(rates, listening));
+  const shown = shownRate(rates, useRateClock(rates, listening).live);
 
   return (
     <>
       <AudioLines className="opacity-60" />
+      <span className="sr-only">Speaking rate </span>
       <span
         data-speaking-rate
         className={`text-xs tabular-nums ${shown.held ? "opacity-60" : ""}`}
@@ -63,10 +76,10 @@ interface Props {
 }
 
 export const SpeakingRatePanel = ({ rates, listening, windowSec, pinned, onPinnedChange, onClear }: Props) => {
-  const now = useRateClock(rates, listening);
+  const clock = useRateClock(rates, listening);
   const windowMs = windowSec * 1000;
-  const shown = shownRate(rates, now);
-  const segments = segmentsIn(rates, now, windowMs);
+  const shown = shownRate(rates, clock.live);
+  const segments = segmentsIn(rates, clock.frozen, windowMs);
   const stats = rateStats(segments);
   const last = lastWpm(rates);
 
@@ -99,7 +112,7 @@ export const SpeakingRatePanel = ({ rates, listening, windowSec, pinned, onPinne
       </p>
       <RateGraph
         segments={segments}
-        now={now}
+        now={clock.frozen}
         windowMs={windowMs}
         average={stats?.average ?? null}
       />

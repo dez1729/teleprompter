@@ -1,4 +1,5 @@
 import { isNil, maxBy, minBy, sumBy } from "es-toolkit";
+import { SETTING_DEFS } from "../settings";
 
 // From `at`, the Speaking rate was `wpm`, or nothing was heard (null), until the next change.
 export interface RateChange {
@@ -31,7 +32,7 @@ export interface ShownRate {
 export const NO_RATES: RateHistory = [];
 
 // The longest window the Speaking rate panel can show. Older changes are dropped.
-export const MAX_WINDOW_MS = 300_000;
+export const MAX_WINDOW_MS = SETTING_DEFS.rateWindowSec.max * 1000;
 // The last rate stays up this long after the voice goes quiet.
 export const HOLD_MS = 5000;
 

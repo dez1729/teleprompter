@@ -173,7 +173,6 @@ export const ControlBar = ({
                   variant="ghost"
                   size="sm"
                   className="min-w-24"
-                  aria-label="Speaking rate"
                 />
               }
               triggerContent={
