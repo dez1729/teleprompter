@@ -20,10 +20,8 @@ const useRateClock = (history: RateHistory, listening: boolean): RateReading => 
   const lastChange = history.at(-1)?.at;
   const tick = useSyncExternalStore(clock.subscribe, clock.getSnapshot);
 
-  useEffect(() => {
-    clock.follow(lastChange, listening);
-    return clock.stop;
-  }, [clock, lastChange, listening]);
+  useEffect(() => clock.follow(lastChange, listening), [clock, lastChange, listening]);
+  useEffect(() => clock.stop, [clock]);
 
   return readRateClock(tick, lastChange, listening);
 };

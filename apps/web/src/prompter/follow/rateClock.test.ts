@@ -52,6 +52,20 @@ describe("the rate clock after Follow stops", () => {
 });
 
 describe("the rate clock while listening", () => {
+  it("ticks every half second while new rates keep arriving", () => {
+    const clock = createRateClock();
+    const redraws = vi.fn();
+    clock.subscribe(redraws);
+
+    // A new rate every 300 ms, as the view passes each one on.
+    for (let at = 0; at < 3000; at += 300) {
+      clock.follow(at, true);
+      vi.advanceTimersByTime(300);
+    }
+
+    expect(redraws).toHaveBeenCalledTimes(6);
+  });
+
   it("ticks, and tells its subscribers", () => {
     const clock = createRateClock();
     const redraws = vi.fn();

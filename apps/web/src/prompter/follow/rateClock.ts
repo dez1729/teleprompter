@@ -21,6 +21,7 @@ export const readRateClock = (tick: number, lastChange: number | undefined, list
 export const createRateClock = () => {
   let tick = performance.now();
   let wake: ReturnType<typeof setTimeout> | undefined;
+  let ticking = false;
   const listeners = new Set<() => void>();
 
   const redraw = (at: number) => {
@@ -32,6 +33,7 @@ export const createRateClock = () => {
     clearTimeout(wake);
     clearInterval(wake);
     wake = undefined;
+    ticking = false;
   };
 
   return {
@@ -42,9 +44,12 @@ export const createRateClock = () => {
     },
     getSnapshot: () => tick,
     follow: (lastChange: number | undefined, listening: boolean) => {
+      // New rates arrive faster than it ticks, so restarting the tick on each one would stall it.
+      if (listening && ticking) return;
       stop();
 
       if (listening) {
+        ticking = true;
         wake = setInterval(() => redraw(performance.now()), TICK_MS);
         return;
       }
