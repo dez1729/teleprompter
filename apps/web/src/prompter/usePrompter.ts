@@ -104,7 +104,11 @@ export const usePrompter = (ui: UiBridge) => {
   }, [voice]);
 
   // Reading aloud, Follow hears the voice at its own pace instead of the reader through the microphone.
-  const { status: follow, wpm: speakingWpm } = useFollow(
+  const {
+    status: follow,
+    rates: speakingRates,
+    clearRates,
+  } = useFollow(
     playback.mode,
     tokens.words,
     settings.readAloud ? { expectedWpm: settings.voiceWpm, listen: listenToVoice } : { expectedWpm: settings.speedWpm, listen: openMicrophone },
@@ -260,6 +264,7 @@ export const usePrompter = (ui: UiBridge) => {
         case "openEditor":
         case "toggleHelp":
         case "toggleTimer":
+        case "toggleSpeakingRate":
           return uiRef.current.onUiCommand(command);
         case "switchScrollMode": {
           const scrollMode = settingsRef.current.scrollMode === "auto" ? "follow" : "auto";
@@ -314,7 +319,8 @@ export const usePrompter = (ui: UiBridge) => {
     settings,
     playback,
     follow,
-    speakingWpm,
+    speakingRates,
+    clearRates,
     narration,
     readout,
     replaced,

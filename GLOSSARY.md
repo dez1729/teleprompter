@@ -97,7 +97,7 @@ The Auto pace, in words per minute. Independent of text size.
 _Avoid_: Scroll rate, px/s
 
 **Speaking rate**:
-How fast the voice Follow hears is going, in words per minute, counted from the Script words it matched. Shown while Follow listens. Measured, unlike Speed and Voice speed, which are set.
+How fast the voice Follow hears is going, in words per minute, counted from the Script words it matched. Shown while Follow listens. Measured, unlike Speed and Voice speed, which are set. The Speaking rate panel, opened from the control bar, graphs it over the Speaking rate window with its average, lowest, highest and last rates.
 _Avoid_: WPM meter, reading speed
 
 **Read aloud**:

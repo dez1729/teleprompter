@@ -49,6 +49,11 @@ describe("commandForKey", () => {
     expect(helpRows().flatMap((g) => g.rows)).toContainEqual({ keys: "T", description: "Timer" });
   });
 
+  it("toggles the Speaking rate panel with w", () => {
+    expect(commandForKey({ key: "w", shiftKey: false })).toEqual({ type: "toggleSpeakingRate" });
+    expect(tooltipFor({ type: "toggleSpeakingRate" })).toBe("Speaking rate (W)");
+  });
+
   it("opens settings and the Editor", () => {
     expect(commandForKey({ key: ",", shiftKey: false })).toEqual({ type: "openSettings" });
     expect(commandForKey({ key: "P", shiftKey: true })).toEqual({ type: "openEditor" });

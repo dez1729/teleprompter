@@ -11,7 +11,8 @@ export type PlaybackCommand =
   | { type: "switchScrollMode" };
 
 /** Opens or closes UI. The Prompter owns that state, so these never reach the playback reducer. */
-export type UiCommand = { type: "openSettings" } | { type: "openEditor" } | { type: "toggleHelp" } | { type: "toggleTimer" };
+export type UiCommand =
+  { type: "openSettings" } | { type: "openEditor" } | { type: "toggleHelp" } | { type: "toggleTimer" } | { type: "toggleSpeakingRate" };
 
 export type Command = PlaybackCommand | UiCommand;
 
@@ -73,6 +74,7 @@ export const KEYMAP: readonly Binding[] = [
   { key: "f", label: "F", command: { type: "switchScrollMode" }, description: "Switch between Auto and Follow", group: "Playback" },
   { key: "r", label: "R", command: { type: "flip", setting: "readAloud" }, description: "Read aloud on / off", group: "Playback" },
   { key: "t", label: "T", command: { type: "toggleTimer" }, description: "Timer", group: "Panels" },
+  { key: "w", label: "W", command: { type: "toggleSpeakingRate" }, description: "Speaking rate", group: "Panels" },
   { key: ",", label: ",", command: { type: "openSettings" }, description: "Display settings", group: "Panels" },
   { key: "p", label: "P", command: { type: "openEditor" }, description: "Open the Editor", group: "Panels" },
   { key: "?", label: "?", shift: true, command: { type: "toggleHelp" }, description: "Keyboard shortcuts", group: "Panels" },
